@@ -92,22 +92,22 @@ function buildFixedShortcuts(t: TFunction<"components">): ShortcutRow[] {
     },
     {
       id: "wheel-pages",
-      keys: ["Wheel"],
+      keys: [t("shortcuts.input.wheel")],
       desc: t("shortcuts.fixed.wheelPages"),
     },
     {
       id: "fit-height-gesture",
-      keys: ["Ctrl", "Middle click"],
+      keys: [...formatCombo("ctrl"), t("shortcuts.input.middleClick")],
       desc: t("shortcuts.fixed.fitHeight"),
     },
     {
       id: "multi-select",
-      keys: ["Ctrl", "Click"],
+      keys: [...formatCombo("ctrl"), t("shortcuts.input.click")],
       desc: t("shortcuts.fixed.toggleSelection"),
     },
     {
       id: "range-select",
-      keys: ["Shift", "Click"],
+      keys: [...formatCombo("shift"), t("shortcuts.input.click")],
       desc: t("shortcuts.fixed.rangeSelection"),
     },
     {

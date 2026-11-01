@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconPlus } from "@tabler/icons-react";
 
 import React from "react";
@@ -5,11 +6,11 @@ import React from "react";
 import type { ConditionalBatchField } from "../../../shared/conditionalBatchFieldRegistry";
 
 import {
-  CONDITIONAL_BATCH_FIELD_LABELS,
   QUICK_CONDITIONAL_BATCH_FIELDS,
   isNewConditionalBatchConditionField,
   listConditionalBatchFields,
 } from "./conditionalBatchUi";
+import { CONDITIONAL_BATCH_FIELD_LABELS } from "./conditionalBatchLabels";
 
 import { Button } from "./ui/Button";
 import { Select } from "./ui/Select";
@@ -25,6 +26,7 @@ export function FieldPicker({
   recentFields: readonly ConditionalBatchField[];
   onAdd: (field: ConditionalBatchField) => void;
 }) {
+  const { t } = useTranslation("components");
   const [selected, setSelected] =
     React.useState<ConditionalBatchField>("translatedText");
   const quickFields = [...recentFields, ...QUICK_CONDITIONAL_BATCH_FIELDS]
@@ -34,7 +36,7 @@ export function FieldPicker({
     <details className={styles.addMenu}>
       <summary>
         <IconPlus size={15} />
-        조건 추가
+        {t("batchEditorCopy.addCondition")}
       </summary>
       <div className={styles.fieldPicker}>
         <div className={styles.quickFields}>
@@ -52,9 +54,9 @@ export function FieldPicker({
         </div>
         <div className={styles.fieldPickerAll}>
           <Select
-            ariaLabel="추가할 조건 필드"
+            ariaLabel={t("batchEditorCopy.conditionFieldToAdd")}
             searchable
-            searchPlaceholder="조건 필드 검색"
+            searchPlaceholder={t("batchEditorCopy.searchConditionFields")}
             disabled={disabled}
             value={selected}
             options={listConditionalBatchFields()
@@ -70,7 +72,7 @@ export function FieldPicker({
             }
           />
           <Button size="sm" disabled={disabled} onClick={() => onAdd(selected)}>
-            추가
+            {t("common.add")}
           </Button>
         </div>
       </div>

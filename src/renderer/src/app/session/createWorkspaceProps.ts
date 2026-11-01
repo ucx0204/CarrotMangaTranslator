@@ -102,6 +102,7 @@ function createWorkspaceInteractionProps({
   | "commandRegistry"
 >) {
   return {
+    hasLibraryWorks: Boolean(core.library.works.length),
     onBlockPointerDown: (
       ...args: Parameters<typeof pointerHandlers.onBlockPointerDown>
     ) => {

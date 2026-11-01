@@ -1,6 +1,5 @@
 import {
   buildExportSelection,
-  createDefaultExportSelection,
   type ExportSelectionMap,
 } from "./exportSelection";
 import type { AutoInpaintingChapterSelection as SharedAutoInpaintingChapterSelection } from "../../../shared/inpaintingTypes";
@@ -16,7 +15,9 @@ function createDefaultAutoInpaintingSelection(
   chapterId: string,
   currentPageId: string,
 ): AutoInpaintingSelectionMap {
-  return createDefaultExportSelection(chapterId, currentPageId);
+  return new Map([
+    [chapterId, { kind: "pages", pageIds: new Set([currentPageId]) }],
+  ]);
 }
 
 export function createScopedAutoInpaintingSelection(

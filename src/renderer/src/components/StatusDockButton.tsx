@@ -115,7 +115,12 @@ export function StatusDockButton({
   );
   const indicator = running
     ? "running"
-    : resolveStatusIndicator(jobState, operationActivity, unread);
+    : resolveStatusIndicator(
+        jobState,
+        operationActivity,
+        unread,
+        failedPages.length,
+      );
   const tooltip = resolveStatusTooltip(latest, t);
   return (
     <div className="status-dock" ref={rootRef}>
@@ -330,7 +335,9 @@ function resolveStatusIndicator(
   jobState: JobState,
   operationActivity: AppOperationActivityEvent | null,
   unread: boolean,
+  failedPageCount: number,
 ): string {
+  if (failedPageCount > 0) return "failed";
   if (jobState.status === "failed") return "failed";
   if (jobState.status === "partial") return "partial";
   if (operationActivity?.status === "failed") return "failed";

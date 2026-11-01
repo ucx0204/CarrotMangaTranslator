@@ -1,11 +1,14 @@
+import { useTranslation } from "react-i18next";
+import { appI18n } from "../appI18n";
 import React from "react";
 import type { TranslationOptionsModalProps } from "./translationOptionsModalTypes";
 import type { usePageWorkflowModalState } from "./pageWorkflowModalState";
-import { PAGE_WORKFLOW_STAGE_LABELS } from "../../../shared/pageWorkflowStages";
-import { CONDITIONAL_BATCH_FIELD_LABELS } from "./conditionalBatchUi";
+import { CONDITIONAL_BATCH_FIELD_LABELS } from "./conditionalBatchLabels";
 import { Button } from "./ui/Button";
 import { CheckboxField } from "./ui/CheckboxField";
 import styles from "./PageWorkflowModal.module.css";
+
+const t = appI18n.getFixedT(null, "components");
 
 type Props = {
   props: TranslationOptionsModalProps;
@@ -19,6 +22,7 @@ export function PageWorkflowSummary({
   confirmed,
   setConfirmed,
 }: Props) {
+  useTranslation();
   const [details, setDetails] = React.useState(false);
   return (
     <section className={styles.summary} aria-live="polite">
@@ -26,8 +30,8 @@ export function PageWorkflowSummary({
         <strong>{workflowScopeLabel(state)}</strong>
         <span>
           {state.plan.overwrite.length
-            ? "선택한 기존 값 덮어쓰기"
-            : "기존 결과 보존 · 빈 항목만 처리"}
+            ? t("batchEditorCopy.overwriteSelectedExistingValues")
+            : t("batchEditorCopy.preserveExistingResultsProcessEmptyItemsOnly")}
         </span>
         <Button
           variant="ghost"
@@ -35,14 +39,19 @@ export function PageWorkflowSummary({
           onClick={() => setDetails(!details)}
           aria-expanded={details}
         >
-          {details ? "상세 접기" : "처리 내역"}
+          {details
+            ? t("batchEditorCopy.hideDetails")
+            : t("batchEditorCopy.processingDetails")}
         </Button>
       </div>
       {details && <WorkflowCounts state={state} />}
-      {requiresFontOcr(state.plan) && <p>폰트 분석용 OCR 필요</p>}
+      {requiresFontOcr(state.plan) && (
+        <p>{t("batchEditorCopy.ocrRequiredForFontAnalysis")}</p>
+      )}
       {state.preflight?.ruleEffects?.map((effect, index) => (
         <p key={index}>
-          {PAGE_WORKFLOW_STAGE_LABELS[effect.stage]} · {effect.name}:{" "}
+          {t(`pageList.timing.workflow.stages.${effect.stage}`)} · {effect.name}
+          :{" "}
           {effect.fields
             .map(
               (field) =>
@@ -51,7 +60,7 @@ export function PageWorkflowSummary({
                 ] ?? field,
             )
             .join(", ")}{" "}
-          변경
+          {t("settings.api.vertexServiceAccountChange")}
         </p>
       ))}
       {state.error && (
@@ -70,7 +79,15 @@ export function PageWorkflowSummary({
         <CheckboxField
           checked={confirmed}
           onCheckedChange={setConfirmed}
-          label={`기존 값 변경 확인: ${state.plan.overwrite.map((id) => PAGE_WORKFLOW_STAGE_LABELS[id]).join(", ")}`}
+          label={t("batchEditorMessages.confirmChangesToExistingValues", {
+            p0: state.plan.overwrite
+              .map((id) =>
+                appI18n.t(`pageList.timing.workflow.stages.${id}`, {
+                  ns: "components",
+                }),
+              )
+              .join(", "),
+          })}
         />
       )}
     </section>
@@ -80,9 +97,13 @@ export function PageWorkflowSummary({
 /** "80페이지 × 7단계 = 단계 작업 560개", matching the progress counter. */
 function workflowScopeLabel(state: Props["state"]): string {
   const stages = state.plan.stages.length;
-  if (!state.preflight) return `${stages}단계`;
+  if (!state.preflight) return t("batchEditorMessages.steps", { p0: stages });
   const pages = state.preflight.pageCount;
-  return `${pages}페이지 × ${stages}단계 = 단계 작업 ${pages * stages}개`;
+  return t("batchEditorMessages.pagesStepsStepTasks", {
+    p0: pages,
+    p1: stages,
+    p2: pages * stages,
+  });
 }
 
 function requiresFontOcr(plan: Props["state"]["plan"]) {
@@ -94,20 +115,21 @@ function requiresFontOcr(plan: Props["state"]["plan"]) {
 }
 
 function WorkflowCounts({ state }: Pick<Props, "state">) {
+  useTranslation();
   return (
     <table className={styles.counts}>
       <thead>
         <tr>
-          <th>작업 순서</th>
-          <th>처리</th>
-          <th>보존</th>
-          <th>대상 없음</th>
+          <th>{t("batchEditorCopy.workflowOrder")}</th>
+          <th>{t("batchEditorCopy.process")}</th>
+          <th>{t("batchEditorCopy.preserve")}</th>
+          <th>{t("batchEditorCopy.noTargets")}</th>
         </tr>
       </thead>
       <tbody>
         {state.preflight?.counts.map((count) => (
           <tr key={count.stage}>
-            <th>{PAGE_WORKFLOW_STAGE_LABELS[count.stage]}</th>
+            <th>{t(`pageList.timing.workflow.stages.${count.stage}`)}</th>
             <td>{count.process}</td>
             <td>{count.preserve}</td>
             <td>{count.empty}</td>

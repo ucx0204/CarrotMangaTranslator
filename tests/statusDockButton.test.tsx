@@ -132,7 +132,10 @@ describe("status dock", () => {
 
     expect(screen.queryByRole("region", { name: "작업 센터" })).toBeNull();
     await waitFor(() => expect(button.classList.contains("unread")).toBe(true));
-    expect(button.getAttribute("title")).toBe("최근 상태: 가장 최근");
+    fireEvent.focus(button);
+    expect(screen.getByRole("tooltip").textContent).toBe(
+      "최근 상태: 가장 최근",
+    );
   });
 
   it("renders chapter labels with an app tooltip for the work title", () => {
@@ -498,8 +501,11 @@ describe("status dock", () => {
 
     const dockButton = screen.getByRole("button", { name: "작업 센터 열기" });
     expect(dockButton.classList.contains("running")).toBe(true);
-    expect(dockButton.getAttribute("title")).toContain("PDF 가져오기 준비");
-    expect(dockButton.getAttribute("title")).toContain("변환·추출");
+    fireEvent.focus(dockButton);
+    expect(screen.getByRole("tooltip").textContent).toContain(
+      "PDF 가져오기 준비",
+    );
+    expect(screen.getByRole("tooltip").textContent).toContain("변환·추출");
 
     fireEvent.click(dockButton);
     expect(

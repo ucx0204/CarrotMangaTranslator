@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconTrash } from "@tabler/icons-react";
 
 import type { ConditionalBatchField } from "../../../shared/conditionalBatchFieldRegistry";
@@ -42,6 +43,7 @@ export function ConditionGroupCard({
   onChange,
   onRemove,
 }: ConditionGroupCardProps) {
+  useTranslation();
   return (
     <section className={styles.conditionGroup}>
       <ConditionGroupHeader
@@ -118,27 +120,34 @@ function ConditionGroupHeader({
   onChange: (group: ConditionalBatchConditionGroupV2) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <header>
       <CheckboxField
         checked={group.enabled}
-        label="조건 그룹"
+        label={t("batchEditorCopy.conditionGroup")}
         onCheckedChange={(enabled) => onChange({ ...group, enabled })}
       />
       <SegmentedControl
-        ariaLabel="그룹 조건 결합"
+        ariaLabel={t("batchEditorCopy.combineGroupConditions")}
         singleRow
         value={group.logic}
         options={[
-          { id: "all", label: "모두" },
-          { id: "any", label: "하나라도" },
+          {
+            id: "all",
+            label: t("batchEditorCopy.all"),
+          },
+          {
+            id: "any",
+            label: t("batchEditorCopy.any"),
+          },
         ]}
         onChange={(logic) => onChange({ ...group, logic })}
       />
       <Button
         size="sm"
         variant="ghost"
-        aria-label="조건 그룹 삭제"
+        aria-label={t("batchEditorCopy.deleteConditionGroup")}
         iconLeft={<IconTrash size={14} />}
         onClick={onRemove}
       />

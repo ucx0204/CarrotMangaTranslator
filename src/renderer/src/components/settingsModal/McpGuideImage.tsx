@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React from "react";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
@@ -13,6 +14,7 @@ export function GuideImage({
   title: string;
   kind?: "sidebar" | "form" | "highlight" | "menu";
 }) {
+  const { t } = useTranslation("components");
   const [expanded, setExpanded] = React.useState(false);
   const picture = (
     <div className={styles.guidePicture} data-kind={kind}>
@@ -29,10 +31,10 @@ export function GuideImage({
         <Button
           size="sm"
           variant="ghost"
-          aria-label={`${title} 크게 보기`}
+          aria-label={`${title} · ${t("mcpGuideCopy.enlarge")}`}
           onClick={() => setExpanded(true)}
         >
-          크게 보기
+          {t("mcpGuideCopy.enlarge")}
         </Button>
       </figcaption>
       {expanded && (

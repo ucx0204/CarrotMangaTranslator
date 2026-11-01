@@ -322,7 +322,7 @@ describe("text-area background opacity", () => {
     const onUpdateFormat = vi.fn();
     const view = render(panel(backgroundBlock(), onUpdateFormat));
     const input = screen.getByRole("spinbutton", {
-      name: "글자 영역 배경 투명도",
+      name: "글자 영역 배경 불투명도",
     });
     expect(input).toHaveProperty("value", "100");
 
@@ -337,7 +337,7 @@ describe("text-area background opacity", () => {
     );
     // Off keeps the cell in place, so enabling never shifts the layout.
     expect(
-      screen.getByRole("spinbutton", { name: "글자 영역 배경 투명도" }),
+      screen.getByRole("spinbutton", { name: "글자 영역 배경 불투명도" }),
     ).toHaveProperty("disabled", true);
   });
 
@@ -350,7 +350,7 @@ describe("text-area background opacity", () => {
       }),
     );
     const input = screen.getByRole("spinbutton", {
-      name: "글자 영역 배경 투명도",
+      name: "글자 영역 배경 불투명도",
     });
     expect(input).toHaveProperty("value", "");
 

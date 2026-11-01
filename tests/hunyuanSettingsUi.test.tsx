@@ -9,6 +9,16 @@ import type { HunyuanSettings } from "../src/shared/settingsTypes";
 
 afterEach(cleanup);
 
+it("hides an already-applied recommendation and locates read-only recommendations in settings", () => {
+  const view = render(
+    <OcrRecommendation pipeline="hayai" sourceLanguage="ja" />,
+  );
+  expect(view.container.textContent).toBe("");
+  view.rerender(<OcrRecommendation pipeline="hayai" sourceLanguage="zh" />);
+  expect(screen.getByText(/설정/)).toBeTruthy();
+  expect(screen.queryByRole("button")).toBeNull();
+});
+
 it("keeps Hunyuan second and applies recommendations only on request", () => {
   expect(OCR_PIPELINES).toEqual(["hayai", "hunyuan", "paddle-legacy"]);
   const apply = vi.fn();

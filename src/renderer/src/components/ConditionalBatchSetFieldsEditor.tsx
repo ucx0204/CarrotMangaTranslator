@@ -1,3 +1,5 @@
+import { NumberSetFieldValue } from "./ConditionalBatchNumberValue";
+import { useTranslation } from "react-i18next";
 import { IconTrash } from "@tabler/icons-react";
 import React from "react";
 import { getConditionalBatchFieldDefinition } from "../../../shared/conditionalBatchFieldRegistry";
@@ -10,7 +12,7 @@ import type {
 import { ColorField } from "./ColorField";
 import styles from "./ConditionalBatchEditor.module.css";
 import { ConditionalBatchIdentityField } from "./ConditionalBatchIdentityField";
-import { resolveConditionalBatchNumberPresentation } from "./conditionalBatchPresentation";
+
 import { ConditionalBatchSetFieldPicker } from "./ConditionalBatchSetFieldPicker";
 import {
   appendConditionalBatchSetFieldDependencies as appendSetFieldDependencies,
@@ -18,14 +20,14 @@ import {
   isConditionalBatchSetFieldClearable,
 } from "./conditionalBatchSetFieldsModel";
 import {
-  CONDITIONAL_BATCH_FIELD_LABELS,
   conditionalBatchEnumOptions,
   isNewConditionalBatchWritableField,
   listConditionalBatchFields,
 } from "./conditionalBatchUi";
+import { CONDITIONAL_BATCH_FIELD_LABELS } from "./conditionalBatchLabels";
 import { Field, TextField } from "./ui/Field";
 import { IconButton } from "./ui/IconButton";
-import { NumberField } from "./ui/NumberField";
+
 import { SegmentedControl } from "./ui/SegmentedControl";
 import { Select } from "./ui/Select";
 
@@ -36,6 +38,7 @@ export function ConditionalBatchSetFieldsEditor({
   action: ConditionalBatchSetFieldsActionV2;
   onChange: (action: ConditionalBatchActionV2) => void;
 }): React.JSX.Element {
+  useTranslation();
   const existingFields = new Set(action.changes.map((change) => change.field));
   const writableFields = listConditionalBatchFields().filter(
     (field) =>
@@ -71,6 +74,7 @@ function SetFieldRows({
   writableFields: ReturnType<typeof listConditionalBatchFields>;
   onChange: (action: ConditionalBatchActionV2) => void;
 }): React.JSX.Element {
+  useTranslation();
   const updateChange = (
     index: number,
     change: ConditionalBatchSetFieldChangeV2,
@@ -128,6 +132,7 @@ function SetFieldRow({
   onFieldChange: (field: ConditionalBatchWritableField) => void;
   onRemove: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const definition = getConditionalBatchFieldDefinition(change.field);
   return (
     <div
@@ -136,9 +141,9 @@ function SetFieldRow({
       data-operation={change.operation}
     >
       <div className={styles.setFieldHeader}>
-        <Field as="div" label="바꿀 속성">
+        <Field as="div" label={t("batchEditorCopy.propertyToChange")}>
           <Select
-            ariaLabel="바꿀 속성"
+            ariaLabel={t("batchEditorCopy.propertyToChange")}
             searchable
             value={change.field}
             options={writableFields.map((field) => ({
@@ -160,7 +165,9 @@ function SetFieldRow({
           className={styles.setFieldRemove}
           size="sm"
           variant="danger"
-          label={`${CONDITIONAL_BATCH_FIELD_LABELS[change.field]} 속성 삭제`}
+          label={t("batchEditorMessages.removeProperty", {
+            p0: CONDITIONAL_BATCH_FIELD_LABELS[change.field],
+          })}
           disabled={action.changes.length <= 1}
           onClick={onRemove}
         >
@@ -179,6 +186,7 @@ function SetFieldResultEditor({
   change: ConditionalBatchSetFieldChangeV2;
   onChange: (change: ConditionalBatchSetFieldChangeV2) => void;
 }): React.JSX.Element {
+  useTranslation();
   const definition = getConditionalBatchFieldDefinition(change.field);
   if (definition.kind === "boolean") {
     return <BooleanSetFieldResult change={change} onChange={onChange} />;
@@ -193,6 +201,7 @@ function BooleanSetFieldResult({
   change: ConditionalBatchSetFieldChangeV2;
   onChange: (change: ConditionalBatchSetFieldChangeV2) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const label = CONDITIONAL_BATCH_FIELD_LABELS[change.field];
   const value =
     change.operation === "clear"
@@ -201,27 +210,35 @@ function BooleanSetFieldResult({
         ? "off"
         : "on";
   return (
-    <Field as="div" label="적용 결과">
+    <Field as="div" label={t("batchEditorCopy.appliedResult")}>
       <SegmentedControl
-        ariaLabel={`${label} 적용 결과`}
+        ariaLabel={t("batchEditorMessages.resultFor", {
+          p0: label,
+        })}
         className={styles.setFieldChoice}
         singleRow
         value={value}
         options={[
           {
             id: "on",
-            label: "켜기",
-            tooltip: `선택한 모든 말풍선에서 ${label} 속성을 켭니다.`,
+            label: t("batchEditorCopy.on"),
+            tooltip: t("batchEditorMessages.enableForAllSelectedBalloons", {
+              p0: label,
+            }),
           },
           {
             id: "off",
-            label: "끄기",
-            tooltip: `선택한 모든 말풍선에서 ${label} 속성을 끕니다.`,
+            label: t("batchEditorCopy.off"),
+            tooltip: t("batchEditorMessages.disableForAllSelectedBalloons", {
+              p0: label,
+            }),
           },
           {
             id: "default",
-            label: "해제",
-            tooltip: `${label} 저장값을 지우고 앱의 기본 동작을 사용합니다.`,
+            label: t("settings.api.vertexServiceAccountClear"),
+            tooltip: t("batchEditorMessages.clearTheSavedValueAndUseTheApp", {
+              p0: label,
+            }),
           },
         ]}
         onChange={(next) =>
@@ -247,28 +264,36 @@ function ValueSetFieldResult({
   change: ConditionalBatchSetFieldChangeV2;
   onChange: (change: ConditionalBatchSetFieldChangeV2) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const label = CONDITIONAL_BATCH_FIELD_LABELS[change.field];
 
   const canClear = isConditionalBatchSetFieldClearable(change.field);
   return (
     <div className={styles.setFieldResult}>
       {canClear ? (
-        <Field as="div" label="적용 결과">
+        <Field as="div" label={t("batchEditorCopy.appliedResult")}>
           <SegmentedControl
-            ariaLabel={`${label} 적용 결과`}
+            ariaLabel={t("batchEditorMessages.resultFor", {
+              p0: label,
+            })}
             className={styles.setFieldChoice}
             singleRow
             value={change.operation}
             options={[
               {
                 id: "set",
-                label: "새 값 사용",
-                tooltip: `${label}을(를) 아래 값으로 바꿉니다.`,
+                label: t("batchEditorCopy.useNewValue"),
+                tooltip: t("batchEditorMessages.setToTheValueBelow", {
+                  p0: label,
+                }),
               },
               {
                 id: "clear",
-                label: "해제",
-                tooltip: `${label} 저장값을 지우고 앱의 기본 동작을 사용합니다.`,
+                label: t("settings.api.vertexServiceAccountClear"),
+                tooltip: t(
+                  "batchEditorMessages.clearTheSavedValueAndUseTheApp",
+                  { p0: label },
+                ),
               },
             ]}
             onChange={(operation) =>
@@ -285,8 +310,12 @@ function ValueSetFieldResult({
         <SetFieldValueEditor change={change} onChange={onChange} />
       ) : (
         <div className={styles.setFieldDefaultNote}>
-          <strong>{label} 지정 해제</strong>
-          <span>선택한 말풍선에서 이 속성의 저장값을 지웁니다.</span>
+          <strong>
+            {label} {t("batchEditorCopy.clearValue")}
+          </strong>
+          <span>
+            {t("batchEditorCopy.clearsThisPropertySSavedValueInTheSelected")}
+          </span>
         </div>
       )}
     </div>
@@ -300,6 +329,7 @@ function SetFieldValueEditor({
   change: ConditionalBatchSetFieldChangeV2;
   onChange: (change: ConditionalBatchSetFieldChangeV2) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const definition = getConditionalBatchFieldDefinition(change.field);
   const label = CONDITIONAL_BATCH_FIELD_LABELS[change.field];
   const textValue = String(change.value ?? "");
@@ -307,7 +337,7 @@ function SetFieldValueEditor({
     return (
       <ConditionalBatchIdentityField
         field="speakerId"
-        label="적용할 화자"
+        label={t("batchEditorCopy.speakerToApply")}
         value={textValue}
         onChange={(value) => onChange({ ...change, value })}
       />
@@ -317,7 +347,7 @@ function SetFieldValueEditor({
     return (
       <ConditionalBatchIdentityField
         field="fontFamily"
-        label="적용할 글꼴"
+        label={t("batchEditorCopy.fontToApply")}
         value={textValue}
         onChange={(value) => onChange({ ...change, value })}
       />
@@ -325,9 +355,11 @@ function SetFieldValueEditor({
   }
   if (definition.kind === "enum") {
     return (
-      <Field as="div" label="적용할 값">
+      <Field as="div" label={t("batchEditorCopy.valueToApply")}>
         <Select
-          ariaLabel={`${label} 적용할 값`}
+          ariaLabel={t("batchEditorMessages.valueFor", {
+            p0: label,
+          })}
           value={textValue}
           options={conditionalBatchEnumOptions(change.field)}
           onValueChange={(value) => onChange({ ...change, value })}
@@ -341,7 +373,9 @@ function SetFieldValueEditor({
   if (definition.kind === "color") {
     return (
       <ColorField
-        label={`${label} 적용할 색상`}
+        label={t("batchEditorMessages.colorFor", {
+          p0: label,
+        })}
         value={String(change.value ?? "#000000")}
         disabled={false}
         onChange={(value) => onChange({ ...change, value })}
@@ -350,46 +384,12 @@ function SetFieldValueEditor({
   }
   return (
     <TextField
-      label="적용할 값"
-      aria-label={`${label} 적용할 값`}
+      label={t("batchEditorCopy.valueToApply")}
+      aria-label={t("batchEditorMessages.valueFor", {
+        p0: label,
+      })}
       value={textValue}
       onChange={(event) => onChange({ ...change, value: event.target.value })}
     />
-  );
-}
-
-function NumberSetFieldValue({
-  change,
-  onChange,
-}: {
-  change: ConditionalBatchSetFieldChangeV2;
-  onChange: (change: ConditionalBatchSetFieldChangeV2) => void;
-}): React.JSX.Element {
-  const definition = getConditionalBatchFieldDefinition(change.field);
-  const fallback = definition.number?.defaultValue ?? 0;
-  const presentation = resolveConditionalBatchNumberPresentation(
-    change.field,
-    typeof change.value === "number" ? change.value : fallback,
-  );
-  const label = CONDITIONAL_BATCH_FIELD_LABELS[change.field];
-  return (
-    <Field
-      label="적용할 값"
-      hint={`입력 범위 ${presentation.min}${presentation.unit}–${presentation.max}${presentation.unit}`}
-    >
-      <NumberField
-        ariaLabel={`${label} 적용할 값`}
-        variant="framed"
-        min={presentation.min}
-        max={presentation.max}
-        step={presentation.step}
-        precision={6}
-        unit={presentation.unit}
-        value={presentation.value}
-        onValueChange={(value) =>
-          onChange({ ...change, value: presentation.toStoredValue(value) })
-        }
-      />
-    </Field>
   );
 }

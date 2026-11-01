@@ -19,11 +19,9 @@ export type ExportSelectionMap = BinaryPageSelectionMap;
 
 export function createDefaultExportSelection(
   chapterId: string,
-  currentPageId: string,
+  _currentPageId: string,
 ): ExportSelectionMap {
-  return new Map([
-    [chapterId, { kind: "pages", pageIds: new Set([currentPageId]) }],
-  ]);
+  return new Map([[chapterId, { kind: "all" }]]);
 }
 
 /** Builds the public request selection in library chapter order. */

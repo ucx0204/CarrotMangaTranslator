@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { createConditionalLiteralMatcher } from "../../../shared/conditionalTextPattern";
 
 import {
@@ -36,6 +37,7 @@ export function StyleTextActionEditor({
   sampleText?: string;
   onChange: (action: ConditionalBatchActionV2) => void;
 }) {
+  const { t } = useTranslation("components");
   const updateStyle = <Key extends keyof TextStylePatch>(
     key: Key,
     value: TextStylePatch[Key] | undefined,
@@ -56,14 +58,14 @@ export function StyleTextActionEditor({
         />
       ) : null}
       <ExistingStyleMatchEditor action={action} onChange={onChange} />
-      <h4>글꼴과 글자 모양</h4>
+      <h4>{t("batchEditorCopy.fontAndAppearance")}</h4>
       <StyleTextFontControls action={action} updateStyle={updateStyle} />
       <StyleTextEffectControls action={action} updateStyle={updateStyle} />
       {action.scope === "pattern" ? (
         <div className={styles.actionToggles}>
           <CheckboxField
             checked={action.allOccurrences}
-            label="모든 일치 항목"
+            label={t("batchEditorCopy.allMatches")}
             onCheckedChange={(allOccurrences) =>
               onChange({ ...action, allOccurrences })
             }
@@ -81,15 +83,22 @@ function StyleTextScopeControls({
   action: ConditionalBatchStyleTextActionV2;
   onChange: (action: ConditionalBatchActionV2) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.actionOptions}>
-      <Field as="div" label="서식 범위">
+      <Field as="div" label={t("batchEditorCopy.formattingScope")}>
         <Select
-          ariaLabel="서식 범위"
+          ariaLabel={t("batchEditorCopy.formattingScope")}
           value={action.scope}
           options={[
-            { value: "allText", label: "문장 전체" },
-            { value: "pattern", label: "찾은 글자만" },
+            {
+              value: "allText",
+              label: t("batchEditorCopy.wholeText"),
+            },
+            {
+              value: "pattern",
+              label: t("batchEditorCopy.matchedTextOnly"),
+            },
           ]}
           onValueChange={(scope) =>
             onChange({
@@ -103,14 +112,23 @@ function StyleTextScopeControls({
           }
         />
       </Field>
-      <Field as="div" label="기존 부분 서식">
+      <Field as="div" label={t("batchEditorCopy.existingInlineFormatting")}>
         <Select
-          ariaLabel="부분 서식 적용 방식"
+          ariaLabel={t("batchEditorCopy.inlineFormattingMode")}
           value={action.styleMode}
           options={[
-            { value: "overwrite", label: "지정 항목 덮어쓰기" },
-            { value: "fillMissing", label: "빈 값만 채우기" },
-            { value: "replace", label: "기존 서식 지우고 교체" },
+            {
+              value: "overwrite",
+              label: t("batchEditorCopy.overwriteSpecifiedProperties"),
+            },
+            {
+              value: "fillMissing",
+              label: t("batchEditorCopy.fillEmptyValuesOnly"),
+            },
+            {
+              value: "replace",
+              label: t("batchEditorCopy.clearAndReplaceFormatting"),
+            },
           ]}
           onValueChange={(styleMode) =>
             onChange({
@@ -135,37 +153,38 @@ function StyleTextFontControls({
     value: TextStylePatch[Key] | undefined,
   ) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.inlineStyleGrid}>
       <PatchBoolean
-        label="굵게"
+        label={t("format.bold")}
         value={action.patch.bold}
         onChange={(bold) => updateStyle("bold", bold)}
       />
       <PatchBoolean
-        label="기울임"
+        label={t("format.italicShort")}
         value={action.patch.italic}
         onChange={(italic) => updateStyle("italic", italic)}
       />
       <PatchBoolean
-        label="밑줄"
+        label={t("format.characterFormat.underline")}
         value={action.patch.underline}
         onChange={(underline) => updateStyle("underline", underline)}
       />
       <PatchBoolean
-        label="취소선"
+        label={t("format.characterFormat.strikethrough")}
         value={action.patch.strikethrough}
         onChange={(strikethrough) =>
           updateStyle("strikethrough", strikethrough)
         }
       />
       <PatchBoolean
-        label="강조점"
+        label={t("format.characterFormat.emphasisMark")}
         value={action.patch.emphasisMark}
         onChange={(emphasisMark) => updateStyle("emphasisMark", emphasisMark)}
       />
       <PatchValue
-        label="글자 크기"
+        label={t("format.fontSize")}
         field="fontSizePx"
         value={action.patch.sizePx}
         onChange={(sizePx) => updateStyle("sizePx", sizePx)}
@@ -175,13 +194,13 @@ function StyleTextFontControls({
         onChange={(fontFamily) => updateStyle("fontFamily", fontFamily)}
       />
       <PatchValue
-        label="글자 투명도"
+        label={t("batchEditorCopy.textOpacity")}
         field="textOpacity"
         value={action.patch.opacity}
         onChange={(opacity) => updateStyle("opacity", opacity)}
       />
       <PatchValue
-        label="장평"
+        label={t("format.fontWidth")}
         field="fontWidthScale"
         value={action.patch.widthScale}
         onChange={(widthScale) => updateStyle("widthScale", widthScale)}
@@ -200,29 +219,30 @@ function StyleTextEffectControls({
     value: TextStylePatch[Key] | undefined,
   ) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.inlineStyleAdvanced}>
-      <h4>색과 효과</h4>
+      <h4>{t("batchEditorCopy.colorsAndEffects")}</h4>
       <div className={styles.inlineStyleGrid}>
         <PatchColorValue
-          label="글자색"
+          label={t("format.textColor")}
           value={action.patch.color}
           onChange={(color) => updateStyle("color", color)}
         />
         <PatchColorValue
-          label="글자 배경색"
+          label={t("batchEditorCopy.textBackgroundColor")}
           value={action.patch.backgroundColor}
           onChange={(backgroundColor) =>
             updateStyle("backgroundColor", backgroundColor)
           }
         />
         <PatchColorValue
-          label="외곽선색"
+          label={t("batchEditorCopy.outlineColor")}
           value={action.patch.outlineColor}
           onChange={(outlineColor) => updateStyle("outlineColor", outlineColor)}
         />
         <PatchValue
-          label="외곽선 두께"
+          label={t("settings.format.color.outlineWidth")}
           field="outlineWidthPx"
           value={action.patch.outlineWidthPx}
           onChange={(outlineWidthPx) =>
@@ -230,14 +250,14 @@ function StyleTextEffectControls({
           }
         />
         <PatchColorValue
-          label="바깥 외곽선색"
+          label={t("batchEditorCopy.outerOutlineColor")}
           value={action.patch.outerOutlineColor}
           onChange={(outerOutlineColor) =>
             updateStyle("outerOutlineColor", outerOutlineColor)
           }
         />
         <PatchValue
-          label="바깥 외곽선 두께"
+          label={t("format.outerOutline.width")}
           field="outerOutlineWidthPx"
           value={action.patch.outerOutlineWidthPx}
           onChange={(outerOutlineWidthPx) =>
@@ -245,18 +265,18 @@ function StyleTextEffectControls({
           }
         />
         <PatchColorValue
-          label="광선색"
+          label={t("batchEditorCopy.glowColor")}
           value={action.patch.glowColor}
           onChange={(glowColor) => updateStyle("glowColor", glowColor)}
         />
         <PatchValue
-          label="광선 퍼짐"
+          label={t("batchEditorCopy.glowSpread")}
           field="textGlowBlur"
           value={action.patch.glowBlurPx}
           onChange={(glowBlurPx) => updateStyle("glowBlurPx", glowBlurPx)}
         />
         <PatchValue
-          label="광선 불투명도"
+          label={t("batchEditorCopy.glowOpacity")}
           field="textGlowOpacity"
           value={action.patch.glowOpacity}
           onChange={(glowOpacity) => updateStyle("glowOpacity", glowOpacity)}

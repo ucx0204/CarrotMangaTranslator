@@ -20,11 +20,13 @@ export function createBlockLibraryProps({
 }
 
 export function createCommandPaletteProps({
+  settingsDialog,
   commandRegistry,
   uiState,
 }: AppSessionViewModel): AppSessionViewProps["commandPaletteProps"] {
   return {
     commands: commandRegistry.paletteCommands,
+    overrides: settingsDialog.settings?.keybindings ?? {},
     onClose: () => uiState.setCommandPaletteOpen(false),
     open: uiState.commandPaletteOpen,
   };

@@ -495,9 +495,13 @@ describe("integrated character formatting scope", () => {
     renderPanel(makeBlock(), { onEraseOriginal, onFitBubble: vi.fn() });
     fireEvent.click(screen.getByRole("button", { name: "원문 OCR" }));
     expect(screen.queryByRole("textbox", { name: "원문 OCR" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "원문 지우기" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "이 블록 원문 지우기" }),
+    );
     expect(onEraseOriginal).toHaveBeenCalledOnce();
-    expect(screen.getByRole("button", { name: "말풍선 맞춤" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "이 블록을 말풍선에 맞춤" }),
+    ).toBeTruthy();
   });
 
   it("remembers collapsed sections and starts effects collapsed", () => {

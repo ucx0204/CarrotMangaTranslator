@@ -100,7 +100,12 @@ describe("conditional batch property editor", () => {
             option.getAttribute("data-value"),
             option.textContent,
           ]);
-      const batch = choices("줄바꿈 적용할 값");
+      const batch = choices(
+        appI18n.t("batchEditorMessages.valueFor", {
+          ns: "components",
+          p0: appI18n.t("formatBatch.groups.wordBreak", { ns: "components" }),
+        }),
+      );
       fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape" });
       expect(choices("direct wrapping")).toEqual(batch);
       expect(batch).toHaveLength(5);
@@ -151,7 +156,7 @@ describe("conditional batch property editor", () => {
     );
 
     const input = screen.getByRole("spinbutton", {
-      name: "글자 투명도 적용할 값",
+      name: "글자 불투명도 적용할 값",
     }) as HTMLInputElement;
     expect(input.value).toBe("50");
     expect(screen.getByText("입력 범위 0%–100%")).toBeTruthy();
@@ -167,7 +172,7 @@ describe("conditional batch property editor", () => {
   it("summarizes property results with labels instead of raw values", () => {
     expect(summarizeAction(createAction("italic", false))).toBe("기울임 끄기");
     expect(summarizeAction(createAction("textOpacity", 0.65))).toBe(
-      "글자 투명도 65%",
+      "글자 불투명도 65%",
     );
     expect(
       summarizeAction({

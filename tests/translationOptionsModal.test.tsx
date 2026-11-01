@@ -450,7 +450,7 @@ describe("TranslationOptionsModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("marks and scrolls to the working page once while keeping its filename primary", async () => {
+  it("marks and scrolls to the working page once while keeping page number before its filename", async () => {
     const originalScrollIntoView = Object.getOwnPropertyDescriptor(
       HTMLElement.prototype,
       "scrollIntoView",
@@ -475,9 +475,9 @@ describe("TranslationOptionsModal", () => {
           ?.hasAttribute("aria-current"),
       ).toBe(false);
       const caption = currentCard?.querySelector(".translate-page-thumb-cap");
-      expect(caption?.children[0]?.className).toBe("translate-page-thumb-name");
-      expect(caption?.children[0]?.textContent).toBe("p10.png");
-      expect(caption?.children[1]?.textContent).toBe("#10");
+      expect(caption?.children[0]?.className).toBe("translate-page-thumb-no");
+      expect(caption?.children[0]?.textContent).toBe("#10");
+      expect(caption?.children[1]?.textContent).toBe("p10.png");
       expect(scrollIntoView).toHaveBeenCalledTimes(1);
       expect(scrollIntoView).toHaveBeenCalledWith({
         block: "center",

@@ -161,7 +161,9 @@ function StatusPopoverHeader({
     <header>
       <div>
         <h2 id={titleId}>{t("statusDock.title")}</h2>
-        <span>{t("statusDock.recentCount", { count: statusCount })}</span>
+        {statusCount > 0 ? (
+          <span>{t("statusDock.recentCount", { count: statusCount })}</span>
+        ) : null}
       </div>
       <div className="status-popover-actions">
         <CompletionSoundControl

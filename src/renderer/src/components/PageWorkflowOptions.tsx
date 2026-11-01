@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { appI18n } from "../appI18n";
 import React from "react";
 import { OcrRecommendation } from "./OcrRecommendation";
 import type { TranslationOptionsModalProps } from "./translationOptionsModalTypes";
@@ -16,6 +18,8 @@ import { TextField } from "./ui/Field";
 import { Select } from "./ui/Select";
 import { hashStableValue } from "../../../shared/blockFingerprint";
 import styles from "./PageWorkflowModal.module.css";
+
+const t = appI18n.getFixedT(null, "components");
 type Props = {
   props: TranslationOptionsModalProps;
   state: ReturnType<typeof usePageWorkflowModalState>;
@@ -23,9 +27,13 @@ type Props = {
 };
 
 export function PageWorkflowOptions({ props, state, changePlan }: Props) {
+  useTranslation();
   const selectResume = useWorkflowResumeSelection(props, state);
   return (
-    <section className={styles.toolbar} aria-label="작업 구성">
+    <section
+      className={styles.toolbar}
+      aria-label={t("batchEditorCopy.workflowConfiguration")}
+    >
       <OcrRecommendation
         sourceLanguage={props.sourceLanguage}
         pipeline={props.settings?.ocr.pipeline}
@@ -33,18 +41,23 @@ export function PageWorkflowOptions({ props, state, changePlan }: Props) {
       <WorkflowPresets props={props} state={state} changePlan={changePlan} />
       {!!state.resumeIds.length && (
         <Select
-          ariaLabel="이전 페이지 작업 이어하기"
+          ariaLabel={t("batchEditorCopy.resumePreviousPageWorkflow")}
           value={state.resume?.resumeRunId ?? ""}
-          placeholder="이전 실행 이어하기"
+          placeholder={t("batchEditorCopy.resumePreviousRun")}
           options={state.resumeIds.map((id, index) => ({
             value: id,
-            label: `이전 작업 ${index + 1} · ${id.slice(0, 8)}`,
+            label: t("batchEditorMessages.previousTask", {
+              p0: index + 1,
+              p1: id.slice(0, 8),
+            }),
           }))}
           onValueChange={selectResume.select}
         />
       )}
       {state.resume && (
-        <p role="status">저장된 실행 이어하기 · 설정 변경 시 새 실행</p>
+        <p role="status">
+          {t("batchEditorCopy.resumeSavedRunChangedSettingsStartANewRun")}
+        </p>
       )}
       {selectResume.error && (
         <p className={styles.error} role="alert">
@@ -85,7 +98,7 @@ function useWorkflowResumeSelection(
           receiptPages.some((page) => !target.pageIds.includes(page.id))
         ) {
           setError(
-            "현재 페이지와 연결되지 않은 이전 작업입니다. 현재 대상을 새 작업으로 실행하세요.",
+            t("batchEditorCopy.thisPreviousWorkflowIsNotLinkedToTheCurrent"),
           );
           return;
         }
@@ -109,6 +122,7 @@ function useWorkflowResumeSelection(
 }
 
 function WorkflowPresets({ props, state, changePlan }: Props) {
+  useTranslation();
   const [saving, setSaving] = React.useState(false);
   const custom = props.uiSettings?.pageWorkflowPresets ?? [];
   const presets = [...pageWorkflowPresets(), ...custom];
@@ -126,7 +140,9 @@ function WorkflowPresets({ props, state, changePlan }: Props) {
   return (
     <div className={styles.presets}>
       <div className={styles.presetBar}>
-        <span className={styles.toolbarLabel}>프리셋</span>
+        <span className={styles.toolbarLabel}>
+          {t("transform.warp.preset")}
+        </span>
         <WorkflowPresetPicker
           props={props}
           state={state}
@@ -148,7 +164,7 @@ function WorkflowPresets({ props, state, changePlan }: Props) {
               })
             }
           >
-            변경 저장
+            {t("batchEditorCopy.saveChanges")}
           </Button>
         )}
         <Button
@@ -157,7 +173,9 @@ function WorkflowPresets({ props, state, changePlan }: Props) {
           aria-expanded={saving}
           onClick={() => setSaving(!saving)}
         >
-          {editable ? "새로 저장" : "프리셋 저장"}
+          {editable
+            ? t("batchEditorCopy.saveAsNew")
+            : t("manualRedaction.savePreset")}
         </Button>
       </div>
       {saving && (
@@ -179,13 +197,14 @@ function WorkflowPresetSave({
   state,
   onSaved,
 }: Pick<Props, "props" | "state"> & { onSaved: (id: string) => void }) {
+  useTranslation();
   const [name, setName] = React.useState("");
   const custom = props.uiSettings?.pageWorkflowPresets ?? [];
   return (
     <div className={styles.presetSave}>
       <TextField
-        aria-label="사용자 프리셋 이름"
-        placeholder="프리셋 이름"
+        aria-label={t("batchEditorCopy.customPresetName")}
+        placeholder={t("stylePresets.name")}
         value={name}
         maxLength={80}
         onChange={(event) => setName(event.target.value)}
@@ -203,7 +222,7 @@ function WorkflowPresetSave({
           onSaved(id);
         }}
       >
-        저장
+        {t("common.save")}
       </Button>
     </div>
   );
@@ -222,6 +241,7 @@ function WorkflowPresetPicker({
   dirty: boolean;
   onSelect: (id: string) => void;
 }) {
+  useTranslation();
   const [deleting, setDeleting] = React.useState<PageWorkflowPreset | null>(
     null,
   );
@@ -240,14 +260,16 @@ function WorkflowPresetPicker({
   return (
     <>
       <Select
-        ariaLabel="작업 프리셋"
+        ariaLabel={t("batchEditorCopy.workflowPreset")}
         className={styles.presetSelect}
         value={selected?.id ?? ""}
-        placeholder="사용자 설정"
+        placeholder={t("batchEditorCopy.customConfiguration")}
         options={ordered.map((p) => ({
           value: p.id,
           label: `${p.name}${p.id === selected?.id && dirty ? " •" : ""}`,
-          group: favorites.has(p.id) ? "즐겨찾기" : "프리셋",
+          group: favorites.has(p.id)
+            ? t("fontManager.favorites")
+            : t("transform.warp.preset"),
           actions: (
             <WorkflowPresetActions
               preset={p}
@@ -267,11 +289,8 @@ function WorkflowPresetPicker({
         }}
       />
       {deleting && (
-        <ConfirmModal
-          title="프리셋 삭제"
-          message={`“${deleting.name}” 프리셋을 삭제할까요?`}
-          confirmLabel="삭제"
-          confirmVariant="danger"
+        <WorkflowPresetDeleteConfirm
+          name={deleting.name}
           onCancel={() => setDeleting(null)}
           onConfirm={() => {
             props.onPersistDefaults({
@@ -301,23 +320,55 @@ function WorkflowPresetActions({
   onFavorite: () => void;
   onDelete: () => void;
 }) {
+  useTranslation();
   return (
     <>
       <FavoriteToggleButton
         favorite={favorite}
-        label={`${preset.name} 즐겨찾기 ${favorite ? "해제" : "추가"}`}
+        label={t("batchEditorMessages.favorite", {
+          p0: preset.name,
+          p1: favorite
+            ? appI18n.t("settings.api.vertexServiceAccountClear", {
+                ns: "components",
+              })
+            : appI18n.t("common.add", { ns: "components" }),
+        })}
         onToggle={onFavorite}
       />
       {canDelete && (
         <IconButton
           size="sm"
           variant="danger"
-          label={`${preset.name} 삭제`}
+          label={t("batchEditorMessages.delete", {
+            p0: preset.name,
+          })}
           onClick={onDelete}
         >
           <IconTrash size={15} />
         </IconButton>
       )}
     </>
+  );
+}
+
+function WorkflowPresetDeleteConfirm({
+  name,
+  onCancel,
+  onConfirm,
+}: {
+  name: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useTranslation();
+  return (
+    <ConfirmModal
+      title={t("codexFonts.deletePreset")}
+      message={t("batchEditorMessages.deletePreset", { p0: name })}
+      confirmLabel={t("common.delete")}
+      confirmVariant="danger"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   );
 }

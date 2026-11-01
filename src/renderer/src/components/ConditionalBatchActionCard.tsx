@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconPlus } from "@tabler/icons-react";
 
 import React from "react";
@@ -32,6 +33,7 @@ export type ConditionalBatchActionsCardProps = {
 export function ConditionalBatchActionCard(
   props: ConditionalBatchActionsCardProps,
 ): React.JSX.Element {
+  const { t } = useTranslation("components");
   const [activeId, setActiveId] = React.useState<string | null>(
     props.draft.actions[0]?.id ?? null,
   );
@@ -49,11 +51,13 @@ export function ConditionalBatchActionCard(
     <ConditionalBatchCollapsibleCard
       expanded={props.expanded}
       onToggle={props.onToggle}
-      title="작업"
+      title={t("batchEditorCopy.action")}
       summary={
         props.draft.actions.length === 0
-          ? "검사만 수행"
-          : `${props.draft.actions.length}개 작업`
+          ? t("batchEditorCopy.checkOnly")
+          : t("batchEditorMessages.actions", {
+              p0: props.draft.actions.length,
+            })
       }
     >
       {props.draft.actions.length > 0 ? (
@@ -104,12 +108,13 @@ function ActionAddBar({
   onAdd: (type: "replaceText" | "setFields" | "setText" | "styleText") => void;
   onAddPreset: (preset: BlockStylePreset) => void;
 }) {
+  const { t } = useTranslation("components");
   const [presetId, setPresetId] = React.useState(presets[0]?.id ?? "");
   return (
     <details className={styles.addMenu}>
       <summary>
         <IconPlus size={15} />
-        작업 추가
+        {t("batchEditorCopy.addAction")}
       </summary>
       <div className={styles.actionAdd}>
         <Button
@@ -117,29 +122,29 @@ function ActionAddBar({
           disabled={disabled}
           onClick={() => onAdd("replaceText")}
         >
-          찾아 바꾸기
+          {t("batchEditorCopy.findAndReplace")}
         </Button>
         <Button size="sm" disabled={disabled} onClick={() => onAdd("setText")}>
-          텍스트 전체 바꾸기
+          {t("batchEditorCopy.replaceAllText")}
         </Button>
         <Button
           size="sm"
           disabled={disabled}
           onClick={() => onAdd("setFields")}
         >
-          속성 바꾸기
+          {t("batchEditorCopy.changeProperties")}
         </Button>
         <Button
           size="sm"
           disabled={disabled}
           onClick={() => onAdd("styleText")}
         >
-          글자 일부 서식
+          {t("batchEditorCopy.formatPartOfText")}
         </Button>
         {presets.length ? (
           <div className={styles.presetAdd}>
             <Select
-              ariaLabel="적용할 스타일 프리셋"
+              ariaLabel={t("batchEditorCopy.stylePresetToApply")}
               value={presetId}
               options={presets.map((preset) => ({
                 value: preset.id,
@@ -155,7 +160,7 @@ function ActionAddBar({
                 if (preset) onAddPreset(preset);
               }}
             >
-              프리셋 적용
+              {t("manualRedaction.usePreset")}
             </Button>
           </div>
         ) : null}

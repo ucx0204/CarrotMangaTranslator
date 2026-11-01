@@ -112,9 +112,20 @@ function expectMissingKeys(
           match.index,
           fallback,
         );
-        const knownKeys = catalogKeys(namespace, locale);
         const key = match[1];
-        if (key && !knownKeys.has(key)) {
+        const parts = key?.split(":");
+        const explicitNamespace = parts?.length === 2 ? parts[0] : undefined;
+        const catalog =
+          explicitNamespace && explicitNamespace in APP_I18N_RESOURCES[locale]
+            ? (explicitNamespace as Namespace)
+            : namespace;
+        const knownKeys = catalogKeys(catalog, locale);
+        if (
+          key &&
+          !knownKeys.has(
+            explicitNamespace === catalog ? (parts?.[1] ?? key) : key,
+          )
+        ) {
           missing.push(`${relativeSourcePath(file)}: ${key}`);
         }
       }

@@ -40,7 +40,7 @@ describe("FormatDefaultsPanel", () => {
     expect(screen.getByRole("spinbutton", { name: "줄 간격" })).toBeTruthy();
     expect(screen.getByRole("spinbutton", { name: "자간" })).toBeTruthy();
     expect(screen.getByRole("spinbutton", { name: "장평" })).toBeTruthy();
-    expect(screen.getByRole("slider", { name: "글자 투명도" })).toBeTruthy();
+    expect(screen.getByRole("slider", { name: "글자 불투명도" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "안쪽 여백" })).toBeTruthy();
     expect(screen.getByText("12%")).toBeTruthy();
     expect(

@@ -1,6 +1,9 @@
-import { expect, it } from "vitest";
+import { beforeAll, expect, it } from "vitest";
 import { summarizeAction } from "../src/renderer/src/components/conditionalBatchPresentation";
 import type { ConditionalBatchReplaceTextActionV2 } from "../src/shared/conditionalBatchRules";
+
+import { initializeAppI18n } from "../src/renderer/src/appI18n";
+beforeAll(() => initializeAppI18n("ko"));
 
 const repeat = { min: 1, max: 1, greedy: true };
 const action: ConditionalBatchReplaceTextActionV2 = {

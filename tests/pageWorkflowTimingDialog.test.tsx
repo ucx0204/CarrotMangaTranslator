@@ -63,7 +63,7 @@ describe("page timing dialog views", () => {
     fireEvent.click(entries[1]);
     expect(screen.getByText("기록된 단계 합계")).toBeTruthy();
     expect(
-      screen.getByRole("combobox", { name: "이 챕터의 페이지" }).textContent,
+      screen.getByRole("combobox", { name: "이 화의 페이지" }).textContent,
     ).toContain("legacy.png");
     expect(cells(screen.getByRole("row", { name: /^번역 / }))).toEqual([
       "1.20초",
@@ -85,7 +85,7 @@ describe("page timing dialog views", () => {
     );
     expect(screen.queryByRole("tab")).toBeNull();
     expect(
-      screen.getByRole("combobox", { name: "이 챕터의 페이지" }),
+      screen.getByRole("combobox", { name: "이 화의 페이지" }),
     ).toBeTruthy();
   });
 });
@@ -421,8 +421,8 @@ describe("page-task timing view", () => {
     render(
       <PageWorkflowTimingView chapterId={CHAPTER_A} selectedPageId={null} />,
     );
-    expect(await screen.findByTitle(/다른 챕터도 포함/)).toBeTruthy();
-    expect(screen.getByText("챕터 2개 · 페이지 1개")).toBeTruthy();
+    expect(await screen.findByTitle(/다른 화도 포함/)).toBeTruthy();
+    expect(screen.getByText("화 2개 · 페이지 1개")).toBeTruthy();
   });
 });
 

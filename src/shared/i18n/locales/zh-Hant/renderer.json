@@ -158,7 +158,7 @@
   },
   "commands": {
     "translate": {
-      "label": "翻譯…",
+      "label": "一般翻譯",
       "hint": "選項 · 範圍 · 批次",
       "keywords": "translate options 翻譯 選項"
     },
@@ -261,21 +261,21 @@
     "actions": {
       "toggle-block-chrome": "切換背景／邊框顯示",
       "toggle-text-blocks": "切換文字區塊顯示",
-      "toggle-peek-original": "切換原圖預覽",
+      "toggle-peek-original": "與原圖比較",
       "zoom-in": "放大圖像",
       "zoom-out": "縮小圖像",
       "zoom-reset": "重設縮放",
       "zoom-fit-contain": "符合視窗",
       "zoom-fit-width": "符合寬度",
       "zoom-fit-height": "符合高度",
-      "zoom-actual-size": "實際大小",
+      "zoom-actual-size": "原始大小 (100%)",
       "page-previous": "上一頁",
       "page-next": "下一頁",
       "stage-tool-select": "選取工具",
       "stage-tool-block": "文字區塊工具（拖曳新增）",
       "stage-tool-hand": "手掌工具（拖曳平移）",
       "toggle-stage-toolbar": "切換工具列顯示",
-      "open-translate-options": "開啟翻譯選項",
+      "open-translate-options": "一般翻譯",
       "translate-pending": "繼續翻譯（剩餘頁面）",
       "translate-all": "全部重新翻譯",
       "gather-text": "彙整文字",

@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "./ErrorBoundary";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../../../shared/settingsTypes";
@@ -21,7 +22,7 @@ type SettingsModalProps = {
   onSubmit: (settings: AppSettings) => void;
 };
 
-export function SettingsModal({
+function SettingsModalContent({
   initialSettings,
   library,
   busy,
@@ -72,5 +73,13 @@ export function SettingsModal({
         />
       ) : null}
     </>
+  );
+}
+
+export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
+  return (
+    <ErrorBoundary onRecover={props.onCancel}>
+      <SettingsModalContent {...props} />
+    </ErrorBoundary>
   );
 }

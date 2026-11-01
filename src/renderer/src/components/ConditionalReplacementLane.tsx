@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   IconArrowLeft,
   IconArrowRight,
@@ -34,11 +35,12 @@ export function ReplacementLane({
   captureLabels: ReadonlyMap<string, string>;
   onChange: (replacement: ConditionalReplacementV3) => void;
 }) {
+  const { t } = useTranslation("components");
   const [activeId, setActiveId] = React.useState<string | null>(null);
   if (replacement.mode === "raw") {
     return (
       <label className={styles.rawPatternField}>
-        <span>바꾸기</span>
+        <span>{t("patternEditorCopy.replace")}</span>
         <Input
           value={replacement.source}
           onChange={(event) =>
@@ -62,7 +64,9 @@ export function ReplacementLane({
   };
   return (
     <div className={styles.patternLane}>
-      <span className={styles.patternLaneLabel}>바꾸기</span>
+      <span className={styles.patternLaneLabel}>
+        {t("patternEditorCopy.replace")}
+      </span>
       <ReplacementSequence
         replacement={replacement}
         captureIds={captureIds}
@@ -114,9 +118,10 @@ function ReplacementPartPicker({
   captureLabels: ReadonlyMap<string, string>;
   addPart: (part: ConditionalReplacementPartV3) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <details className={styles.patternAdd}>
-      <summary aria-label="바꿀 조각 추가">
+      <summary aria-label={t("patternEditorCopy.addReplacementPart")}>
         <IconPlus size={15} />
       </summary>
       <div className={styles.patternMenu}>
@@ -132,7 +137,7 @@ function ReplacementPartPicker({
           }}
           variant="bare"
         >
-          글자 그대로
+          {t("patternEditorCopy.literalText")}
         </UiButton>
         {captureIds.map((captureId) => (
           <UiButton
@@ -167,13 +172,16 @@ function ReplacementOrderingControls({
   onChange: (replacement: ConditionalReplacementV3) => void;
   setActiveId: React.Dispatch<React.SetStateAction<string | null>>;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.patternNodeToolbar}>
-      <span className={styles.patternMeta}>바꿀 순서</span>
+      <span className={styles.patternMeta}>
+        {t("patternEditorCopy.replacementOrder")}
+      </span>
       <span className={styles.patternToolbarActions}>
         <IconButton
           size="sm"
-          label="바꿀 조각 왼쪽으로 이동"
+          label={t("patternEditorCopy.moveReplacementPartLeft")}
           disabled={activeIndex === 0}
           onClick={() =>
             onChange({
@@ -186,7 +194,7 @@ function ReplacementOrderingControls({
         </IconButton>
         <IconButton
           size="sm"
-          label="바꿀 조각 오른쪽으로 이동"
+          label={t("patternEditorCopy.moveReplacementPartRight")}
           disabled={activeIndex === replacement.parts.length - 1}
           onClick={() =>
             onChange({
@@ -200,7 +208,7 @@ function ReplacementOrderingControls({
         <IconButton
           size="sm"
           variant="danger"
-          label="바꿀 조각 삭제"
+          label={t("patternEditorCopy.deleteReplacementPart")}
           onClick={() => {
             const id = replacement.parts[activeIndex]?.id;
             if (!id) return;
@@ -248,6 +256,7 @@ function ReplacementSequence({
   addPart: (part: ConditionalReplacementPartV3) => void;
   update: (id: string, next: ConditionalReplacementPartV3) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.patternSequence}>
       {replacement.parts.length === 0 ? (
@@ -262,8 +271,8 @@ function ReplacementSequence({
           >
             <Input
               className={styles.patternLiteralInput}
-              aria-label="바꿀 글자"
-              placeholder="바꿀 글자"
+              aria-label={t("conditionalBatch.then.replace")}
+              placeholder={t("conditionalBatch.then.replace")}
               value={part.text}
               onFocus={() => {
                 if (replacement.parts.length > 1) setActiveId(part.id);
@@ -293,7 +302,8 @@ function ReplacementSequence({
             }
             variant="bare"
           >
-            {captureLabels.get(part.captureId) ?? "기억"}
+            {captureLabels.get(part.captureId) ??
+              t("patternEditorCopy.capture")}
           </UiButton>
         ),
       )}
@@ -311,12 +321,13 @@ function EmptyReplacementLiteral({
 }: {
   addPart: (part: ConditionalReplacementPartV3) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <span className={styles.patternLiteralPart}>
       <Input
         className={styles.patternLiteralInput}
-        aria-label="바꿀 글자"
-        placeholder="바꿀 글자"
+        aria-label={t("conditionalBatch.then.replace")}
+        placeholder={t("conditionalBatch.then.replace")}
         value=""
         onChange={(event) =>
           addPart({

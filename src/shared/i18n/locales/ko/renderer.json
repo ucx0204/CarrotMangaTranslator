@@ -158,13 +158,13 @@
   },
   "commands": {
     "translate": {
-      "label": "번역…",
+      "label": "일반 번역",
       "hint": "옵션·범위·일괄",
       "keywords": "translate options beonyeok 번역 옵션"
     },
     "translatePending": {
       "label": "이어서 번역",
-      "hint": "남은 페이지 (바로)",
+      "hint": "남은 페이지 바로 시작",
       "keywords": "translate resume ieoseo 이어서 번역"
     },
     "translateAll": {
@@ -261,21 +261,21 @@
     "actions": {
       "toggle-block-chrome": "배경/테두리 표시 전환",
       "toggle-text-blocks": "블록 표시 전환",
-      "toggle-peek-original": "원본 미리보기 전환",
+      "toggle-peek-original": "원본과 비교",
       "zoom-in": "이미지 확대",
       "zoom-out": "이미지 축소",
-      "zoom-reset": "확대 초기화",
-      "zoom-fit-contain": "화면에 맞춤",
-      "zoom-fit-width": "너비에 맞춤",
-      "zoom-fit-height": "높이에 맞춤",
-      "zoom-actual-size": "실제 크기",
+      "zoom-reset": "배율 초기화",
+      "zoom-fit-contain": "화면 맞춤",
+      "zoom-fit-width": "가로 맞춤",
+      "zoom-fit-height": "세로 맞춤",
+      "zoom-actual-size": "원본 크기 (100%)",
       "page-previous": "이전 페이지",
       "page-next": "다음 페이지",
       "stage-tool-select": "선택 도구",
       "stage-tool-block": "블록 도구 (드래그로 블록 추가)",
       "stage-tool-hand": "손바닥 도구 (드래그로 이동)",
       "toggle-stage-toolbar": "도구 모음 표시 전환",
-      "open-translate-options": "번역 옵션 열기",
+      "open-translate-options": "일반 번역",
       "translate-pending": "이어서 번역 (남은 페이지)",
       "translate-all": "전체 다시 번역",
       "gather-text": "텍스트 모아보기",
@@ -325,7 +325,7 @@
   },
   "workspaceHistory": {
     "blockEdit": "텍스트 블록 편집",
-    "blockBackgroundOpacity": "블록 배경 투명도 변경",
+    "blockBackgroundOpacity": "블록 배경 불투명도 변경",
     "exclusion": "자동 지우기 제외 설정 변경",
     "format": "블록 서식 변경",
     "stylePreset": "서식 프리셋 적용",
@@ -359,9 +359,9 @@
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "작업 중에는 이 화 전체 서식 일괄 적용을 사용할 수 없습니다.",
-    "backgroundOpacityChapterApplyWhileRunning": "작업 중에는 이 화 전체 배경 투명도 적용을 사용할 수 없습니다.",
-    "backgroundOpacityAppliedPage": "이 페이지의 모든 블록에 배경 투명도를 적용했습니다.",
-    "backgroundOpacityAppliedChapter": "이 화 전체 블록에 배경 투명도를 적용했습니다.",
+    "backgroundOpacityChapterApplyWhileRunning": "작업 중에는 이 화 전체 배경 불투명도 적용을 사용할 수 없습니다.",
+    "backgroundOpacityAppliedPage": "이 페이지의 모든 블록에 배경 불투명도를 적용했습니다.",
+    "backgroundOpacityAppliedChapter": "이 화 전체 블록에 배경 불투명도를 적용했습니다.",
     "formatAppliedSelection": "선택한 블록 {{count}}개에 서식을 적용했습니다.",
     "formatAppliedSelection_one": "선택한 블록 {{count}}개에 서식을 적용했습니다.",
     "formatAppliedSelection_other": "선택한 블록 {{count}}개에 서식을 적용했습니다.",
@@ -689,7 +689,7 @@
     "failed": "효과음 번역 실패",
     "startFailed": "효과음 번역을 시작하지 못했습니다.",
     "cancelled": "효과음 번역을 취소했습니다. 미처리 후보는 그대로 남았습니다.",
-    "partial": "효과음 번역 일부 완료",
+    "partial": "효과음 번역 부분 완료",
     "completed": "효과음 번역 완료",
     "summary": "효과음 {{translated}}개 번역 · {{remaining}}개 대기"
   },

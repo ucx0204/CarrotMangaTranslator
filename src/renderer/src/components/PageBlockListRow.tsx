@@ -122,7 +122,6 @@ function PageBlockCompactSummary({
       className="page-block-summary-button"
       variant="ghost"
       fullWidth
-      aria-expanded={false}
       onClick={(event) => {
         event.stopPropagation();
         onSelect(block.id, {
@@ -214,6 +213,11 @@ function PageBlockBadges({
   const { t } = useTranslation("components");
   return (
     <div className="page-block-list-badges">
+      {!block.translatedText.trim() && block.sourceText.trim() ? (
+        <span className="page-block-badge untranslated">
+          {t("pageBlocks.untranslated")}
+        </span>
+      ) : null}
       {block.reviewStatus === "needs_review" ? (
         <span className="page-block-badge review">
           {t("pageBlocks.needsReview")}

@@ -46,6 +46,18 @@ afterEach(() => {
 });
 
 describe("AppWorkspace scroll reset", () => {
+  it("points an existing library to opening a chapter without resetting its workspace", () => {
+    const props = makeWorkspaceProps({
+      refs: makeWorkspaceRefs(),
+      selectedPage: makePage("page-1"),
+      selectedPageImageDataUrl: PAGE_1_IMAGE,
+      selectedPageImagePageId: null,
+    });
+    renderWorkspace({ ...props, selectedPage: null, hasLibraryWorks: true });
+    expect(
+      screen.getByRole("heading", { name: "보관함에서 화를 열어 주세요." }),
+    ).toBeTruthy();
+  });
   it("reserves a context row outside the canvas while retaining the workspace scroll ref", () => {
     const refs = makeWorkspaceRefs();
     const page = makePage("page-1");

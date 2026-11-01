@@ -7,10 +7,12 @@ export function FloatingControlTooltip({
   children,
   content,
   className,
+  asChild = false,
 }: {
   children: React.ReactNode | ((descriptionId: string) => React.ReactNode);
   content: string;
   className?: string;
+  asChild?: boolean;
 }): React.JSX.Element {
   const id = React.useId();
   const { trigger, bubble, anchor, position, close, open } =
@@ -18,59 +20,126 @@ export function FloatingControlTooltip({
   const disabledControl =
     React.isValidElement<{ disabled?: boolean }>(children) &&
     children.props.disabled;
-  const control =
-    typeof children === "function"
-      ? children(id)
-      : React.isValidElement<{ "aria-describedby"?: string }>(children)
-        ? React.cloneElement(children, {
-            "aria-describedby": [children.props["aria-describedby"], id]
-              .filter(Boolean)
-              .join(" "),
-          })
-        : children;
+  const control = describeTooltipChild(children, id, content);
   return (
     <>
-      <span
-        ref={trigger}
-        data-control-tooltip=""
-        tabIndex={disabledControl ? 0 : undefined}
-        aria-describedby={disabledControl ? id : undefined}
-        className={[styles.anchor, className].filter(Boolean).join(" ")}
-        onPointerEnter={open}
-        onPointerLeave={close}
-        onFocusCapture={open}
-        onBlurCapture={close}
-        onPointerDown={close}
-        onClickCapture={close}
-        onKeyDownCapture={close}
-      >
-        {control}
-      </span>
-      {createPortal(
+      {asChild &&
+      React.isValidElement<
+        React.HTMLAttributes<HTMLElement> & { ref?: React.Ref<HTMLElement> }
+      >(control) ? (
+        cloneTooltipControl(control, trigger, open, close)
+      ) : (
         <span
-          ref={bubble}
-          role="tooltip"
-          id={id}
-          hidden={!anchor}
-          className={styles.bubble}
-          style={position}
+          ref={(element) => {
+            trigger.current = element;
+          }}
+          data-control-tooltip=""
+          tabIndex={disabledControl ? 0 : undefined}
+          aria-describedby={disabledControl ? id : undefined}
+          className={[styles.anchor, className].filter(Boolean).join(" ")}
+          onPointerEnter={open}
+          onPointerLeave={close}
+          onFocusCapture={open}
+          onBlurCapture={close}
+          onPointerDown={close}
+          onClickCapture={close}
+          onKeyDownCapture={close}
         >
-          {content}
-        </span>,
-        document.body,
+          {control}
+        </span>
       )}
+      {content &&
+        (!asChild || anchor) &&
+        createPortal(
+          <span
+            ref={bubble}
+            role="tooltip"
+            id={id}
+            hidden={!anchor}
+            className={styles.bubble}
+            style={position}
+          >
+            {content}
+          </span>,
+          document.body,
+        )}
     </>
   );
 }
 
+function describeTooltipChild(
+  children: React.ReactNode | ((descriptionId: string) => React.ReactNode),
+  id: string,
+  content: string,
+) {
+  if (typeof children === "function") return children(id);
+  if (
+    !content ||
+    !React.isValidElement<{ "aria-describedby"?: string }>(children)
+  )
+    return children;
+  return React.cloneElement(children, {
+    "aria-describedby": [children.props["aria-describedby"], id]
+      .filter(Boolean)
+      .join(" "),
+  });
+}
+
+function cloneTooltipControl(
+  control: React.ReactElement<
+    React.HTMLAttributes<HTMLElement> & { ref?: React.Ref<HTMLElement> }
+  >,
+  trigger: React.RefObject<HTMLElement | null>,
+  open: () => void,
+  close: () => void,
+) {
+  return React.cloneElement(control, {
+    ref: (element: HTMLElement | null) => {
+      trigger.current = element;
+      const ref = control.props.ref;
+      if (typeof ref === "function") return ref(element);
+      if (ref) ref.current = element;
+    },
+    onPointerEnter: (event) => {
+      control.props.onPointerEnter?.(event);
+      open();
+    },
+    onPointerLeave: (event) => {
+      control.props.onPointerLeave?.(event);
+      close();
+    },
+    onFocus: (event) => {
+      control.props.onFocus?.(event);
+      open();
+    },
+    onBlur: (event) => {
+      control.props.onBlur?.(event);
+      close();
+    },
+    onPointerDown: (event) => {
+      control.props.onPointerDown?.(event);
+      close();
+    },
+    onKeyDown: (event) => {
+      control.props.onKeyDown?.(event);
+      close();
+    },
+  });
+}
+
 function useFloatingTooltipPosition(content: string) {
-  const trigger = React.useRef<HTMLSpanElement>(null);
+  const trigger = React.useRef<HTMLElement | null>(null);
   const bubble = React.useRef<HTMLSpanElement>(null);
   const [anchor, setAnchor] = React.useState<DOMRect | null>(null);
   const [position, setPosition] = React.useState({ left: 0, top: 0 });
   const close = React.useCallback(() => setAnchor(null), []);
   const open = () => {
-    if (trigger.current?.querySelector('[aria-expanded="true"]')) return;
+    if (
+      !content ||
+      trigger.current?.getAttribute("aria-expanded") === "true" ||
+      trigger.current?.querySelector('[aria-expanded="true"]')
+    )
+      return;
     if (trigger.current) setAnchor(trigger.current.getBoundingClientRect());
   };
   React.useLayoutEffect(() => {

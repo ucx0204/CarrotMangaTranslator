@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconArrowBackUp, IconWand } from "@tabler/icons-react";
 import React from "react";
 import styles from "./ConditionalBatchEditor.module.css";
@@ -22,6 +23,7 @@ export type ConditionalBatchFooterProps = {
 export function ConditionalBatchFooter(
   props: ConditionalBatchFooterProps,
 ): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <footer className={styles.applyFooter}>
       <div className={styles.applyActions}>
@@ -33,7 +35,7 @@ export function ConditionalBatchFooter(
             title={props.undoLabel ?? undefined}
             onClick={props.onUndo}
           >
-            실행 취소
+            {t("conditionalBatch.undo")}
           </Button>
         ) : null}
         {props.inspectionOnly ? null : (
@@ -47,7 +49,9 @@ export function ConditionalBatchFooter(
             }
             onClick={props.onApply}
           >
-            {props.sequenceName ? "연속 실행" : "적용"}
+            {props.sequenceName
+              ? t("batchEditorCopy.sequence")
+              : t("common.apply")}
           </Button>
         )}
       </div>

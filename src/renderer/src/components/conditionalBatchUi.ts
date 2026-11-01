@@ -1,112 +1,23 @@
+import { CONDITIONAL_BATCH_FIELD_LABELS } from "./conditionalBatchLabels";
 import {
   CONDITIONAL_BATCH_FIELD_DEFINITIONS,
   type ConditionalBatchField,
-  type ConditionalBatchOperator,
 } from "../../../shared/conditionalBatchFieldRegistry";
 
 import { TEXT_WORD_BREAK_VALUES } from "../../../shared/textWrapping";
 
 import { appI18n } from "../appI18n";
 
-export const CONDITIONAL_BATCH_FIELD_LABELS: Record<
-  ConditionalBatchField,
-  string
-> = {
-  sourceText: "원문",
-  translatedText: "번역문",
-  fontFamily: "글꼴",
-  speakerId: "화자",
-  reviewNote: "검수 메모",
-  textRole: "텍스트 역할",
-  fontRole: "글꼴 역할",
-  sourceDirection: "원문 방향",
-  renderDirection: "출력 방향",
-  textAlign: "정렬",
-  wordBreak: "줄바꿈",
-  reviewStatus: "검수 상태",
-  confidence: "OCR 신뢰도",
-  fontRoleConfidence: "글꼴 신뢰도",
-  fontSizePx: "글자 크기",
-  lineHeight: "줄 간격",
-  letterSpacing: "자간",
-  fontWidthScale: "장평",
-  rotationDeg: "회전",
-  textOpacity: "글자 투명도",
-  outlineWidthPx: "외곽선 두께",
-  outlineWidthScale: "외곽선 배율",
-  outerOutlineWidthPx: "바깥 외곽선 두께",
-  pageIndex: "페이지 순번",
-  blockIndex: "말풍선 순번",
-  lineCount: "줄 수",
-  sourceLength: "원문 글자 수",
-  translatedLength: "번역문 글자 수",
-  bboxWidth: "말풍선 너비",
-  bboxHeight: "말풍선 높이",
-  bboxAspectRatio: "말풍선 비율",
-  textColor: "글자색",
-  outlineColor: "외곽선색",
-  outerOutlineColor: "바깥 외곽선색",
-  textBackgroundColor: "글자 영역 배경색",
-  bold: "굵게",
-  italic: "기울임",
-  underline: "밑줄",
-  strikethrough: "취소선",
-  emphasisMark: "강조점",
-  textBackgroundEnabled: "글자 영역 배경",
-  autoFitText: "자동 맞춤",
-  inpaintExcluded: "인페인팅 제외",
-  hasInlineStyle: "부분 서식 있음",
-  hasSpeaker: "화자 있음",
-  hasGlossary: "용어 연결 있음",
-  textEffectEnabled: "그림자 사용",
-  textEffectColor: "그림자색",
-  textEffectOffsetX: "그림자 가로 위치",
-  textEffectOffsetY: "그림자 세로 위치",
-  textEffectBlur: "그림자 흐림",
-  textEffectOpacity: "그림자 불투명도",
-  textGlowEnabled: "광선 사용",
-  textGlowColor: "광선색",
-  textGlowBlur: "광선 퍼짐",
-  textGlowOpacity: "광선 불투명도",
-  sameAsSource: "원문과 동일",
-  numberMismatch: "숫자 불일치",
-  unbalancedPunctuation: "괄호·따옴표 불균형",
-  suspiciousWhitespace: "의심스러운 공백",
-  glossaryMismatch: "용어집 불일치",
-};
-
-export const CONDITIONAL_BATCH_OPERATOR_LABELS: Record<
-  ConditionalBatchOperator,
-  string
-> = {
-  contains: "포함",
-  notContains: "포함하지 않음",
-  equals: "같음",
-  notEquals: "다름",
-  startsWith: "다음으로 시작",
-  endsWith: "다음으로 끝남",
-  regex: "패턴과 맞음",
-  notRegex: "패턴과 맞지 않음",
-  empty: "비어 있음",
-  notEmpty: "비어 있지 않음",
-  oneOf: "다음 중 하나",
-  notOneOf: "어느 것도 아님",
-  greaterThan: ">",
-  greaterThanOrEqual: "≥",
-  lessThan: "<",
-  lessThanOrEqual: "≤",
-  between: "범위",
-  near: "비슷한 색",
-  isTrue: "예",
-  isFalse: "아니오",
-};
+const t = appI18n.getFixedT(null, "components");
 
 const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
   label: string;
   fields: readonly ConditionalBatchField[];
 }> = [
   {
-    label: "텍스트·대사",
+    get label() {
+      return t("batchEditorCopy.textAndDialogue");
+    },
     fields: [
       "translatedText",
       "sourceText",
@@ -117,7 +28,9 @@ const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
     ],
   },
   {
-    label: "글꼴·글자 모양",
+    get label() {
+      return t("batchEditorCopy.fontAndTextAppearance");
+    },
     fields: [
       "fontFamily",
       "fontRole",
@@ -144,7 +57,9 @@ const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
     ],
   },
   {
-    label: "방향·배치",
+    get label() {
+      return t("batchEditorCopy.directionAndLayout");
+    },
     fields: [
       "renderDirection",
       "sourceDirection",
@@ -154,7 +69,9 @@ const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
     ],
   },
   {
-    label: "검수·인식",
+    get label() {
+      return t("batchEditorCopy.reviewAndRecognition");
+    },
     fields: [
       "reviewStatus",
       "reviewNote",
@@ -164,7 +81,9 @@ const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
     ],
   },
   {
-    label: "자동 검사",
+    get label() {
+      return t("batchEditorCopy.automaticChecks");
+    },
     fields: [
       "sameAsSource",
       "numberMismatch",
@@ -174,7 +93,9 @@ const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
     ],
   },
   {
-    label: "위치·분량",
+    get label() {
+      return t("batchEditorCopy.positionAndLength");
+    },
     fields: [
       "pageIndex",
       "blockIndex",
@@ -187,7 +108,9 @@ const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
     ],
   },
   {
-    label: "고급 텍스트 효과",
+    get label() {
+      return t("batchEditorCopy.advancedTextEffects");
+    },
     fields: [
       "textEffectEnabled",
       "textEffectColor",
@@ -205,7 +128,7 @@ const CONDITIONAL_BATCH_FIELD_GROUPS: ReadonlyArray<{
 
 const CONDITIONAL_BATCH_FIELD_GROUP_BY_ID = new Map(
   CONDITIONAL_BATCH_FIELD_GROUPS.flatMap((group) =>
-    group.fields.map((field) => [field, group.label] as const),
+    group.fields.map((field) => [field, group] as const),
   ),
 );
 
@@ -223,9 +146,15 @@ const CONDITIONAL_BATCH_FIELDS_FOR_UI = [...CONDITIONAL_BATCH_FIELD_DEFINITIONS]
   )
   .map((definition) => ({
     ...definition,
-    label: CONDITIONAL_BATCH_FIELD_LABELS[definition.id],
-    categoryLabel:
-      CONDITIONAL_BATCH_FIELD_GROUP_BY_ID.get(definition.id) ?? "기타",
+    get label() {
+      return CONDITIONAL_BATCH_FIELD_LABELS[definition.id];
+    },
+    get categoryLabel() {
+      return (
+        CONDITIONAL_BATCH_FIELD_GROUP_BY_ID.get(definition.id)?.label ??
+        t("styleGuide.glossary.categories.other")
+      );
+    },
   }));
 
 export const QUICK_CONDITIONAL_BATCH_FIELDS: readonly ConditionalBatchField[] =
@@ -286,53 +215,85 @@ export function conditionalBatchEnumOptions(
   switch (field) {
     case "textRole":
       return [
-        { value: "ordinary", label: "일반 대사" },
-        { value: "sound", label: "효과음" },
+        {
+          value: "ordinary",
+          label: t("batchEditorCopy.normalDialogue"),
+        },
+        {
+          value: "sound",
+          label: t("styleGuide.glossary.categories.sfx"),
+        },
       ];
     case "fontRole":
-      return [
-        ["dialogue", "대사"],
-        ["narration", "내레이션"],
-        ["thought", "생각"],
-        ["whisper", "속삭임"],
-        ["aside_balloon_edge", "말풍선 가장자리"],
-        ["emphasis_dialogue", "강조 대사"],
-        ["shout", "외침"],
-        ["sfx_impact", "충격 효과음"],
-        ["sfx_motion", "동작 효과음"],
-        ["sfx_ambient", "환경 효과음"],
-        ["sfx_emotion", "감정 효과음"],
-        ["sfx_comic", "코믹 효과음"],
-        ["sign_ui_title", "간판·UI·제목"],
-        ["other", "기타"],
-        ["unknown_needs_review", "미분류·검수 필요"],
-      ].map(([value, label]) => ({ value, label }));
+      return fontRoleOptions();
     case "sourceDirection":
     case "renderDirection":
       return [
-        { value: "horizontal", label: "가로쓰기" },
-        { value: "vertical", label: "세로쓰기" },
+        {
+          value: "horizontal",
+          label: t("batchEditorCopy.horizontalText"),
+        },
+        {
+          value: "vertical",
+          label: t("batchEditorCopy.verticalText"),
+        },
       ];
     case "textAlign":
       return [
-        { value: "left", label: "왼쪽" },
-        { value: "center", label: "가운데" },
-        { value: "right", label: "오른쪽" },
+        {
+          value: "left",
+          label: t("regionOptions.boxx"),
+        },
+        {
+          value: "center",
+          label: t("transform.curve.align.center"),
+        },
+        {
+          value: "right",
+          label: t("batchEditorCopy.right"),
+        },
       ];
     case "wordBreak":
       return TEXT_WORD_BREAK_VALUES.map((value) => ({
         value,
-        label: appI18n.t(`format.wordBreak.options.${value}`, {
-          ns: "components",
-        }),
+        label: t(`format.wordBreak.options.${value}`),
       }));
     case "reviewStatus":
       return [
-        { value: "draft", label: "초안" },
-        { value: "needs_review", label: "검수 필요" },
-        { value: "reviewed", label: "검수 완료" },
+        {
+          value: "draft",
+          label: t("batchEditorCopy.draft"),
+        },
+        {
+          value: "needs_review",
+          label: t("batchEditorCopy.needsReview"),
+        },
+        {
+          value: "reviewed",
+          label: t("batchEditorCopy.reviewed"),
+        },
       ];
     default:
       return [];
   }
+}
+
+function fontRoleOptions() {
+  return [
+    ["dialogue", t("batchEditorCopy.dialogue")],
+    ["narration", t("batchEditorCopy.narration")],
+    ["thought", t("batchEditorCopy.thought")],
+    ["whisper", t("batchEditorCopy.whisper")],
+    ["aside_balloon_edge", t("batchEditorCopy.balloonEdge")],
+    ["emphasis_dialogue", t("batchEditorCopy.emphasizedDialogue")],
+    ["shout", t("batchEditorCopy.shout")],
+    ["sfx_impact", t("batchEditorCopy.impactSoundEffect")],
+    ["sfx_motion", t("batchEditorCopy.motionSoundEffect")],
+    ["sfx_ambient", t("batchEditorCopy.ambientSoundEffect")],
+    ["sfx_emotion", t("batchEditorCopy.emotionalSoundEffect")],
+    ["sfx_comic", t("batchEditorCopy.comicSoundEffect")],
+    ["sign_ui_title", t("batchEditorCopy.signsUiAndTitles")],
+    ["other", t("styleGuide.glossary.categories.other")],
+    ["unknown_needs_review", t("batchEditorCopy.unclassifiedNeedsReview")],
+  ].map(([value, label]) => ({ value, label }));
 }

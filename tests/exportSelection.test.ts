@@ -31,10 +31,10 @@ function makePage(id: string): MangaPage {
 const pages = [makePage("p1"), makePage("p2"), makePage("p3")];
 
 describe("export selection", () => {
-  it("defaults to only the current page", () => {
+  it("defaults to the whole current chapter", () => {
     expect(
       buildExportSelection(["c1"], createDefaultExportSelection("c1", "p2")),
-    ).toEqual([{ chapterId: "c1", mode: "page-set", pageIds: ["p2"] }]);
+    ).toEqual([{ chapterId: "c1", mode: "all" }]);
   });
 
   it("builds all and page-set requests in library chapter order", () => {

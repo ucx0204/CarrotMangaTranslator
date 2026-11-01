@@ -14,6 +14,9 @@ export type ChapterTaskHubProps = {
   exportLabel: string;
   psdExportLabel: string;
   viewResultsLabel: string;
+  /** Display names owned by the translate/chat commands (palette parity). */
+  translateLabel?: string;
+  chatTranslateLabel?: string;
   onOpenExport: () => void;
   onOpenPsdExport: () => void;
   onViewLinkedResults: () => void;

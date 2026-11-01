@@ -1138,3 +1138,19 @@
   background-size: 6px 6px;
   background-position: 0 0;
 }
+
+@media (max-height: 800px) {
+  .current-page-actions-section {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .current-page-actions-title {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+  .current-page-actions {
+    flex: 1;
+    min-width: 0;
+  }
+}

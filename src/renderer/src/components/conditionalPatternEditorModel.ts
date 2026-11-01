@@ -1,3 +1,4 @@
+import { appI18n } from "../appI18n";
 import {
   createConditionalPatternId,
   createConditionalPatternRepeat,
@@ -6,6 +7,8 @@ import {
   type ConditionalReplacementV3,
   type ConditionalTextMatcherV3,
 } from "../../../shared/conditionalTextPattern";
+
+const t = appI18n.getFixedT(null, "components");
 
 export type PatternBuilderProps = {
   matcher: ConditionalTextMatcherV3;
@@ -27,11 +30,21 @@ const CHARACTER_LABELS: Record<
   Extract<ConditionalPatternNodeV3, { kind: "character" }>["character"],
   string
 > = {
-  number: "숫자",
-  letter: "글자",
-  whitespace: "공백",
-  newline: "줄바꿈",
-  any: "아무 글자",
+  get number() {
+    return t("batchEditorCopy.number");
+  },
+  get letter() {
+    return t("batchEditorCopy.character");
+  },
+  get whitespace() {
+    return t("batchEditorCopy.whitespace");
+  },
+  get newline() {
+    return t("patternEditorCopy.lineBreak");
+  },
+  get any() {
+    return t("batchEditorCopy.anyCharacter");
+  },
 };
 
 export function createPatternNode(
@@ -56,7 +69,12 @@ export function createPatternNode(
   });
   if (kind === "literal") return { id, kind, text: "", repeat };
   if (kind === "choice") {
-    return { id, kind, options: ["후보 1", "후보 2"], repeat };
+    return {
+      id,
+      kind,
+      options: [t("patternEditorCopy.option1"), t("patternEditorCopy.option2")],
+      repeat,
+    };
   }
   if (kind === "group") {
     return {
@@ -78,11 +96,15 @@ export function createPatternNode(
 
 export function patternNodeLabel(node: ConditionalPatternNodeV3): string {
   if (node.kind === "boundary") {
-    return node.boundary === "start" ? "말풍선 처음" : "말풍선 끝";
+    return node.boundary === "start"
+      ? t("batchEditorCopy.balloonStart")
+      : t("batchEditorCopy.balloonEnd");
   }
   if (node.kind === "character") return CHARACTER_LABELS[node.character];
-  if (node.kind === "choice") return node.options.join(" 또는 ");
-  if (node.kind === "group") return `묶음 ${node.nodes.length}개`;
+  if (node.kind === "choice")
+    return node.options.join(` ${t("patternEditorCopy.or")} `);
+  if (node.kind === "group")
+    return t("patternEditorCopy.groupCount", { count: node.nodes.length });
   return node.text;
 }
 
@@ -116,12 +138,16 @@ export function repeatFromPreset(
 
 export function repeatLabel(repeat: ConditionalPatternRepeatV3): string {
   const preset = repeatPreset(repeat);
-  if (preset === "once") return "한 번";
-  if (preset === "optional") return "있어도 됨";
-  if (preset === "oneOrMore") return "1개 이상";
-  if (preset === "zeroOrMore") return "여러 개";
-  if (preset === "exact") return `${repeat.min}개`;
-  return `${repeat.min}~${repeat.max ?? "∞"}개`;
+  if (preset === "once") return t("patternEditorCopy.once");
+  if (preset === "optional") return t("patternEditorCopy.optional");
+  if (preset === "oneOrMore") return t("patternEditorCopy.oneOrMore");
+  if (preset === "zeroOrMore") return t("patternEditorCopy.multiple");
+  if (preset === "exact")
+    return t("patternEditorCopy.exactCount", { count: repeat.min });
+  return t("patternEditorCopy.rangeCount", {
+    min: repeat.min,
+    max: repeat.max ?? "∞",
+  });
 }
 
 export function isOnce(repeat: ConditionalPatternRepeatV3): boolean {

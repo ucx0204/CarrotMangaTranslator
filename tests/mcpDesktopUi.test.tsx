@@ -80,8 +80,8 @@ it("shows distinct Codex and ChatGPT setup steps and copies the actual server co
     screen.getByRole("tab", { name: "ChatGPT" }).getAttribute("aria-selected"),
   ).toBe("true");
   expect(screen.getByText("추가 → MCP 앱 만들기")).toBeTruthy();
-  expect(screen.getByText("⋯ → 관리")).toBeTruthy();
-  expect(screen.getByText("모든 도구 허용")).toBeTruthy();
+  expect(screen.getByText(/⋯ → 관리/)).toBeTruthy();
+  expect(screen.getByText(/모든 도구 허용을 선택하면/)).toBeTruthy();
   expect(screen.getByText(/편집·삭제 같은 변경도 확인 없이/)).toBeTruthy();
   expect(
     screen.getAllByRole("img").map((image) => image.getAttribute("alt")),
@@ -96,7 +96,7 @@ it("shows distinct Codex and ChatGPT setup steps and copies the actual server co
   ]);
   fireEvent.click(
     screen.getByRole("button", {
-      name: "MCP 앱 만들기 · 연결 주소는 가린 예시 크게 보기",
+      name: "MCP 앱 만들기 · 연결 주소는 가린 예시 · 크게 보기",
     }),
   );
   expect(

@@ -321,6 +321,77 @@ function EditingHarness({
 }
 
 describe("batch controls match their stored and applied values", () => {
+  it("preserves the remaining style filter and range values when conditions are removed", () => {
+    let draft = draftFor({
+      id: "inline",
+      enabled: true,
+      type: "styleText",
+      target: "translatedText",
+      scope: "allText",
+      allOccurrences: true,
+      styleMode: "overwrite",
+      patch: { color: "#ff0000" },
+      matchStyle: {
+        logic: "all",
+        conditions: [
+          { id: "bold", field: "bold", operator: "equals", value: true },
+          {
+            id: "opacity",
+            field: "opacity",
+            operator: "lessThanOrEqual",
+            value: 0.5,
+          },
+        ],
+      },
+    });
+    render(
+      <EditingHarness
+        initial={draft}
+        onChange={(next) => {
+          draft = next;
+        }}
+      />,
+    );
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "부분 서식 조건 삭제" })[0],
+    );
+    const remaining = draft.actions[0];
+    if (remaining.type !== "styleText") throw new Error("Missing style action");
+    expect(remaining.matchStyle?.conditions).toEqual([
+      {
+        id: "opacity",
+        field: "opacity",
+        operator: "lessThanOrEqual",
+        value: 0.5,
+      },
+    ]);
+    chooseCustomSelectOption("부분 서식 비교 방식", "범위");
+    const end = screen.getByRole("spinbutton", {
+      name: "부분 서식 범위 끝 값",
+    });
+    fireEvent.change(end, { target: { value: "75" } });
+    fireEvent.blur(end);
+    const ranged = draft.actions[0];
+    if (ranged.type !== "styleText") throw new Error("Missing style action");
+    expect(ranged.matchStyle?.conditions[0]).toMatchObject({
+      operator: "between",
+      value: 0.5,
+      value2: 0.75,
+    });
+    expect(ConditionalBatchSchemeDraftV2Schema.safeParse(draft).success).toBe(
+      true,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "부분 서식 조건 삭제" }),
+    );
+    expect(draft.actions[0]).toMatchObject({
+      matchStyle: undefined,
+      patch: { color: "#ff0000" },
+    });
+    expect(
+      screen.queryByRole("combobox", { name: "부분 서식 비교 방식" }),
+    ).toBeNull();
+  });
   it("keeps an action disabled and preserves its memo when the preset changes", () => {
     const chapter = batchChapter();
     const presets = ["one", "two"].map((id, index) =>
@@ -486,7 +557,7 @@ describe("batch controls match their stored and applied values", () => {
   });
 
   it.each([
-    ["opacity", "글자 투명도", 0.65, 65, 0.7],
+    ["opacity", "글자 불투명도", 0.65, 65, 0.7],
     ["widthScale", "장평", 1.2, 120, 0.7],
     ["glowOpacity", "광선 불투명도", 0.35, 35, 0.7],
   ] as const)(

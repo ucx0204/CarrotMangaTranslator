@@ -62,10 +62,10 @@ export function PageThumb({
         onError={markErrored}
       />
       <span className="translate-page-thumb-cap" title={page.name}>
-        <span className="translate-page-thumb-name">{page.name}</span>
         <span className="translate-page-thumb-no" aria-hidden="true">
           #{index + 1}
         </span>
+        <span className="translate-page-thumb-name">{page.name}</span>
       </span>
     </PageThumbSelectionCard>
   );

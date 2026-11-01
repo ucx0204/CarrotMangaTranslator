@@ -9,7 +9,6 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TranslateSourceMode } from "../lib/importFlowTypes";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import { Button } from "./ui/Button";
 
 type TranslateSourceModalProps = {
@@ -32,19 +31,6 @@ export function TranslateSourceModal({
       title={t(addingPages ? "import.addPages" : "translateSource.title")}
       onClose={onCancel}
       closeDisabled={busy}
-      footer={
-        <ModalActionBar
-          actions={
-            <ModalActionButtons
-              cancel={{
-                label: t("common.cancel"),
-                onClick: onCancel,
-                disabled: busy,
-              }}
-            />
-          }
-        />
-      }
     >
       <div className="source-choice-grid">
         <SourceChoice
@@ -63,6 +49,7 @@ export function TranslateSourceModal({
           disabled={busy}
           icon={<IconZip size={22} stroke={1.8} />}
           label={t("translateSource.openArchive")}
+          detail="ZIP · CBZ · RAR · CBR"
           onClick={() => onSelect("zip")}
         />
         <SourceChoice
@@ -78,6 +65,7 @@ export function TranslateSourceModal({
           onClick={() => onSelect("web")}
         />
       </div>
+      <p className="muted-line modal-note">{t("translateSource.dropHint")}</p>
     </Modal>
   );
 }
@@ -86,11 +74,13 @@ function SourceChoice({
   disabled,
   icon,
   label,
+  detail,
   onClick,
 }: {
   disabled: boolean;
   icon: React.ReactNode;
   label: string;
+  detail?: string;
   onClick: () => void;
 }): React.JSX.Element {
   return (
@@ -106,6 +96,7 @@ function SourceChoice({
       </span>
       <span className="source-choice-copy">
         <strong>{label}</strong>
+        {detail ? <small>{detail}</small> : null}
       </span>
     </Button>
   );

@@ -12,7 +12,7 @@ import {
   type AutoInpaintingEntryScope,
 } from "../lib/autoInpaintingSelection";
 import { PageSelectionPicker } from "./BinaryChapterPagePicker";
-import { Button } from "./ui/Button";
+import { ModalActionButtons } from "./ui/ModalActionBar";
 import {
   PagePickerModalCheckbox,
   PagePickerModalShell,
@@ -71,16 +71,14 @@ export function AutoInpaintingOptionsModal({
           : undefined
       }
       footerActions={
-        <>
-          <Button onClick={onClose}>{t("common.cancel")}</Button>
-          <Button
-            variant="primary"
-            onClick={handleStart}
-            disabled={aiUnavailable || state.runSelection.length === 0}
-          >
-            {t("autoInpaintingOptions.start")}
-          </Button>
-        </>
+        <ModalActionButtons
+          cancel={{ label: t("common.cancel"), onClick: onClose }}
+          confirm={{
+            label: t("autoInpaintingOptions.start"),
+            onClick: handleStart,
+            disabled: aiUnavailable || state.runSelection.length === 0,
+          }}
+        />
       }
     >
       <AutoInpaintingScopeBody

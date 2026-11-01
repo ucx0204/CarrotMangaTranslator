@@ -17,13 +17,13 @@
 .scope {
   min-width: 0;
   padding: 2px var(--sp-2);
-  border: 1px solid var(--border-soft);
+  border: 0;
   border-radius: var(--r-sm);
   color: var(--text-muted);
   font-size: var(--font-xs);
   font-weight: 650;
   line-height: 1.4;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 /* Letter-level targets use the selection accent so a partial edit is never

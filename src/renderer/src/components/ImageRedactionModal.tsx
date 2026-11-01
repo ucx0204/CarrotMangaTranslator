@@ -66,6 +66,7 @@ export function ImageRedactionModal({
         </Button>
       ) : null}
       <Button
+        variant="ghost"
         disabled={busy}
         onClick={() => {
           void cancel();

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React from "react";
 import styles from "./ConditionalBatchEditor.module.css";
 import type { ConditionalBatchRulePanelProps } from "./conditionalBatchRulePanelTypes";
@@ -16,6 +17,7 @@ type ConditionalBatchRecipePickerProps = Pick<
 export function ConditionalBatchRecipePicker(
   props: ConditionalBatchRecipePickerProps,
 ): React.JSX.Element {
+  const { t } = useTranslation("components");
   const favoriteIds = new Set(props.favoriteSchemeIds);
   const quickSchemes = props.savedSchemes.filter((scheme) =>
     favoriteIds.has(scheme.id),
@@ -23,7 +25,7 @@ export function ConditionalBatchRecipePicker(
   return (
     <section className={styles.recipePanel}>
       <header>
-        <strong>새 규칙</strong>
+        <strong>{t("conditionalBatch.scheme.new")}</strong>
         <div className={styles.recipeHeaderActions}>
           {props.recipePickerCanClose ? (
             <Button
@@ -31,7 +33,7 @@ export function ConditionalBatchRecipePicker(
               variant="ghost"
               onClick={props.onCloseRecipePicker}
             >
-              닫기
+              {t("common.close")}
             </Button>
           ) : null}
         </div>
@@ -56,7 +58,7 @@ export function ConditionalBatchRecipePicker(
           variant="primary"
           onClick={() => props.onChooseRecipe("blank")}
         >
-          직접 규칙 생성
+          {t("batchEditorCopy.createARule")}
         </Button>
       </div>
     </section>

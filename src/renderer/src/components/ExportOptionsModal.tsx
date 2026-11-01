@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "./ErrorBoundary";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -58,7 +59,7 @@ const DEFAULT_PSD_OPTIONS: ManualPsdExportOptions = {
 };
 
 // eslint-disable-next-line max-lines-per-function -- modal state, preflight, and start locking form one export submission lifecycle
-export function ExportOptionsModal({
+function ExportOptionsModalContent({
   chapter,
   currentPageId,
   jobActive,
@@ -352,4 +353,14 @@ function useCloseStartedExport(
 function closeModalToWorkCenter(onClose: () => void): void {
   handoffActiveModalToWorkCenter();
   onClose();
+}
+
+export function ExportOptionsModal(
+  props: ExportOptionsModalProps,
+): React.JSX.Element {
+  return (
+    <ErrorBoundary onRecover={props.onClose}>
+      <ExportOptionsModalContent {...props} />
+    </ErrorBoundary>
+  );
 }

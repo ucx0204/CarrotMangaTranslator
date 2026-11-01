@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   IconArrowDown,
   IconArrowUp,
@@ -26,11 +27,13 @@ import {
   summarizeCondition,
 } from "./conditionalBatchPresentation";
 import {
-  CONDITIONAL_BATCH_FIELD_LABELS,
-  CONDITIONAL_BATCH_OPERATOR_LABELS,
   isNewConditionalBatchConditionField,
   listConditionalBatchFields,
 } from "./conditionalBatchUi";
+import {
+  CONDITIONAL_BATCH_FIELD_LABELS,
+  CONDITIONAL_BATCH_OPERATOR_LABELS,
+} from "./conditionalBatchLabels";
 
 import { CheckboxField } from "./ui/CheckboxField";
 import { Select } from "./ui/Select";
@@ -80,6 +83,7 @@ export function ConditionCard({
   canDuplicate = true,
   canRemove = true,
 }: ConditionCardProps) {
+  const { t } = useTranslation("components");
   const evaluation = currentResult?.conditionEvaluations.find(
     (entry) => entry.conditionId === condition.id,
   );
@@ -93,7 +97,9 @@ export function ConditionCard({
       <div className={styles.sentenceHeader}>
         <CheckboxField
           checked={condition.enabled}
-          ariaLabel={`${index + 1}번 조건 활성화`}
+          ariaLabel={t("batchEditorMessages.enableCondition", {
+            p0: index + 1,
+          })}
           onCheckedChange={(enabled) => onChange({ ...condition, enabled })}
         />
         <ConditionSummary
@@ -132,6 +138,7 @@ function ConditionEditor({
   sampleText?: string;
   onChange: (condition: ConditionalBatchConditionV2) => void;
 }) {
+  const { t } = useTranslation("components");
   const definition = listConditionalBatchFields().find(
     (field) => field.id === condition.field,
   );
@@ -145,8 +152,8 @@ function ConditionEditor({
         onChange={onChange}
       />
       <TextField
-        label="메모"
-        placeholder="선택 사항"
+        label={t("styleGuide.note")}
+        placeholder={t("batchEditorCopy.optional")}
         value={condition.note ?? ""}
         maxLength={500}
         onChange={(event) =>
@@ -177,13 +184,14 @@ function ConditionOrderingButtons({
   canDuplicate: boolean;
   canRemove: boolean;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.rowActions}>
       {total > 1 ? (
         <>
           <IconButton
             size="sm"
-            label="조건 위로 이동"
+            label={t("batchEditorCopy.moveConditionUp")}
             disabled={index === 0}
             onClick={() => onMove(-1)}
           >
@@ -191,7 +199,7 @@ function ConditionOrderingButtons({
           </IconButton>
           <IconButton
             size="sm"
-            label="조건 아래로 이동"
+            label={t("batchEditorCopy.moveConditionDown")}
             disabled={index === total - 1}
             onClick={() => onMove(1)}
           >
@@ -201,7 +209,9 @@ function ConditionOrderingButtons({
       ) : null}
       <IconButton
         size="sm"
-        label={`${index + 1}번 조건 복제`}
+        label={t("batchEditorMessages.duplicateCondition", {
+          p0: index + 1,
+        })}
         disabled={!canDuplicate}
         onClick={onDuplicate}
       >
@@ -210,7 +220,9 @@ function ConditionOrderingButtons({
       <IconButton
         size="sm"
         variant="danger"
-        label={`${index + 1}번 조건 삭제`}
+        label={t("batchEditorMessages.deleteCondition", {
+          p0: index + 1,
+        })}
         disabled={!canRemove}
         onClick={onRemove}
       >
@@ -232,6 +244,7 @@ function ConditionSummary({
   evaluation:
     ConditionalBatchPreviewResult["conditionEvaluations"][number] | undefined;
 }) {
+  const { t } = useTranslation("components");
   const { options: fontOptions } = useFonts();
   const { options: speakerOptions } = React.useContext(
     ConditionalBatchSpeakersContext,
@@ -241,6 +254,7 @@ function ConditionSummary({
     condition,
     fontOptions,
     speakerOptions,
+    t("batchEditorCopy.defaultValue"),
   );
 
   return (
@@ -258,7 +272,10 @@ function ConditionSummary({
       </span>
       {!expanded && evaluation ? (
         <small data-matched={evaluation.matched}>
-          {evaluation.matched ? "통과" : "불일치"} ·{" "}
+          {evaluation.matched
+            ? t("mcp.pass")
+            : t("batchEditorCopy.doesNotMatch")}{" "}
+          ·{" "}
           {(evaluation.field === "speakerId"
             ? speakerOptions.find(
                 (speaker) => speaker.value === evaluation.rawValue,
@@ -281,11 +298,12 @@ function ConditionFieldControls({
   condition: ConditionalBatchConditionV2;
   onChange: (condition: ConditionalBatchConditionV2) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.conditionControls}>
-      <Field as="div" label="필드">
+      <Field as="div" label={t("batchEditorCopy.field")}>
         <Select
-          ariaLabel="조건 필드"
+          ariaLabel={t("batchEditorCopy.conditionField")}
           searchable
           value={condition.field}
           options={listConditionalBatchFields()
@@ -310,9 +328,9 @@ function ConditionFieldControls({
           }
         />
       </Field>
-      <Field as="div" label="비교">
+      <Field as="div" label={t("batchEditorCopy.compare")}>
         <Select
-          ariaLabel="비교 방법"
+          ariaLabel={t("conditionalBatch.when.operator")}
           value={condition.operator}
           options={conditionOperators(condition).map((operator) => ({
             value: operator,
@@ -338,6 +356,7 @@ function conditionIdentityLabel(
   speakerOptions: React.ContextType<
     typeof ConditionalBatchSpeakersContext
   >["options"],
+  defaultFontLabel: string,
 ) {
   const speakerLabel =
     condition.field === "speakerId" &&
@@ -348,7 +367,7 @@ function conditionIdentityLabel(
   const fontLabel =
     condition.field === "fontFamily"
       ? (fontOptions.find((font) => font.id === condition.value)?.label ??
-        (condition.value ? String(condition.value) : "기본"))
+        (condition.value ? String(condition.value) : defaultFontLabel))
       : undefined;
   return speakerLabel ?? fontLabel;
 }

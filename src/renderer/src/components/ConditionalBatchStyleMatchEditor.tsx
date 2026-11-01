@@ -1,16 +1,23 @@
+import {
+  TEXT_STYLE_FIELD_LABELS,
+  createTextStyleMatchCondition,
+  textStyleOperatorOptions,
+  isTextStyleBooleanField,
+  isTextStyleColorField,
+  textStyleNumberField,
+} from "./conditionalBatchStyleMatchPresentation";
+import { useTranslation } from "react-i18next";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 
 import { DEFAULT_BLOCK_FONT_ID } from "../../../shared/blockFontCatalog";
 
 import {
   CONDITIONAL_BATCH_TEXT_STYLE_FIELDS,
-  createConditionalBatchClientId,
   type ConditionalBatchActionV2,
   type ConditionalBatchStyleTextActionV2,
   type ConditionalBatchTextStyleField,
   type ConditionalBatchTextStyleMatchCondition,
   type ConditionalBatchTextStyleOperator,
-  type ConditionalBatchWritableField,
 } from "../../../shared/conditionalBatchRules";
 
 import { resolveConditionalBatchNumberPresentation } from "./conditionalBatchPresentation";
@@ -31,28 +38,6 @@ import { SegmentedControl } from "./ui/SegmentedControl";
 
 import styles from "./ConditionalBatchEditor.module.css";
 
-const TEXT_STYLE_FIELD_LABELS: Record<ConditionalBatchTextStyleField, string> =
-  {
-    bold: "굵게",
-    italic: "기울임",
-    underline: "밑줄",
-    strikethrough: "취소선",
-    emphasisMark: "강조점",
-    fontFamily: "글꼴",
-    sizePx: "크기",
-    opacity: "글자 투명도",
-    widthScale: "장평",
-    color: "글자색",
-    backgroundColor: "글자 배경색",
-    outlineColor: "외곽선색",
-    outlineWidthPx: "외곽선 두께",
-    outerOutlineColor: "바깥 외곽선색",
-    outerOutlineWidthPx: "바깥 외곽선 두께",
-    glowColor: "광선색",
-    glowBlurPx: "광선 퍼짐",
-    glowOpacity: "광선 불투명도",
-  };
-
 export function ExistingStyleMatchEditor({
   action,
   onChange,
@@ -60,6 +45,7 @@ export function ExistingStyleMatchEditor({
   action: ConditionalBatchStyleTextActionV2;
   onChange: (action: ConditionalBatchActionV2) => void;
 }) {
+  const { t } = useTranslation("components");
   const matchStyle = action.matchStyle;
   const usedFields = new Set(
     matchStyle?.conditions.map((condition) => condition.field) ?? [],
@@ -122,7 +108,7 @@ export function ExistingStyleMatchEditor({
                 ])
               }
             >
-              서식 조건 추가
+              {t("batchEditorCopy.addFormattingCondition")}
             </Button>
           ) : null}
         </div>
@@ -142,11 +128,12 @@ function TextStyleMatchConditionEditor({
   onChange: (condition: ConditionalBatchTextStyleMatchCondition) => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation("components");
   const operators = textStyleOperatorOptions(condition.field);
   return (
     <div className={styles.existingStyleConditionRow}>
       <Select
-        ariaLabel="기존 부분 서식"
+        ariaLabel={t("batchEditorCopy.existingInlineFormatting")}
         value={condition.field}
         options={CONDITIONAL_BATCH_TEXT_STYLE_FIELDS.map((field) => ({
           value: field,
@@ -163,7 +150,7 @@ function TextStyleMatchConditionEditor({
         }
       />
       <Select
-        ariaLabel="부분 서식 비교 방식"
+        ariaLabel={t("batchEditorCopy.inlineFormatComparison")}
         value={condition.operator}
         options={operators}
         onValueChange={(operator) =>
@@ -177,7 +164,10 @@ function TextStyleMatchConditionEditor({
         }
       />
       <TextStyleMatchValueEditor condition={condition} onChange={onChange} />
-      <IconButton label="부분 서식 조건 삭제" onClick={onDelete}>
+      <IconButton
+        label={t("batchEditorCopy.deleteFormattingCondition")}
+        onClick={onDelete}
+      >
         <IconTrash size={15} />
       </IconButton>
     </div>
@@ -191,14 +181,21 @@ function TextStyleMatchValueEditor({
   condition: ConditionalBatchTextStyleMatchCondition;
   onChange: (condition: ConditionalBatchTextStyleMatchCondition) => void;
 }) {
+  const { t } = useTranslation("components");
   if (isTextStyleBooleanField(condition.field)) {
     return (
       <Select
-        ariaLabel="부분 서식 값"
+        ariaLabel={t("batchEditorCopy.inlineFormatValue")}
         value={condition.value === true ? "true" : "false"}
         options={[
-          { value: "true", label: "켜짐" },
-          { value: "false", label: "꺼짐" },
+          {
+            value: "true",
+            label: t("gatherText.toggleOn"),
+          },
+          {
+            value: "false",
+            label: t("gatherText.toggleOff"),
+          },
         ]}
         onValueChange={(value) =>
           onChange({ ...condition, value: value === "true" })
@@ -209,7 +206,7 @@ function TextStyleMatchValueEditor({
   if (condition.field === "fontFamily") {
     return (
       <FontSelect
-        ariaLabel="비교할 부분 서식 글꼴"
+        ariaLabel={t("batchEditorCopy.inlineFontToCompare")}
         preserveFontId
         value={String(condition.value) || undefined}
         onChange={(fontFamily) =>
@@ -221,7 +218,7 @@ function TextStyleMatchValueEditor({
   if (isTextStyleColorField(condition.field)) {
     return (
       <ColorField
-        label="부분 서식 색상"
+        label={t("batchEditorCopy.inlineFormatColor")}
         value={String(condition.value) || "#000000"}
         disabled={false}
         onChange={(value) => onChange({ ...condition, value })}
@@ -233,91 +230,6 @@ function TextStyleMatchValueEditor({
   );
 }
 
-function createTextStyleMatchCondition(
-  field: ConditionalBatchTextStyleField,
-  id = createConditionalBatchClientId("style-condition"),
-): ConditionalBatchTextStyleMatchCondition {
-  if (field === "fontFamily") {
-    return { id, field, operator: "equals", value: DEFAULT_BLOCK_FONT_ID };
-  }
-  if (isTextStyleColorField(field)) {
-    return { id, field, operator: "equals", value: "#000000" };
-  }
-  if (field === "sizePx") {
-    return { id, field, operator: "greaterThanOrEqual", value: 24 };
-  }
-  if (field === "opacity" || field === "glowOpacity") {
-    return { id, field, operator: "lessThanOrEqual", value: 1 };
-  }
-  if (field === "widthScale") {
-    return { id, field, operator: "greaterThanOrEqual", value: 1 };
-  }
-  if (
-    field === "outlineWidthPx" ||
-    field === "outerOutlineWidthPx" ||
-    field === "glowBlurPx"
-  ) {
-    return { id, field, operator: "greaterThanOrEqual", value: 1 };
-  }
-  return { id, field, operator: "equals", value: true };
-}
-
-function textStyleOperatorOptions(field: ConditionalBatchTextStyleField) {
-  if (field === "fontFamily" || isTextStyleColorField(field)) {
-    return [
-      { value: "equals", label: "같음" },
-      { value: "notEquals", label: "다름" },
-    ];
-  }
-  if (isTextStyleBooleanField(field)) {
-    return [{ value: "equals", label: "상태" }];
-  }
-  return [
-    { value: "equals", label: "같음" },
-    { value: "notEquals", label: "다름" },
-    { value: "greaterThan", label: "초과" },
-    { value: "greaterThanOrEqual", label: "이상" },
-    { value: "lessThan", label: "미만" },
-    { value: "lessThanOrEqual", label: "이하" },
-    { value: "between", label: "범위" },
-  ];
-}
-
-function isTextStyleBooleanField(
-  field: ConditionalBatchTextStyleField,
-): boolean {
-  return [
-    "bold",
-    "italic",
-    "underline",
-    "strikethrough",
-    "emphasisMark",
-  ].includes(field);
-}
-
-function isTextStyleColorField(field: ConditionalBatchTextStyleField): boolean {
-  return [
-    "color",
-    "backgroundColor",
-    "outlineColor",
-    "outerOutlineColor",
-    "glowColor",
-  ].includes(field);
-}
-
-function textStyleNumberField(
-  field: ConditionalBatchTextStyleField,
-): ConditionalBatchWritableField {
-  if (field === "opacity") return "textOpacity";
-  if (field === "glowOpacity") return "textGlowOpacity";
-  if (field === "widthScale") return "fontWidthScale";
-  if (field === "glowBlurPx") return "textGlowBlur";
-  if (field === "outlineWidthPx" || field === "outerOutlineWidthPx") {
-    return field;
-  }
-  return "fontSizePx";
-}
-
 function StyleMatchActivationControls({
   action,
   matchStyle,
@@ -327,11 +239,12 @@ function StyleMatchActivationControls({
   matchStyle: ConditionalBatchStyleTextActionV2["matchStyle"];
   onChange: (action: ConditionalBatchActionV2) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.existingStyleMatchHeader}>
       <CheckboxField
         checked={Boolean(matchStyle)}
-        label="기존 서식으로 범위 좁히기"
+        label={t("batchEditorCopy.narrowByExistingFormatting")}
         onCheckedChange={(checked) =>
           onChange({
             ...action,
@@ -346,12 +259,18 @@ function StyleMatchActivationControls({
       />
       {matchStyle && matchStyle.conditions.length > 1 ? (
         <SegmentedControl
-          ariaLabel="부분 서식 조건 조합"
+          ariaLabel={t("batchEditorCopy.combineFormattingConditions")}
           singleRow
           value={matchStyle.logic}
           options={[
-            { id: "all", label: "모두" },
-            { id: "any", label: "하나라도" },
+            {
+              id: "all",
+              label: t("batchEditorCopy.all"),
+            },
+            {
+              id: "any",
+              label: t("batchEditorCopy.any"),
+            },
           ]}
           onChange={(logic) =>
             onChange({
@@ -372,6 +291,7 @@ function TextStyleMatchNumberValue({
   condition: ConditionalBatchTextStyleMatchCondition;
   onChange: (condition: ConditionalBatchTextStyleMatchCondition) => void;
 }) {
+  const { t } = useTranslation("components");
   const field = textStyleNumberField(condition.field);
   const presentation = resolveConditionalBatchNumberPresentation(
     field,
@@ -384,7 +304,7 @@ function TextStyleMatchNumberValue({
   return (
     <div className={styles.existingStyleNumberValue}>
       <NumberField
-        ariaLabel="부분 서식 비교 값"
+        ariaLabel={t("batchEditorCopy.formattingComparisonValue")}
         variant="framed"
         min={presentation.min}
         max={presentation.max}
@@ -400,7 +320,7 @@ function TextStyleMatchNumberValue({
         <>
           <span>~</span>
           <NumberField
-            ariaLabel="부분 서식 범위 끝 값"
+            ariaLabel={t("batchEditorCopy.formattingRangeEnd")}
             variant="framed"
             min={end.min}
             max={end.max}

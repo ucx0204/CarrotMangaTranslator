@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 
@@ -79,5 +85,39 @@ describe("ErrorBoundary reporting", () => {
         componentStack: expect.stringContaining("BrokenView"),
       }),
     );
+  });
+
+  it("contains a modal failure and closes it without replacing the workspace", () => {
+    const recovered = vi.fn();
+    function Workspace() {
+      const [open, setOpen] = React.useState(true);
+      return (
+        <>
+          <input aria-label="Unsaved text" defaultValue="Keep my work" />
+          {open && (
+            <ErrorBoundary
+              onRecover={() => {
+                recovered();
+                setOpen(false);
+              }}
+            >
+              <BrokenView />
+            </ErrorBoundary>
+          )}
+        </>
+      );
+    }
+    render(<Workspace />);
+    expect(
+      screen.getByRole("textbox", { name: "Unsaved text" }),
+    ).toHaveProperty("value", "Keep my work");
+    expect(screen.queryByRole("button", { name: "다시 시작" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "이 창 닫기" }));
+    expect(recovered).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      screen.getByRole("textbox", { name: "Unsaved text" }),
+    ).toHaveProperty("value", "Keep my work");
+    expect(gatewayMocks.restartApp).not.toHaveBeenCalled();
   });
 });

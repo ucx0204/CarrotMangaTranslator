@@ -151,8 +151,8 @@ describe("sidebar list panel switching", () => {
       ),
     ).toBe(true);
     fireEvent.click(screen.getByRole("menuitem", { name: "보관함 폴더" }));
-    fireEvent.click(screen.getByTitle("1화"));
-    fireEvent.click(screen.getByTitle("001.png"));
+    fireEvent.click(screen.getByText("1화"));
+    fireEvent.click(screen.getByText("001.png"));
 
     expect(onOpenSettings).toHaveBeenCalledOnce();
     expect(onOpenLibraryFolder).toHaveBeenCalledOnce();

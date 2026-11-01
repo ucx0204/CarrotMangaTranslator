@@ -53,7 +53,7 @@ describe("chapter output row in the task hub", () => {
       [...document.querySelectorAll(".current-page-actions button")].map(
         (button) => button.getAttribute("aria-label"),
       ),
-    ).toEqual(["원문 지우기", "현재 페이지 말풍선 자동 감지"]);
+    ).toEqual(["현재 페이지 원문 지우기", "현재 페이지 말풍선 자동 감지"]);
 
     fireEvent.click(
       within(output).getByRole("button", { name: "결과물 출력" }),

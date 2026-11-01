@@ -61,9 +61,9 @@
 }
 
 .shortcut-list li {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(110px, 160px) minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
 }
 
@@ -77,7 +77,7 @@
 .shortcut-desc {
   color: var(--text-dim);
   font-size: var(--font-sm);
-  text-align: right;
+  text-align: left;
 }
 
 .shortcut-help {
@@ -928,4 +928,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.empty-actions > .empty-settings-action {
+  min-width: 0;
+  justify-self: start;
+  justify-content: flex-start;
+}
+.command-palette-shortcut {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: var(--sp-1);
 }

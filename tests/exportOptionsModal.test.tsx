@@ -169,7 +169,7 @@ afterEach(() => {
 });
 
 describe("ExportOptionsModal", () => {
-  it("defaults to the current page and stays open when folder selection is cancelled", async () => {
+  it("defaults to the whole chapter and stays open when folder selection is cancelled", async () => {
     const { onStart, onClose } = await renderModal(false);
 
     expect(screen.getByRole("dialog", { name: "결과물 출력" })).toBeTruthy();
@@ -186,7 +186,7 @@ describe("ExportOptionsModal", () => {
 
     await waitFor(() =>
       expect(onStart).toHaveBeenCalledWith(
-        [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
+        [{ chapterId: CHAPTER_ID, mode: "all" }],
         [],
         DEFAULT_RASTER_OPTIONS,
       ),
@@ -216,7 +216,7 @@ describe("ExportOptionsModal", () => {
 
     await waitFor(() =>
       expect(onStart).toHaveBeenCalledWith(
-        [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
+        [{ chapterId: CHAPTER_ID, mode: "all" }],
         [],
         { collisionPolicy: "replace" },
       ),
@@ -271,6 +271,7 @@ describe("ExportOptionsModal", () => {
       const page = (id: string) =>
         screen.getByRole("checkbox", { name: new RegExp(`${id}\\.png`) });
 
+      fireEvent.click(screen.getByRole("button", { name: "전체 해제" }));
       fireEvent.click(page("p1"), { ctrlKey: true });
       expect(page("p1").getAttribute("aria-checked")).toBe("true");
       expect(page("p3").getAttribute("aria-checked")).toBe("false");
@@ -471,7 +472,7 @@ describe("ExportOptionsModal", () => {
 
     await waitFor(() =>
       expect(onStart).toHaveBeenCalledWith(
-        [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
+        [{ chapterId: CHAPTER_ID, mode: "all" }],
         [],
         { ...DEFAULT_RASTER_OPTIONS, omitText: true },
       ),

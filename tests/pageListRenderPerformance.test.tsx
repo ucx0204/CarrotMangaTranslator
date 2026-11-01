@@ -51,20 +51,19 @@ it("bounds mounted page rows in a long chapter and reveals a distant selection",
     `page-list benchmark: 500 pages, ${rows} mounted rows, ${(performance.now() - started).toFixed(1)}ms mount\n`,
   );
   expect(rows).toBeLessThan(40);
-  const first = view.getByTitle("0.png");
+  const first = view.getByText("0.png").closest("button");
+  if (!first) throw new Error("Missing first page button");
   act(() => first.focus());
   const viewport = view.getByRole("list");
   viewport.scrollTop = 84 * 200;
   fireEvent.scroll(viewport);
   expect(document.activeElement).toBe(first);
-  expect(view.container.querySelector('[title="1.png"]')).not.toBeNull();
+  expect(view.getByText("1.png")).not.toBeNull();
   expect(view.container.querySelectorAll(".page-item").length).toBeLessThan(40);
   view.rerender(<PageList {...props} selectedPageId="page-450" />);
   expect(
-    view.container
-      .querySelector('[aria-current="page"]')
-      ?.getAttribute("title"),
-  ).toBe("450.png");
+    view.container.querySelector('[aria-current="page"]')?.textContent,
+  ).toContain("450.png");
   const reordered = [...pages];
   reordered.splice(1, 0, reordered.splice(450, 1)[0]);
   view.rerender(

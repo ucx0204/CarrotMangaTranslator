@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { appI18n } from "../appI18n";
 import {
   type ConditionalBatchActionV2,
   type ConditionalBatchReplaceTextActionV2,
@@ -11,6 +13,8 @@ import { ConditionalPatternBuilder } from "./ConditionalPatternBuilder";
 
 import styles from "./ConditionalBatchEditor.module.css";
 
+const t = appI18n.getFixedT(null, "components");
+
 export function ReplaceActionEditor({
   action,
   sampleText,
@@ -20,18 +24,24 @@ export function ReplaceActionEditor({
   sampleText?: string;
   onChange: (action: ConditionalBatchActionV2) => void;
 }) {
+  useTranslation();
+  const switchMode = (
+    matcher: typeof action.matcher,
+    replacement?: typeof action.replacement,
+  ) =>
+    onChange({
+      ...action,
+      matcher,
+      replacement: replacement ?? action.replacement,
+    });
   return (
     <>
       <div className={styles.actionOptions}>
-        <Field as="div" label="대상">
+        <Field as="div" label={t("batchEditorCopy.target")}>
           <Select
-            ariaLabel="치환할 글"
+            ariaLabel={t("conditionalBatch.then.target")}
             value={action.target}
-            options={[
-              { value: "translatedText", label: "번역문" },
-              { value: "sourceText", label: "원문" },
-              { value: "both", label: "원문과 번역문" },
-            ]}
+            options={replacementTargetOptions()}
             onValueChange={(target) =>
               onChange({
                 ...action,
@@ -40,13 +50,19 @@ export function ReplaceActionEditor({
             }
           />
         </Field>
-        <Field as="div" label="바꿀 범위">
+        <Field as="div" label={t("batchEditorCopy.replacementScope")}>
           <Select
-            ariaLabel="바꿀 범위"
+            ariaLabel={t("batchEditorCopy.replacementScope")}
             value={action.allOccurrences ? "all" : "first"}
             options={[
-              { value: "all", label: "모든 일치 항목" },
-              { value: "first", label: "첫 번째만" },
+              {
+                value: "all",
+                label: t("batchEditorCopy.allMatches"),
+              },
+              {
+                value: "first",
+                label: t("batchEditorCopy.firstMatchOnly"),
+              },
             ]}
             onValueChange={(value) =>
               onChange({ ...action, allOccurrences: value === "all" })
@@ -62,21 +78,26 @@ export function ReplaceActionEditor({
         onChangeReplacement={(replacement) =>
           onChange({ ...action, replacement })
         }
-        onSwitchToRaw={(matcher, replacement) =>
-          onChange({
-            ...action,
-            matcher,
-            replacement: replacement ?? action.replacement,
-          })
-        }
-        onSwitchToVisual={(matcher, replacement) =>
-          onChange({
-            ...action,
-            matcher,
-            replacement: replacement ?? action.replacement,
-          })
-        }
+        onSwitchToRaw={switchMode}
+        onSwitchToVisual={switchMode}
       />
     </>
   );
+}
+
+function replacementTargetOptions() {
+  return [
+    {
+      value: "translatedText",
+      label: t("conditionalBatch.when.translatedText"),
+    },
+    {
+      value: "sourceText",
+      label: t("conditionalBatch.when.sourceText"),
+    },
+    {
+      value: "both",
+      label: t("conditionalBatch.then.targets.both"),
+    },
+  ];
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   IconArrowLeft,
   IconArrowRight,
@@ -59,6 +60,7 @@ export function PatternChip({
   onDrop,
   onMove,
 }: PatternChipProps) {
+  useTranslation();
   if (node.kind === "literal") {
     return (
       <>
@@ -133,6 +135,7 @@ export function PatternNodeToolbar({
   onMove: (offset: -1 | 1) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation("components");
   const matchable = node.kind !== "boundary" ? node : null;
   return (
     <div className={styles.patternNodeToolbar}>
@@ -143,11 +146,13 @@ export function PatternNodeToolbar({
           onChange={(repeat) => onChange({ ...matchable, repeat })}
         />
       ) : (
-        <span className={styles.patternMeta}>위치 조건</span>
+        <span className={styles.patternMeta}>
+          {t("patternEditorCopy.positionCondition")}
+        </span>
       )}
       {node.kind === "choice" ? (
         <Input
-          aria-label="후보 목록"
+          aria-label={t("patternEditorCopy.optionList")}
           value={node.options.join(" / ")}
           onChange={(event) => {
             const options = event.target.value
@@ -160,7 +165,7 @@ export function PatternNodeToolbar({
       {matchable ? (
         <CheckboxField
           checked={Boolean(matchable.captureId)}
-          label={captureLabel ?? "바꿀 때 기억"}
+          label={captureLabel ?? t("patternEditorCopy.captureForReplacement")}
           onCheckedChange={(checked) =>
             onChange({
               ...matchable,
@@ -188,6 +193,7 @@ function RepeatEditor({
   repeat: ConditionalPatternRepeatV3;
   onChange: (repeat: ConditionalPatternRepeatV3) => void;
 }) {
+  const { t } = useTranslation("components");
   const [countMode, setCountMode] = React.useState<"exact" | "range" | null>(
     null,
   );
@@ -195,15 +201,15 @@ function RepeatEditor({
   return (
     <>
       <Select
-        ariaLabel="반복 횟수"
+        ariaLabel={t("patternEditorCopy.repetitions")}
         value={preset}
         options={[
-          { value: "once", label: "한 번" },
-          { value: "optional", label: "있어도 됨" },
-          { value: "oneOrMore", label: "한 개 이상" },
-          { value: "zeroOrMore", label: "없거나 여러 개" },
-          { value: "exact", label: "정확히 N개" },
-          { value: "range", label: "N~M개" },
+          { value: "once", label: t("patternEditorCopy.once") },
+          { value: "optional", label: t("patternEditorCopy.optional") },
+          { value: "oneOrMore", label: t("patternEditorCopy.oneOrMore26") },
+          { value: "zeroOrMore", label: t("patternEditorCopy.zeroOrMore") },
+          { value: "exact", label: t("patternEditorCopy.exactlyN") },
+          { value: "range", label: t("patternEditorCopy.nToM") },
         ]}
         onValueChange={(value) => {
           setCountMode(value === "exact" || value === "range" ? value : null);
@@ -213,7 +219,7 @@ function RepeatEditor({
       {preset === "exact" || preset === "range" ? (
         <span className={styles.repeatNumbers}>
           <Input
-            aria-label="최소 반복"
+            aria-label={t("patternEditorCopy.minimumRepetitions")}
             type="number"
             min={0}
             max={999}
@@ -233,7 +239,7 @@ function RepeatEditor({
             <>
               <span>~</span>
               <Input
-                aria-label="최대 반복"
+                aria-label={t("patternEditorCopy.maximumRepetitions")}
                 type="number"
                 min={repeat.min}
                 max={999}
@@ -264,11 +270,12 @@ function PatternOrderingButtons({
   onMove: (offset: -1 | 1) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <span className={styles.patternToolbarActions}>
       <IconButton
         size="sm"
-        label="왼쪽으로 이동"
+        label={t("patternEditorCopy.moveLeft")}
         disabled={!canMoveLeft}
         onClick={() => onMove(-1)}
       >
@@ -276,7 +283,7 @@ function PatternOrderingButtons({
       </IconButton>
       <IconButton
         size="sm"
-        label="오른쪽으로 이동"
+        label={t("patternEditorCopy.moveRight")}
         disabled={!canMoveRight}
         onClick={() => onMove(1)}
       >
@@ -285,7 +292,7 @@ function PatternOrderingButtons({
       <IconButton
         size="sm"
         variant="danger"
-        label="조각 삭제"
+        label={t("patternEditorCopy.deletePart")}
         onClick={onRemove}
       >
         <IconTrash size={14} />
@@ -301,11 +308,12 @@ function PatternDragHandle({
   onDragEnd: () => void;
   onDragStart: () => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <UiButton
       type="button"
       className={styles.patternDragHandle}
-      aria-label="패턴 조각 끌기"
+      aria-label={t("patternEditorCopy.dragPatternPart")}
       draggable
       onDragEnd={onDragEnd}
       onDragStart={onDragStart}
@@ -339,6 +347,7 @@ function LiteralPatternChip({
   onDrop: () => void;
   onMove: (offset: -1 | 1) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <span
       className={styles.patternLiteralPart}
@@ -351,8 +360,8 @@ function LiteralPatternChip({
       ) : null}
       <Input
         className={styles.patternLiteralInput}
-        aria-label="글자 그대로"
-        placeholder="찾을 글자"
+        aria-label={t("patternEditorCopy.literalText")}
+        placeholder={t("conditionalBatch.then.find")}
         value={node.text}
         onFocus={reorderable ? onActivate : undefined}
         onKeyDown={(event) => handlePatternMoveKeyDown(event, onMove)}

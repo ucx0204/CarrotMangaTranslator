@@ -929,7 +929,7 @@
   }
 
   .sidebar.has-chapter:not(.is-context-expanded)
-    > :not(.sidebar-context-toggle) {
+    > :not(.sidebar-context-toggle, .sidebar-compact-pages) {
     display: none;
   }
 
@@ -1169,5 +1169,19 @@
   }
   .right-quick-bottom-group + .right-quick-bottom-group {
     height: 32px;
+  }
+}
+
+.sidebar-compact-pages {
+  display: none;
+}
+@media (max-width: 1519px) {
+  .sidebar.has-chapter:not(.is-context-expanded) > .sidebar-compact-pages {
+    display: grid;
+    justify-items: center;
+    gap: var(--sp-2);
+    margin-top: var(--sp-3);
+    font-size: var(--font-xs);
+    font-variant-numeric: tabular-nums;
   }
 }

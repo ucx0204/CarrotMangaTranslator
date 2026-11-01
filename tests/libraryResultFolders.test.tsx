@@ -478,7 +478,8 @@ function menuItem(name: string): HTMLButtonElement {
 }
 
 function rowMeta(chapterTitle: string): string {
-  const button = screen.getByTitle(chapterTitle);
+  const button = screen.getByText(chapterTitle).closest("button");
+  if (!button) throw new Error("Missing chapter button");
   return (
     within(button).getByText((_, element) => element?.tagName === "SMALL")
       .textContent ?? ""

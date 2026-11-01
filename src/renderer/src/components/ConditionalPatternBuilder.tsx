@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React from "react";
 
 import {
@@ -29,6 +30,7 @@ export function ConditionalPatternBuilder({
   onSwitchToRaw,
   onSwitchToVisual,
 }: PatternBuilderProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   if (matcher.mode === "regex") {
     return (
       <RawPatternEditor
@@ -44,12 +46,15 @@ export function ConditionalPatternBuilder({
 
   const captureIds = [...collectCaptureIds(matcher)];
   const captureLabels = new Map(
-    captureIds.map((captureId, index) => [captureId, `기억 ${index + 1}`]),
+    captureIds.map((captureId, index) => [
+      captureId,
+      t("patternEditorCopy.captureNumber", { count: index + 1 }),
+    ]),
   );
   return (
     <div className={styles.patternBuilder}>
       <PatternLane
-        label="찾기"
+        label={t("patternEditorCopy.find")}
         nodes={matcher.nodes}
         captureLabels={captureLabels}
         onChange={(nodes) => onChangeMatcher({ ...matcher, nodes })}
@@ -65,7 +70,7 @@ export function ConditionalPatternBuilder({
       <div className={styles.patternOptions}>
         <CheckboxField
           checked={matcher.caseSensitive}
-          label="대소문자 구분"
+          label={t("conditionalBatch.then.caseSensitive")}
           onCheckedChange={(caseSensitive) =>
             onChangeMatcher({ ...matcher, caseSensitive })
           }
@@ -83,7 +88,7 @@ export function ConditionalPatternBuilder({
               )
             }
           >
-            현재 말풍선에서 가져오기
+            {t("patternEditorCopy.useTextFromTheCurrentBalloon")}
           </Button>
         ) : null}
       </div>

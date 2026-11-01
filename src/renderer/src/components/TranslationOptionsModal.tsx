@@ -1,3 +1,5 @@
+import { appI18n } from "../appI18n";
+import { ErrorBoundary } from "./ErrorBoundary";
 import type {
   TranslationOptionsModalProps,
   TranslationModalPresentation,
@@ -33,9 +35,10 @@ type TranslationDefaultsPatch = Pick<
   | "codexErasureDefault"
 >;
 
-export function TranslationOptionsModal(
+function TranslationOptionsModalContent(
   props: TranslationOptionsModalProps,
 ): React.JSX.Element {
+  useTranslation();
   return props.settings?.ocr.pipeline === "hayai" ||
     props.settings?.ocr.pipeline === "hunyuan" ? (
     <HayaiTranslationOptionsModal {...props} />
@@ -45,6 +48,7 @@ export function TranslationOptionsModal(
 }
 
 function HayaiTranslationOptionsModal(props: TranslationOptionsModalProps) {
+  useTranslation();
   const [mode, setMode] = React.useState(
     props.uiSettings?.hayaiTranslationUi ?? "workflow",
   );
@@ -70,15 +74,21 @@ function HayaiTranslationOptionsModal(props: TranslationOptionsModalProps) {
         <SegmentedControl
           ariaLabel={
             props.settings?.ocr.pipeline === "hunyuan"
-              ? "Hunyuan 작업 화면"
-              : "Hayai 작업 화면"
+              ? appI18n.t("components:batchEditorCopy.hunyuanWorkflowView")
+              : appI18n.t("components:batchEditorCopy.hayaiWorkflowView")
           }
           singleRow
           value={mode}
           onChange={switchMode}
           options={[
-            { id: "classic", label: "기존 버전" },
-            { id: "workflow", label: "새 버전" },
+            {
+              id: "classic",
+              label: appI18n.t("components:batchEditorCopy.classicView"),
+            },
+            {
+              id: "workflow",
+              label: appI18n.t("components:batchEditorCopy.workflowView"),
+            },
           ]}
         />
       </div>
@@ -271,4 +281,15 @@ function OverwriteConfirmation({
       onConfirm={actions.confirmOverwrite}
     />
   ) : null;
+}
+
+export function TranslationOptionsModal(
+  props: TranslationOptionsModalProps,
+): React.JSX.Element {
+  useTranslation();
+  return (
+    <ErrorBoundary onRecover={props.onClose}>
+      <TranslationOptionsModalContent {...props} />
+    </ErrorBoundary>
+  );
 }

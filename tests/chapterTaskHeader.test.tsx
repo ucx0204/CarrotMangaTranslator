@@ -30,6 +30,19 @@ afterEach(() => {
 });
 
 describe("ChapterTaskHeader", () => {
+  it("preserves conflict guidance without offering a destructive retry", () => {
+    const retry = vi.fn();
+    render(
+      <ChapterTaskHeader
+        currentChapter={chapter}
+        saveStatus="conflict"
+        onRetrySave={retry}
+      />,
+    );
+    expect(screen.getByRole("status").textContent).toContain("복사");
+    expect(screen.queryByRole("button", { name: "다시 저장" })).toBeNull();
+    expect(retry).not.toHaveBeenCalled();
+  });
   it("shows the saved state beside the title, then hides it", () => {
     vi.useFakeTimers();
     const { container } = render(

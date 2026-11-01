@@ -159,8 +159,8 @@
       "reason": "Block OCR source selection and effect-region evidence map through the existing pixel conversion. Two actual boundary consumers reuse the authoritative geometry; global limits remain unchanged. Structure policy projects before/after source and display rectangles using the canonical geometry and existing source-rect validation. Pixel conversions are not copied; native undo/redo rendering parity is required. The source raster adapter uses canonical coordinate normalization after source-bound validation. Selected-region OCR projects native source bounds and reports overlaps using the canonical geometry authority; no display-geometry reinterpretation."
     },
     "src/shared/richTextMarkup.ts": {
-      "maxImportedBy": 43,
-      "reason": "Merged direct consumers include Codex treatment serialization, image lettering prompts, blind readback and literal font specimens, plus master's conditionalBatchTypography rich-run scaling. Preserve both features on the canonical grammar without duplication or alias gateways; parser/serializer ownership remains unchanged. Source-only MCP editing is one additional consumer of plain-text parsing to pin the existing legacy render frame before changing source geometry. Lettering change-scope and new inline-font validation use the existing parser, with visible-text preservation and recovery tests. Automatic dialogue-size comparison parses styled text with the canonical grammar; sourceFontSizeCap tests cover manual intent and read-only targets. No parser copy or relocation. Detailed MCP translation (2026-10-08) reuses the canonical errors, revisions, locking, hashing, typography and tool boundaries; exact new consumers and regression tests are recorded in docs/mcp-translation-quality-v2-20261008.md. Unicode-derived lettering text structure reuses the same plain-text authority for generation and MCP repair metadata; letteringTextStructure and native MCP image/HTTP tests protect markup, NFD, mixed scripts and exact consonant identity. Measured runtime consumer ceiling: 38. No global ceiling or model/data authority changes. Integrated format selection and per-character shadow use canonical markup and shared shadow resolution; characterization and artwork parity cover unchanged legacy rendering. See docs/unified-format-panel-handoff.md."
+      "maxImportedBy": 44,
+      "reason": "Merged direct consumers include Codex treatment serialization, image lettering prompts, blind readback and literal font specimens, plus master's conditionalBatchTypography rich-run scaling. Preserve both features on the canonical grammar without duplication or alias gateways; parser/serializer ownership remains unchanged. Source-only MCP editing is one additional consumer of plain-text parsing to pin the existing legacy render frame before changing source geometry. Lettering change-scope and new inline-font validation use the existing parser, with visible-text preservation and recovery tests. Automatic dialogue-size comparison parses styled text with the canonical grammar; sourceFontSizeCap tests cover manual intent and read-only targets. No parser copy or relocation. Detailed MCP translation (2026-10-08) reuses the canonical errors, revisions, locking, hashing, typography and tool boundaries; exact new consumers and regression tests are recorded in docs/mcp-translation-quality-v2-20261008.md. Unicode-derived lettering text structure reuses the same plain-text authority for generation and MCP repair metadata; letteringTextStructure and native MCP image/HTTP tests protect markup, NFD, mixed scripts and exact consonant identity. Measured runtime consumer ceiling: 38. No global ceiling or model/data authority changes. Integrated format selection and per-character shadow use canonical markup and shared shadow resolution; characterization and artwork parity cover unchanged legacy rendering. See docs/unified-format-panel-handoff.md. UI polish extracts conditional result summaries without changing markup handling, adding one direct canonical consumer (44). Existing conditional-editor tests preserve summary behavior."
     },
     "src/shared/ipcSchemaPrimitives.ts": {
       "maxRuntimeImports": 16,
@@ -386,8 +386,8 @@
       "reason": "Measured direct composition after conditional-editor responsibility extraction. Uses canonical field/default/presentation contracts and public UI primitives without barrels or forwarding wrappers. Existing behavior suites and 31-state before/after DOM parity preserve inputs and handlers. Global budgets unchanged; see docs/audit-remediation-20260929.md."
     },
     "src/renderer/src/components/ConditionalBatchConditionEditor.tsx": {
-      "maxRuntimeImports": 13,
-      "reason": "Measured direct composition after conditional-editor responsibility extraction. Uses canonical field/default/presentation contracts and public UI primitives without barrels or forwarding wrappers. Existing behavior suites and 31-state before/after DOM parity preserve inputs and handlers. Global budgets unchanged; see docs/audit-remediation-20260929.md."
+      "maxRuntimeImports": 14,
+      "reason": "Measured direct composition after conditional-editor responsibility extraction. Uses canonical field/default/presentation contracts and public UI primitives without barrels or forwarding wrappers. Existing behavior suites and 31-state before/after DOM parity preserve inputs and handlers. Global budgets unchanged; see docs/audit-remediation-20260929.md. Localized field/operator labels now have a direct presentation-module import, with no barrel re-export. Measured runtime imports: 14."
     },
     "src/renderer/src/components/ConditionalBatchEditor.module.css": {
       "maxImportedBy": 30,
@@ -440,6 +440,14 @@
     "src/renderer/src/main.tsx": {
       "reason": " Issue 167 adds one measured updater consumer at the existing IPC, settings, logging, lifecycle or UI boundary. No duplicate gateway or global ceiling change; updater state, editor preparation, native download/cache and IPC tests cover this path. See docs/app-update-167.md.",
       "maxRuntimeImports": 13
+    },
+    "src/renderer/src/appI18n.ts": {
+      "maxImportedBy": 28,
+      "reason": "UI polish localizes conditional-rule presentation, workflow labels and connection guides in all five locales. Components use useTranslation; the 28 direct instance consumers are non-component formatters, label registries and existing application locale owners. This reuses the canonical locale instance rather than adding a proxy or per-feature instance. Catalog/key tests and live locale-change QA verify resolution; no global ceiling changes."
+    },
+    "src/renderer/src/components/ConditionalBatchStyleMatchEditor.tsx": {
+      "maxRuntimeImports": 13,
+      "reason": "Localized formatting-match labels and existing UI presentation helpers move to a direct presentation module to keep the editor below its file-size limit. Uses the existing locale hook and primitives; 13 measured imports. Conditional batch editor tests cover preserved matching/editing behavior. No protected algorithm or global ceiling changes."
     }
   }
 }

@@ -37,7 +37,7 @@ describe("GatherTextDirectFormatModal", () => {
     expect(screen.getByRole("spinbutton", { name: "자간" })).toBeTruthy();
     expect(screen.getByRole("spinbutton", { name: "장평" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "회전" })).toBeTruthy();
-    expect(screen.getByRole("slider", { name: "글자 투명도" })).toBeTruthy();
+    expect(screen.getByRole("slider", { name: "글자 불투명도" })).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "줄바꿈 방식" })).toBeTruthy();
   });
 
@@ -140,7 +140,7 @@ describe("GatherTextDirectFormatModal", () => {
     const selection = makeSelection();
     const { container } = renderModal(selection);
 
-    fireEvent.change(screen.getByRole("slider", { name: "글자 투명도" }), {
+    fireEvent.change(screen.getByRole("slider", { name: "글자 불투명도" }), {
       target: { value: "0.45" },
     });
 
@@ -148,7 +148,7 @@ describe("GatherTextDirectFormatModal", () => {
       ".gather-direct-preview-rotation",
     );
     expect(previewLayer?.style.opacity).toBe("0.45");
-    expect(screen.queryByText("블록 배경 투명도")).toBeNull();
+    expect(screen.queryByText("블록 배경 불투명도")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "적용" }));
     expect(selection.apply).toHaveBeenCalledWith({ textOpacity: 0.45 });
   });

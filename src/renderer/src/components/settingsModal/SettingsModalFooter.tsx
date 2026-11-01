@@ -40,6 +40,13 @@ export function SettingsModalFooter({
         </div>
       ) : null}
       <ModalActionBar
+        leading={
+          !(immediate && !isDirty) ? (
+            <Button variant="ghost" onClick={onReset} disabled={controlsBusy}>
+              {t("settings.footer.restoreDefaults")}
+            </Button>
+          ) : undefined
+        }
         actions={
           immediate && !isDirty ? (
             <Button onClick={onCancel} disabled={controlsBusy}>
@@ -47,9 +54,6 @@ export function SettingsModalFooter({
             </Button>
           ) : (
             <>
-              <Button onClick={onReset} disabled={controlsBusy}>
-                {t("settings.footer.restoreDefaults")}
-              </Button>
               <Button
                 variant="ghost"
                 onClick={onCancel}

@@ -25,6 +25,7 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
     return (
       <EmptyWorkspace
         commandLabels={props.commandLabels}
+        hasLibraryWorks={props.hasLibraryWorks}
         onOpenBatchImport={props.onOpenBatchImport}
         onOpenSettings={props.onOpenSettings}
         onOpenShareImport={props.onOpenShareImport}
@@ -100,6 +101,7 @@ const WORKSPACE_CONTENT_RENDER_KEYS = [
   "letteringRetouch",
   "imageRef",
   "commandLabels",
+  "hasLibraryWorks",
   "interactionPreviewStore",
   "jobActive",
   "maskStrokes",
@@ -151,6 +153,7 @@ function WorkspacePane(stageProps: ImageStageProps): React.JSX.Element {
 
 function EmptyWorkspace({
   commandLabels,
+  hasLibraryWorks,
   onOpenBatchImport,
   onOpenSettings,
   onOpenShareImport,
@@ -158,6 +161,7 @@ function EmptyWorkspace({
 }: Pick<
   AppWorkspaceProps,
   | "commandLabels"
+  | "hasLibraryWorks"
   | "onOpenBatchImport"
   | "onOpenSettings"
   | "onOpenShareImport"
@@ -169,7 +173,9 @@ function EmptyWorkspace({
       bodyClassName="empty-content"
       className="empty-state"
       headingLevel={2}
-      title={t("workspace.empty.title")}
+      title={t(
+        hasLibraryWorks ? "runPanel.openChapterHint" : "workspace.empty.title",
+      )}
       titleClassName="empty-title"
     >
       <div className="empty-actions">
@@ -194,7 +200,11 @@ function EmptyWorkspace({
             t("workspace.empty.importSharedCopy"),
           )}
         </Button>
-        <Button variant="ghost" onClick={onOpenSettings}>
+        <Button
+          className="empty-settings-action"
+          variant="ghost"
+          onClick={onOpenSettings}
+        >
           {resolveAppCommandLabel(
             commandLabels,
             "open-settings",

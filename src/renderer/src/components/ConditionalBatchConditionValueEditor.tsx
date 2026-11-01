@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { type ConditionalBatchConditionV2 } from "../../../shared/conditionalBatchRules";
 
 import { resolveConditionalBatchNumberPresentation } from "./conditionalBatchPresentation";
@@ -30,6 +31,7 @@ export function ConditionValueEditor({
   sampleText,
   onChange,
 }: ConditionValueProps) {
+  useTranslation();
   if (
     (condition.operator === "regex" || condition.operator === "notRegex") &&
     condition.matcher
@@ -54,6 +56,7 @@ function IdentityOrScalarConditionValue({
   condition,
   onChange,
 }: ConditionValueProps) {
+  const { t } = useTranslation("components");
   if (
     condition.field === "speakerId" &&
     ["equals", "notEquals"].includes(condition.operator)
@@ -61,7 +64,7 @@ function IdentityOrScalarConditionValue({
     return (
       <ConditionalBatchIdentityField
         field="speakerId"
-        label="화자 조건 값"
+        label={t("batchEditorCopy.speakerConditionValue")}
         value={String(condition.value ?? "")}
         onChange={(value) => onChange({ ...condition, value })}
       />
@@ -71,8 +74,8 @@ function IdentityOrScalarConditionValue({
     return (
       <ConditionalBatchIdentityField
         field="fontFamily"
-        label="글꼴"
-        ariaLabel="글꼴 조건 값"
+        label={t("formatBatch.groups.font")}
+        ariaLabel={t("batchEditorCopy.fontConditionValue")}
         useDefaultFont
         value={String(condition.value ?? "")}
         onChange={(value) => onChange({ ...condition, value })}
@@ -83,6 +86,7 @@ function IdentityOrScalarConditionValue({
 }
 
 function ScalarConditionValue({ condition, onChange }: ConditionValueProps) {
+  const { t } = useTranslation("components");
   const definition = listConditionalBatchFields().find(
     (field) => field.id === condition.field,
   );
@@ -102,15 +106,15 @@ function ScalarConditionValue({ condition, onChange }: ConditionValueProps) {
     return <ConditionColorValue condition={condition} onChange={onChange} />;
   return (
     <Field
-      label="값"
+      label={t("transform.controlKinds.value")}
       hint={
         condition.field === "speakerId"
-          ? "저장된 규칙의 ID 문자열 비교입니다. 이름으로 선택하려면 비교를 ‘같음’이나 ‘다름’으로 바꾸세요."
+          ? t("batchEditorCopy.comparesSavedRuleIdsAsTextToSelectBy")
           : undefined
       }
     >
       <Input
-        placeholder="비교할 값"
+        placeholder={t("batchEditorCopy.valueToCompare")}
         value={String(condition.value ?? "")}
         onChange={(event) =>
           onChange({ ...condition, value: event.target.value })
@@ -121,11 +125,12 @@ function ScalarConditionValue({ condition, onChange }: ConditionValueProps) {
 }
 
 function ConditionEnumValue({ condition, onChange }: ConditionValueProps) {
+  const { t } = useTranslation("components");
   const enumOptions = conditionalBatchEnumOptions(condition.field);
   return (
-    <Field as="div" label="값">
+    <Field as="div" label={t("transform.controlKinds.value")}>
       <Select
-        ariaLabel="조건 값"
+        ariaLabel={t("batchEditorCopy.conditionValue")}
         value={String(condition.value ?? "")}
         options={enumOptions}
         onValueChange={(value) => onChange({ ...condition, value })}
@@ -135,6 +140,7 @@ function ConditionEnumValue({ condition, onChange }: ConditionValueProps) {
 }
 
 function ConditionSetValue({ condition, onChange }: ConditionValueProps) {
+  useTranslation();
   const enumOptions = conditionalBatchEnumOptions(condition.field);
   const selected = new Set(
     Array.isArray(condition.value) ? condition.value : [],
@@ -168,6 +174,7 @@ function ConditionNumberValue({
 }: ConditionValueProps & {
   definition: ReturnType<typeof listConditionalBatchFields>[number];
 }) {
+  const { t } = useTranslation("components");
   const number = definition.number;
   const presentation = resolveConditionalBatchNumberPresentation(
     condition.field,
@@ -182,9 +189,15 @@ function ConditionNumberValue({
   );
   return (
     <div className={styles.valuePair}>
-      <Field label={condition.operator === "between" ? "최솟값" : "값"}>
+      <Field
+        label={
+          condition.operator === "between"
+            ? t("batchEditorCopy.minimum")
+            : t("transform.controlKinds.value")
+        }
+      >
         <NumberField
-          ariaLabel="조건 비교 값"
+          ariaLabel={t("batchEditorCopy.conditionComparisonValue")}
           variant="framed"
           min={presentation.min}
           max={presentation.max}
@@ -201,9 +214,9 @@ function ConditionNumberValue({
         />
       </Field>
       {condition.operator === "between" ? (
-        <Field label="최댓값">
+        <Field label={t("batchEditorCopy.maximum")}>
           <NumberField
-            ariaLabel="조건 범위 끝 값"
+            ariaLabel={t("batchEditorCopy.conditionRangeEnd")}
             variant="framed"
             min={end.min}
             max={end.max}
@@ -222,16 +235,17 @@ function ConditionNumberValue({
 }
 
 function ConditionColorValue({ condition, onChange }: ConditionValueProps) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.valuePair}>
       <ColorField
-        label="색"
+        label={t("batchEditorCopy.color")}
         value={String(condition.value ?? "#000000")}
         disabled={false}
         onChange={(value) => onChange({ ...condition, value })}
       />
       {condition.operator === "near" ? (
-        <Field label="허용 오차">
+        <Field label={t("batchEditorCopy.tolerance")}>
           <Input
             type="number"
             min={0}

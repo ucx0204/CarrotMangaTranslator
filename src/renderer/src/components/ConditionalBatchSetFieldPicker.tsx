@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconPlus } from "@tabler/icons-react";
 import React from "react";
 import type {
@@ -24,6 +25,7 @@ export function ConditionalBatchSetFieldPicker({
   unused: ReturnType<typeof listConditionalBatchFields>;
   onChange: (action: ConditionalBatchActionV2) => void;
 }): React.JSX.Element | null {
+  const { t } = useTranslation("components");
   const [fieldToAdd, setFieldToAdd] =
     React.useState<ConditionalBatchWritableField>(
       (unused[0]?.id as ConditionalBatchWritableField) ?? "translatedText",
@@ -40,9 +42,9 @@ export function ConditionalBatchSetFieldPicker({
   const canAdd = unused.some((field) => field.id === fieldToAdd);
   return (
     <div className={styles.fieldPickerAll}>
-      <Field as="div" label="속성 추가">
+      <Field as="div" label={t("batchEditorCopy.addProperty")}>
         <Select
-          ariaLabel="추가할 속성"
+          ariaLabel={t("batchEditorCopy.propertyToAdd")}
           searchable
           value={fieldToAdd}
           options={unused.map((field) => ({
@@ -75,7 +77,7 @@ export function ConditionalBatchSetFieldPicker({
           });
         }}
       >
-        추가
+        {t("common.add")}
       </Button>
     </div>
   );

@@ -62,6 +62,7 @@ function ConditionalBatchEditorModal({
   onEntered?: () => void;
   onClose: () => void;
 }): React.JSX.Element {
+  useTranslation();
   const [activeTab, setActiveTab] = React.useState<
     "rules" | "preview" | "results"
   >("rules");
@@ -110,16 +111,26 @@ function EditorTabs({
   activeTab: "rules" | "preview" | "results";
   onChange: (tab: "rules" | "preview" | "results") => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.mobileTabs}>
       <SegmentedControl
-        ariaLabel="일괄 편집 화면"
+        ariaLabel={t("batchEditorCopy.batchEditorView")}
         singleRow
         value={activeTab}
         options={[
-          { id: "rules", label: "규칙" },
-          { id: "preview", label: "미리보기" },
-          { id: "results", label: "결과" },
+          {
+            id: "rules",
+            label: t("batchEditorCopy.rules"),
+          },
+          {
+            id: "preview",
+            label: t("batchEditorCopy.preview"),
+          },
+          {
+            id: "results",
+            label: t("batchEditorCopy.results"),
+          },
         ]}
         onChange={onChange}
       />
@@ -136,12 +147,13 @@ function DiscardTemporaryRulesConfirm({
   onCancel: () => void;
   onConfirm: () => void;
 }): React.JSX.Element | null {
+  const { t } = useTranslation("components");
   if (!open) return null;
   return (
     <ConfirmModal
-      title="임시 규칙 닫기"
-      message="저장하지 않은 임시 규칙이 있습니다."
-      confirmLabel="버리고 닫기"
+      title={t("batchEditorCopy.closeTemporaryRules")}
+      message={t("batchEditorCopy.thereAreUnsavedTemporaryRules")}
+      confirmLabel={t("batchEditorCopy.discardAndClose")}
       confirmVariant="danger"
       onCancel={onCancel}
       onConfirm={onConfirm}

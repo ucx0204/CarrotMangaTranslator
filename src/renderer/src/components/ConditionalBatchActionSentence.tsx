@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   IconArrowDown,
   IconArrowUp,
@@ -72,6 +74,7 @@ export function ActionSentenceCard({
   onMove,
   onRemove,
 }: ActionSentenceCardProps) {
+  const { t } = useTranslation("components");
   const sameStage = actions.filter(
     (entry) => actionStage(entry) === actionStage(action),
   );
@@ -113,8 +116,8 @@ export function ActionSentenceCard({
             onChange={onChange}
           />
           <TextField
-            label="메모"
-            placeholder="선택 사항"
+            label={t("styleGuide.note")}
+            placeholder={t("batchEditorCopy.optional")}
             value={action.note ?? ""}
             maxLength={500}
             onChange={(event) =>
@@ -130,16 +133,21 @@ export function ActionSentenceCard({
   );
 }
 
-function actionEditorTitle(action: ConditionalBatchActionV2): string {
-  if (action.type === "replaceText") return "찾아 바꾸기";
+function actionEditorTitle(
+  action: ConditionalBatchActionV2,
+  t: TFunction<"components">,
+): string {
+  if (action.type === "replaceText") return t("batchEditorCopy.findAndReplace");
   if (action.type === "setFields") {
     const textOnly =
       action.changes.length === 1 &&
       ["sourceText", "translatedText"].includes(action.changes[0]?.field ?? "");
-    return textOnly ? "텍스트 전체 바꾸기" : "속성 바꾸기";
+    return textOnly
+      ? t("batchEditorCopy.replaceAllText")
+      : t("batchEditorCopy.changeProperties");
   }
-  if (action.type === "applyStylePreset") return "프리셋 적용";
-  return "글자 일부 서식";
+  if (action.type === "applyStylePreset") return t("manualRedaction.usePreset");
+  return t("batchEditorCopy.formatPartOfText");
 }
 
 function ActionEditor({
@@ -153,6 +161,7 @@ function ActionEditor({
   presets: readonly BlockStylePreset[];
   onChange: (action: ConditionalBatchActionV2) => void;
 }) {
+  useTranslation();
   if (action.type === "replaceText") {
     return (
       <ReplaceActionEditor
@@ -202,13 +211,14 @@ function ActionOrderingButtons({
   onDuplicate: () => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.rowActions}>
       {sameStage.length > 1 ? (
         <>
           <IconButton
             size="sm"
-            label="작업 위로 이동"
+            label={t("batchEditorCopy.moveActionUp")}
             disabled={stageIndex <= 0}
             onClick={() => onMove(-1)}
           >
@@ -216,7 +226,7 @@ function ActionOrderingButtons({
           </IconButton>
           <IconButton
             size="sm"
-            label="작업 아래로 이동"
+            label={t("batchEditorCopy.moveActionDown")}
             disabled={stageIndex < 0 || stageIndex >= sameStage.length - 1}
             onClick={() => onMove(1)}
           >
@@ -226,7 +236,9 @@ function ActionOrderingButtons({
       ) : null}
       <IconButton
         size="sm"
-        label={`${index + 1}번 작업 복제`}
+        label={t("batchEditorMessages.duplicateAction", {
+          p0: index + 1,
+        })}
         disabled={actions.length >= MAX_CONDITIONAL_BATCH_ACTIONS}
         onClick={onDuplicate}
       >
@@ -235,7 +247,9 @@ function ActionOrderingButtons({
       <IconButton
         size="sm"
         variant="danger"
-        label={`${index + 1}번 작업 삭제`}
+        label={t("batchEditorMessages.deleteAction", {
+          p0: index + 1,
+        })}
         onClick={onRemove}
       >
         <IconTrash size={14} />
@@ -269,6 +283,7 @@ function ActionSentenceHeader({
   onExpand: () => void;
   onChange: (action: ConditionalBatchActionV2) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.sentenceHeader}>
       {sameStage.length > 1 ? (
@@ -278,7 +293,9 @@ function ActionSentenceHeader({
       ) : null}
       <CheckboxField
         checked={action.enabled}
-        ariaLabel={`${index + 1}번 작업 활성화`}
+        ariaLabel={t("batchEditorMessages.enableAction", {
+          p0: index + 1,
+        })}
         onCheckedChange={(enabled) => onChange({ ...action, enabled })}
       />
       <UiButton
@@ -289,7 +306,7 @@ function ActionSentenceHeader({
         variant="bare"
       >
         <span>
-          {expanded ? actionEditorTitle(action) : summarizeAction(action)}
+          {expanded ? actionEditorTitle(action, t) : summarizeAction(action)}
         </span>
       </UiButton>
       <ActionOrderingButtons

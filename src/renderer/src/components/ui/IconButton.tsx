@@ -1,4 +1,5 @@
 import React from "react";
+import { FloatingControlTooltip } from "./FloatingControlTooltip";
 import styles from "./IconButton.module.css";
 
 /**
@@ -40,19 +41,24 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
       .filter(Boolean)
       .join(" ");
 
-    return (
+    const control = (
       <button
         ref={ref}
         type={type}
         className={classes}
         aria-label={label}
-        // An empty string means "no native tooltip": buttons wrapped in
-        // ControlTooltip must not also show the browser's own tooltip.
-        title={title === "" ? undefined : (title ?? label)}
         {...rest}
       >
         {children}
       </button>
+    );
+    return (
+      <FloatingControlTooltip
+        asChild
+        content={rest["aria-describedby"] ? "" : (title ?? label)}
+      >
+        {control}
+      </FloatingControlTooltip>
     );
   },
 );

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconBraces } from "@tabler/icons-react";
 
 import {
@@ -23,6 +24,7 @@ export function AdvancedPatternCode({
   onChangeReplacement,
   onSwitchToRaw,
 }: PatternBuilderProps) {
+  const { t } = useTranslation("components");
   let compiled;
   try {
     compiled = compileConditionalTextMatcher(matcher);
@@ -33,11 +35,13 @@ export function AdvancedPatternCode({
   return (
     <details className={styles.patternAdvanced}>
       <summary>
-        <IconBraces size={14} /> 정규식 코드 보기
+        <IconBraces size={14} /> {t("patternEditorCopy.viewRegexCode")}
       </summary>
       <div>
         <code>
-          {compiled ? `/${compiled.source}/${compiled.flags}` : "패턴 오류"}
+          {compiled
+            ? `/${compiled.source}/${compiled.flags}`
+            : t("patternEditorCopy.patternError")}
         </code>
         {compiled ? (
           <Button
@@ -76,7 +80,7 @@ export function AdvancedPatternCode({
               }
             }}
           >
-            직접 수정
+            {t("patternEditorCopy.editCode")}
           </Button>
         ) : null}
       </div>
@@ -93,6 +97,7 @@ export function RawPatternEditor({
 }: PatternBuilderProps & {
   matcher: Extract<ConditionalTextMatcherV3, { mode: "regex" }>;
 }) {
+  const { t } = useTranslation("components");
   const visual = tryConvertConditionalRegexToVisual(matcher, replacement);
   let error: string | null = null;
   try {
@@ -102,11 +107,11 @@ export function RawPatternEditor({
   }
   return (
     <details className={styles.rawPatternEditor} open>
-      <summary>고급 패턴</summary>
+      <summary>{t("batchEditorCopy.advancedPattern")}</summary>
       <label className={styles.rawPatternField}>
-        <span>정규식</span>
+        <span>{t("conditionalBatch.then.searchModes.regex")}</span>
         <Input
-          aria-label="정규식 코드"
+          aria-label={t("patternEditorCopy.regexCode")}
           value={matcher.source}
           aria-invalid={Boolean(error)}
           onChange={(event) =>
@@ -116,7 +121,7 @@ export function RawPatternEditor({
       </label>
       {replacement && onChangeReplacement ? (
         <label className={styles.rawPatternField}>
-          <span>바꾸기</span>
+          <span>{t("patternEditorCopy.replace")}</span>
           <Input
             value={
               replacement.mode === "raw"
@@ -156,25 +161,26 @@ function RawPatternOptions({
   onSwitchToVisual: PatternBuilderProps["onSwitchToVisual"];
   visual: ReturnType<typeof tryConvertConditionalRegexToVisual>;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.patternOptions}>
       <CheckboxField
         checked={matcher.caseSensitive}
-        label="대소문자 구분"
+        label={t("conditionalBatch.then.caseSensitive")}
         onCheckedChange={(caseSensitive) =>
           onChangeMatcher({ ...matcher, caseSensitive })
         }
       />
       <CheckboxField
         checked={Boolean(matcher.multiline)}
-        label="여러 줄"
+        label={t("patternEditorCopy.multiline")}
         onCheckedChange={(multiline) =>
           onChangeMatcher({ ...matcher, multiline: multiline || undefined })
         }
       />
       <CheckboxField
         checked={Boolean(matcher.dotAll)}
-        label="줄바꿈 포함"
+        label={t("patternEditorCopy.includeLineBreaks")}
         onCheckedChange={(dotAll) =>
           onChangeMatcher({ ...matcher, dotAll: dotAll || undefined })
         }
@@ -194,7 +200,7 @@ function RawPatternOptions({
             }
           }}
         >
-          조립식으로 돌아가기
+          {t("patternEditorCopy.returnToVisualBuilder")}
         </Button>
       ) : null}
     </div>

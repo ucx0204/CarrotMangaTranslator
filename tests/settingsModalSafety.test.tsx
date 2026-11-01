@@ -192,10 +192,9 @@ describe("settings draft safety", () => {
   it("keeps conflicting settings controls disabled while an external save is active", () => {
     renderSettings({ busy: true });
 
-    expect(screen.getByRole("button", { name: "기본값 복원" })).toHaveProperty(
-      "disabled",
-      true,
-    );
+    expect(
+      screen.getByRole("button", { name: "전체 설정 기본값 복원" }),
+    ).toHaveProperty("disabled", true);
     expect(screen.getByRole("button", { name: "저장" })).toHaveProperty(
       "disabled",
       true,
@@ -211,7 +210,9 @@ describe("settings draft safety", () => {
     const onReset = vi.fn(() => Promise.resolve(defaultSettings));
     renderSettings({ onReset, onSubmit });
 
-    fireEvent.click(screen.getByRole("button", { name: "기본값 복원" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "전체 설정 기본값 복원" }),
+    );
 
     expect(onReset).toHaveBeenCalledOnce();
     expect(onSubmit).not.toHaveBeenCalled();
@@ -239,7 +240,9 @@ describe("settings draft safety", () => {
     const onReset = vi.fn(async () => null);
     renderSettings({ onReset });
 
-    fireEvent.click(screen.getByRole("button", { name: "기본값 복원" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "전체 설정 기본값 복원" }),
+    );
 
     await waitFor(() => expect(onReset).toHaveBeenCalledOnce());
     expect(screen.queryByText("기본값을 임시로 불러왔습니다")).toBeNull();

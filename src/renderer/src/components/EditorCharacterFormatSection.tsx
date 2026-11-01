@@ -85,9 +85,7 @@ function CharacterScopeChip({
   const { t } = useTranslation("components");
   return (
     <span className={styles.scope} data-scope={target.scope} role="status">
-      <span className="visually-hidden">
-        {t("format.characterFormat.scopePrefix")}
-      </span>
+      <span>{t("format.characterFormat.scopePrefix")}</span>
       {t(`format.characterFormat.scope.${target.scope}`, {
         count: target.blockCount,
       })}

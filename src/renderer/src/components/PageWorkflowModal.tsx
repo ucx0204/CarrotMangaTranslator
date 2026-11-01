@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { PageWorkflowSummary } from "./PageWorkflowSummary";
 import { PageWorkflowStages } from "./PageWorkflowStages";
 import { PageWorkflowOptions } from "./PageWorkflowOptions";
@@ -19,6 +20,7 @@ import { resolveOcrEngineDisplayName } from "../../../shared/ocrEngines";
 export function PageWorkflowModal(
   props: TranslationOptionsModalProps & TranslationModalPresentation,
 ) {
+  const { t } = useTranslation("components");
   const state = usePageWorkflowModalState(props);
   const [confirmed, setConfirmed] = React.useState(false);
   const [saveDefault, setSaveDefault] = React.useState(false);
@@ -48,7 +50,7 @@ export function PageWorkflowModal(
   };
   return (
     <Modal
-      title="페이지 작업"
+      title={t("runPanel.pageActions")}
       headerExtra={
         props.headerExtra ?? (
           <span className={styles.engine}>
@@ -115,6 +117,7 @@ function WorkflowFooter({
   onCancel: () => void;
   onStart: () => void;
 }) {
+  const { t } = useTranslation("components");
   const blocked =
     !canStart ||
     !state.request ||
@@ -128,16 +131,20 @@ function WorkflowFooter({
       <CheckboxField
         checked={saveDefault}
         onCheckedChange={setSaveDefault}
-        label="기본 구성으로 저장"
+        label={t("batchEditorCopy.saveAsDefaultConfiguration")}
       />
       {startIssue ? (
         <span className={styles.startIssue} role="status">
           {startIssue}
         </span>
       ) : null}
-      <Button onClick={onCancel}>취소</Button>
+      <Button variant="ghost" onClick={onCancel}>
+        {t("common.cancel")}
+      </Button>
       <Button variant="primary" onClick={onStart} disabled={blocked}>
-        {state.resume ? "이어서 실행" : "작업 시작"}
+        {state.resume
+          ? t("pageList.timing.workflow.resumed")
+          : t("batchEditorCopy.startWorkflow")}
       </Button>
     </div>
   );
@@ -148,13 +155,18 @@ type ViewProps = {
   state: ReturnType<typeof usePageWorkflowModalState>;
 };
 function WorkflowSelection({ props, state }: ViewProps) {
+  const { t } = useTranslation("components");
   const [expanded, setExpanded] = React.useState(false);
   const work = state.work;
   return (
     <section className={styles.selection} data-expanded={expanded}>
       <div className={styles.sectionHeading}>
-        <h3>대상 페이지</h3>
-        <span>{state.preflight?.pageCount ?? "—"}페이지</span>
+        <h3>{t("batchEditorCopy.targetPages")}</h3>
+        <span>
+          {state.preflight
+            ? t("common.pageCount", { count: state.preflight.pageCount })
+            : "—"}
+        </span>
         <Button
           variant="ghost"
           size="sm"
@@ -162,7 +174,9 @@ function WorkflowSelection({ props, state }: ViewProps) {
           aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}
         >
-          {expanded ? "접기" : "변경"}
+          {expanded
+            ? t("batchEditorCopy.collapse")
+            : t("settings.api.vertexServiceAccountChange")}
         </Button>
       </div>
       <div className={`${styles.selectionContent} page-picker-fill-modal`}>
@@ -186,7 +200,9 @@ function WorkflowSelection({ props, state }: ViewProps) {
               />
             )}
             getChapterSummary={(chapter, pages) =>
-              `${pages?.length ?? chapter.pageCount}p`
+              t("common.pageCount", {
+                count: pages?.length ?? chapter.pageCount,
+              })
             }
             renderSelectionSummary={() => null}
           />
@@ -203,11 +219,19 @@ function WorkflowTasks({
   state: ReturnType<typeof usePageWorkflowModalState>;
   changePlan: ReturnType<typeof usePageWorkflowModalState>["setPlan"];
 }) {
+  const { t } = useTranslation("components");
   return (
-    <section className={styles.tasks} aria-label="실행 순서">
+    <section
+      className={styles.tasks}
+      aria-label={t("batchEditorCopy.executionOrder")}
+    >
       <div className={styles.sectionHeading}>
-        <h3>실행 순서</h3>
-        <span>{state.plan.stages.length}개 선택</span>
+        <h3>{t("batchEditorCopy.executionOrder")}</h3>
+        <span>
+          {t("batchEditorMessages.selectedCount", {
+            count: state.plan.stages.length,
+          })}
+        </span>
       </div>
       <PageWorkflowStages
         plan={state.plan}

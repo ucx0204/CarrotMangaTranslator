@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { appI18n } from "../appI18n";
 import {
   IconCopy,
   IconDeviceFloppy,
@@ -15,6 +17,8 @@ import { TextareaField, TextField } from "./ui/Field";
 import { IconButton } from "./ui/IconButton";
 import { Select } from "./ui/Select";
 import { usePopupController } from "./ui/usePopupController";
+
+const t = appI18n.getFixedT(null, "components");
 
 type ConditionalBatchSchemeManagerProps = Pick<
   ConditionalBatchRulePanelProps,
@@ -39,6 +43,7 @@ type ConditionalBatchSchemeManagerProps = Pick<
 export function ConditionalBatchSchemeManager(
   props: ConditionalBatchSchemeManagerProps,
 ): React.JSX.Element {
+  useTranslation();
   const selectedStored = props.savedSchemes.some(
     (scheme) => scheme.id === props.selectedSchemeId,
   );
@@ -51,21 +56,27 @@ export function ConditionalBatchSchemeManager(
     ...props.temporarySchemes.map((scheme) => ({
       value: scheme.id,
       label: `${scheme.name}${scheme.dirty ? " •" : ""}`,
-      group: "이번 모달의 임시 규칙",
+      group: t("batchEditorCopy.temporaryRulesInThisDialog"),
     })),
     ...orderedSavedSchemes.map((scheme) => ({
       value: scheme.id,
       label: scheme.name,
       description: scheme.description || undefined,
-      group: favoriteIds.has(scheme.id) ? "즐겨찾기" : "저장된 규칙",
+      group: favoriteIds.has(scheme.id)
+        ? t("fontManager.favorites")
+        : t("batchEditorCopy.savedRules"),
       actions: (
         <FavoriteToggleButton
           favorite={favoriteIds.has(scheme.id)}
           disabled={props.storageBusy}
           label={
             favoriteIds.has(scheme.id)
-              ? `${scheme.name} 빠른 규칙에서 제거`
-              : `${scheme.name} 빠른 규칙에 추가`
+              ? t("batchEditorMessages.removeFromQuickRules", {
+                  p0: scheme.name,
+                })
+              : t("batchEditorMessages.addToQuickRules", {
+                  p0: scheme.name,
+                })
           }
           onToggle={() => props.onToggleSchemeFavorite(scheme.id)}
         />
@@ -75,7 +86,7 @@ export function ConditionalBatchSchemeManager(
   return (
     <section className={styles.schemeBar}>
       <Select
-        ariaLabel="현재 규칙"
+        ariaLabel={t("batchEditorCopy.currentRule")}
         searchable
         value={props.selectedSchemeId}
         options={options}
@@ -89,7 +100,7 @@ export function ConditionalBatchSchemeManager(
         disabled={props.storageBusy}
         onClick={props.onNewScheme}
       >
-        새 규칙
+        {t("conditionalBatch.scheme.new")}
       </Button>
       {!selectedStored ? <SaveSchemeButton {...props} /> : null}
       <SchemeEditorMenu {...props} selectedStored={selectedStored} />
@@ -109,6 +120,7 @@ function SaveSchemeButton(
     "onSaveScheme" | "storageBusy" | "validationMessage"
   >,
 ): React.JSX.Element {
+  useTranslation();
   return (
     <Button
       size="sm"
@@ -116,7 +128,7 @@ function SaveSchemeButton(
       disabled={props.storageBusy || Boolean(props.validationMessage)}
       onClick={props.onSaveScheme}
     >
-      저장
+      {t("common.save")}
     </Button>
   );
 }
@@ -124,6 +136,7 @@ function SaveSchemeButton(
 function SchemeEditorMenu(
   props: ConditionalBatchSchemeManagerProps & { selectedStored: boolean },
 ): React.JSX.Element {
+  useTranslation();
   const [editorOpen, setEditorOpen] = React.useState(false);
   const { contentRef, rootRef, toggle, triggerRef } = usePopupController({
     disabled: props.storageBusy,
@@ -136,7 +149,7 @@ function SchemeEditorMenu(
       <IconButton
         ref={triggerRef}
         size="sm"
-        label="규칙 편집"
+        label={t("batchEditorCopy.editRule")}
         aria-expanded={editorOpen}
         aria-haspopup="dialog"
         disabled={props.storageBusy}
@@ -149,7 +162,7 @@ function SchemeEditorMenu(
           ref={contentRef}
           className={styles.schemeMenuPopover}
           role="dialog"
-          aria-label="규칙 편집"
+          aria-label={t("batchEditorCopy.editRule")}
         >
           <SchemeEditorFields {...props} />
         </div>
@@ -161,10 +174,11 @@ function SchemeEditorMenu(
 function SchemeEditorFields(
   props: ConditionalBatchSchemeManagerProps & { selectedStored: boolean },
 ): React.JSX.Element {
+  useTranslation();
   return (
     <>
       <TextField
-        label="규칙 이름"
+        label={t("conditionalBatch.scheme.name")}
         value={props.draft.name}
         maxLength={80}
         onChange={(event) =>
@@ -172,7 +186,7 @@ function SchemeEditorFields(
         }
       />
       <TextareaField
-        label="설명"
+        label={t("batchEditorCopy.description")}
         rows={2}
         value={props.draft.description}
         maxLength={500}
@@ -188,12 +202,12 @@ function SchemeEditorFields(
         <Button
           size="sm"
           variant="ghost"
-          aria-label="규칙 복제"
+          aria-label={t("batchEditorCopy.duplicateRule")}
           iconLeft={<IconCopy size={15} />}
           disabled={props.storageBusy}
           onClick={props.onDuplicateScheme}
         >
-          복제
+          {t("common.duplicate")}
         </Button>
       </div>
       {props.selectedStored ? (
@@ -216,9 +230,12 @@ function SchemeDeleteControl({
   stored: boolean;
   onDelete: () => void;
 }): React.JSX.Element {
+  useTranslation();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const action = stored ? "삭제" : "제거";
-  const label = stored ? "저장된 규칙 삭제" : "임시 규칙 제거";
+  const action = stored ? t("common.delete") : t("codexTypesetting.remove");
+  const label = stored
+    ? t("conditionalBatch.scheme.delete")
+    : t("batchEditorCopy.removeTemporaryRule");
   return (
     <>
       <IconButton
@@ -232,8 +249,15 @@ function SchemeDeleteControl({
       </IconButton>
       {confirmOpen ? (
         <ConfirmModal
-          title={stored ? "규칙 삭제" : "임시 규칙 제거"}
-          message={`“${name}” 규칙을 ${action}할까요?`}
+          title={
+            stored
+              ? t("batchEditorCopy.deleteRule")
+              : t("batchEditorCopy.removeTemporaryRule")
+          }
+          message={t("batchEditorMessages.rule", {
+            p0: name,
+            p1: action,
+          })}
           confirmLabel={action}
           confirmVariant="danger"
           onCancel={() => setConfirmOpen(false)}
@@ -250,9 +274,9 @@ function SchemeDeleteControl({
 function autosaveLabel(
   state: ConditionalBatchSchemeManagerProps["autosaveState"],
 ): string {
-  if (state === "waiting") return "저장 대기";
-  if (state === "saving") return "저장 중";
-  if (state === "saved") return "자동 저장됨";
-  if (state === "error") return "자동 저장 실패";
-  return "저장된 규칙";
+  if (state === "waiting") return t("batchEditorCopy.waitingToSave");
+  if (state === "saving") return t("batchEditorCopy.saving");
+  if (state === "saved") return t("batchEditorCopy.autosaved");
+  if (state === "error") return t("linkedResults.issue.syncFailed");
+  return t("batchEditorCopy.savedRules");
 }

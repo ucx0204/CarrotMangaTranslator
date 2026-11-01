@@ -315,9 +315,9 @@ function PageBlockListHeader({
       {blockCount > 0 ? (
         <div className="page-block-list-header-actions">
           <div className={styles.readingSize}>
-            <span>읽기 크기</span>
+            <span>{t("pageBlocks.readingSize")}</span>
             <NumberField
-              ariaLabel="원문·번역문 읽기 크기"
+              ariaLabel={t("pageBlocks.readingSizeAria")}
               value={readingSize}
               onValueChange={onReadingSizeChange ?? NOOP}
               min={12}
@@ -332,21 +332,38 @@ function PageBlockListHeader({
             onClick={() => onReviewOnlyChange(!reviewOnly)}
             size="sm"
           >
-            {t(reviewOnly ? "pageBlocks.showAll" : "pageBlocks.reviewOnly")}
+            {t("pageBlocks.reviewOnly")}
           </Button>
           {blockCount > 1 ? (
-            <Button
-              className="page-block-order-sort"
+            <PageBlockOrderButton
               disabled={disabled}
               onClick={onSortReadingOrder}
-              size="sm"
-            >
-              {t("pageBlocks.sortReadingOrder")}
-            </Button>
+            />
           ) : null}
         </div>
       ) : null}
     </header>
+  );
+}
+
+function PageBlockOrderButton({
+  disabled,
+  onClick,
+}: {
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const { t } = useTranslation("components");
+  return (
+    <Button
+      className="page-block-order-sort"
+      disabled={disabled}
+      onClick={onClick}
+      size="sm"
+      title={t("pageBlocks.sortReadingOrderHint")}
+    >
+      {t("pageBlocks.sortReadingOrder")}
+    </Button>
   );
 }
 

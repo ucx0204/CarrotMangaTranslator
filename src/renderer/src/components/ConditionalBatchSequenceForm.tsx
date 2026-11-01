@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   IconArrowDown,
   IconArrowUp,
@@ -40,6 +41,7 @@ type ConditionalBatchSequenceFormProps = {
 export function ConditionalBatchSequenceForm(
   props: ConditionalBatchSequenceFormProps,
 ): React.JSX.Element {
+  const { t } = useTranslation("components");
   const schemeOptions = props.savedSchemes.map((scheme) => ({
     value: scheme.id,
     label: scheme.name,
@@ -51,13 +53,13 @@ export function ConditionalBatchSequenceForm(
   return (
     <div className={styles.sequenceForm}>
       <TextField
-        label="연속 실행 이름"
+        label={t("batchEditorCopy.sequenceName")}
         value={props.name}
         maxLength={80}
         onChange={(event) => props.setName(event.target.value)}
       />
       <TextareaField
-        label="설명"
+        label={t("batchEditorCopy.description")}
         rows={2}
         maxLength={500}
         value={props.description}
@@ -71,7 +73,7 @@ export function ConditionalBatchSequenceForm(
       {props.savedSchemes.length ? (
         <div className={styles.fieldPickerAll}>
           <Select
-            ariaLabel="연속 실행에 추가할 규칙"
+            ariaLabel={t("batchEditorCopy.ruleToAddToSequence")}
             value={props.schemeToAdd}
             options={schemeOptions}
             onValueChange={props.setSchemeToAdd}
@@ -81,16 +83,16 @@ export function ConditionalBatchSequenceForm(
             disabled={!props.schemeToAdd || props.steps.length >= 32}
             onClick={() => addStep(props)}
           >
-            단계 추가
+            {t("batchEditorCopy.addStep")}
           </Button>
         </div>
       ) : null}
       <div className={styles.sequenceFormActions}>
         <Button size="sm" variant="ghost" onClick={props.onCancel}>
-          취소
+          {t("common.cancel")}
         </Button>
         <Button size="sm" disabled={!canSave} onClick={props.onSave}>
-          {props.editingId ? "업데이트" : "저장"}
+          {props.editingId ? t("batchEditorCopy.update") : t("common.save")}
         </Button>
       </div>
     </div>
@@ -106,6 +108,7 @@ function SequenceStepList({
   steps: SequenceSteps;
   setSteps: React.Dispatch<React.SetStateAction<SequenceSteps>>;
 }): React.JSX.Element {
+  useTranslation();
   return (
     <div className={styles.sequenceSteps}>
       {steps.map((step, index) => (
@@ -135,6 +138,7 @@ function SequenceStepRow({
   stepCount: number;
   setSteps: React.Dispatch<React.SetStateAction<SequenceSteps>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   const updateStep = (patch: Partial<SequenceSteps[number]>): void => {
     setSteps((current) =>
       current.map((entry) =>
@@ -146,12 +150,16 @@ function SequenceStepRow({
     <div className={styles.sequenceStepRow}>
       <CheckboxField
         checked={step.enabled}
-        ariaLabel={`${index + 1}번 연속 실행 단계 활성화`}
+        ariaLabel={t("batchEditorMessages.enableSequenceStep", {
+          p0: index + 1,
+        })}
         onCheckedChange={(enabled) => updateStep({ enabled })}
       />
       <span>{index + 1}</span>
       <Select
-        ariaLabel={`${index + 1}번 연속 실행 규칙`}
+        ariaLabel={t("batchEditorMessages.sequenceRule", {
+          p0: index + 1,
+        })}
         value={step.schemeId}
         options={options}
         onValueChange={(schemeId) => updateStep({ schemeId })}
@@ -177,11 +185,12 @@ function SequenceStepActions({
   stepCount: number;
   setSteps: React.Dispatch<React.SetStateAction<SequenceSteps>>;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <div className={styles.sequenceStepActions}>
       <IconButton
         size="sm"
-        label="연속 실행 단계 위로 이동"
+        label={t("batchEditorCopy.moveSequenceStepUp")}
         disabled={index === 0}
         onClick={() =>
           setSteps((current) =>
@@ -193,7 +202,7 @@ function SequenceStepActions({
       </IconButton>
       <IconButton
         size="sm"
-        label="연속 실행 단계 아래로 이동"
+        label={t("batchEditorCopy.moveSequenceStepDown")}
         disabled={index === stepCount - 1}
         onClick={() =>
           setSteps((current) =>
@@ -205,7 +214,7 @@ function SequenceStepActions({
       </IconButton>
       <IconButton
         size="sm"
-        label="연속 실행 단계 복제"
+        label={t("batchEditorCopy.duplicateSequenceStep")}
         disabled={stepCount >= 32}
         onClick={() => duplicateStep(setSteps, step, index)}
       >
@@ -214,7 +223,7 @@ function SequenceStepActions({
       <IconButton
         size="sm"
         variant="danger"
-        label="연속 실행 단계 삭제"
+        label={t("batchEditorCopy.deleteSequenceStep")}
         onClick={() =>
           setSteps((current) => current.filter((entry) => entry.id !== step.id))
         }

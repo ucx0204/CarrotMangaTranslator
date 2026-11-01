@@ -16496,6 +16496,28 @@
         "pct": 64.42
       }
     },
+    "src/renderer/src/lib/autoInpaintingSelection.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      }
+    },
     "src/renderer/src/lib/blockFontLoading.ts": {
       "lines": {
         "covered": 35,
@@ -39906,6 +39928,28 @@
         "pct": 75
       }
     },
+    "src/renderer/src/components/CompactPageNavigation.tsx": {
+      "lines": {
+        "covered": 4,
+        "total": 6,
+        "pct": 66.66
+      },
+      "statements": {
+        "covered": 5,
+        "total": 7,
+        "pct": 71.42
+      },
+      "functions": {
+        "covered": 2,
+        "total": 4,
+        "pct": 50
+      },
+      "branches": {
+        "covered": 2,
+        "total": 4,
+        "pct": 50
+      }
+    },
     "src/renderer/src/components/CompletionSoundControl.tsx": {
       "lines": {
         "total": 67,
@@ -40212,6 +40256,28 @@
         "covered": 18,
         "total": 22,
         "pct": 81.81
+      }
+    },
+    "src/renderer/src/components/ConditionalBatchNumberValue.tsx": {
+      "lines": {
+        "covered": 5,
+        "total": 6,
+        "pct": 83.33
+      },
+      "statements": {
+        "covered": 5,
+        "total": 6,
+        "pct": 83.33
+      },
+      "functions": {
+        "covered": 1,
+        "total": 2,
+        "pct": 50
+      },
+      "branches": {
+        "covered": 2,
+        "total": 4,
+        "pct": 50
       }
     },
     "src/renderer/src/components/ConditionalBatchPresetActionEditor.tsx": {
@@ -42480,6 +42546,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/components/conditionalBatchLabels.ts": {
+      "lines": {
+        "covered": 69,
+        "total": 80,
+        "pct": 86.25
+      },
+      "statements": {
+        "covered": 69,
+        "total": 80,
+        "pct": 86.25
+      },
+      "functions": {
+        "covered": 66,
+        "total": 77,
+        "pct": 85.71
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/renderer/src/components/conditionalBatchPresentation.ts": {
       "lines": {
         "total": 58,
@@ -42522,6 +42610,28 @@
         "total": 15,
         "covered": 10,
         "pct": 66.66
+      }
+    },
+    "src/renderer/src/components/conditionalBatchResultPresentation.ts": {
+      "lines": {
+        "covered": 29,
+        "total": 29,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 33,
+        "total": 36,
+        "pct": 91.66
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 35,
+        "total": 40,
+        "pct": 87.5
       }
     },
     "src/renderer/src/components/conditionalBatchRulePanelTypes.ts": {
@@ -42632,6 +42742,28 @@
         "covered": 19,
         "total": 20,
         "pct": 95
+      }
+    },
+    "src/renderer/src/components/conditionalBatchStyleMatchPresentation.ts": {
+      "lines": {
+        "covered": 38,
+        "total": 47,
+        "pct": 80.85
+      },
+      "statements": {
+        "covered": 41,
+        "total": 51,
+        "pct": 80.39
+      },
+      "functions": {
+        "covered": 23,
+        "total": 23,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 24,
+        "total": 36,
+        "pct": 66.66
       }
     },
     "src/renderer/src/components/conditionalBatchUi.ts": {
@@ -44216,6 +44348,28 @@
         "total": 40,
         "covered": 33,
         "pct": 82.5
+      }
+    },
+    "src/renderer/src/components/pageWorkflowDescriptions.ts": {
+      "lines": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/renderer/src/components/pageWorkflowModalState.ts": {

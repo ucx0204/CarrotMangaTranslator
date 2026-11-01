@@ -62,7 +62,7 @@ export function PageListHeader({
               onClick={onEditPages}
             />
           ) : null}
-          {pages.length ? (
+          {filter !== "all" ? (
             <span className="page-list-visible-count">
               {t("pageList.visibleCount", {
                 visible: visibleCount,

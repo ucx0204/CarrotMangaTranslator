@@ -1,8 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "./ui/Button";
 import { CheckboxField } from "./ui/CheckboxField";
-import { ModalActionBar } from "./ui/ModalActionBar";
+import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 
 export function TranslationOptionsActionBar({
   onCancel,
@@ -31,12 +30,14 @@ export function TranslationOptionsActionBar({
         />
       }
       actions={
-        <>
-          <Button onClick={onCancel}>{t("common.cancel")}</Button>
-          <Button variant="primary" onClick={onStart} disabled={startDisabled}>
-            {startLabel}
-          </Button>
-        </>
+        <ModalActionButtons
+          cancel={{ label: t("common.cancel"), onClick: onCancel }}
+          confirm={{
+            label: startLabel,
+            onClick: onStart,
+            disabled: startDisabled,
+          }}
+        />
       }
     />
   );

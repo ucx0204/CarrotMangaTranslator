@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { BlockStylePreset } from "../../../shared/blockStylePresets";
 
 import {
@@ -22,11 +23,12 @@ export function PresetActionEditor({
   presets: readonly BlockStylePreset[];
   onChange: (action: ConditionalBatchActionV2) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <>
-      <Field as="div" label="스타일 프리셋">
+      <Field as="div" label={t("batchEditorCopy.stylePreset")}>
         <Select
-          ariaLabel="스타일 프리셋"
+          ariaLabel={t("batchEditorCopy.stylePreset")}
           value={action.presetId ?? ""}
           options={[
             ...(presets.some((preset) => preset.id === action.presetId)
@@ -34,7 +36,9 @@ export function PresetActionEditor({
               : [
                   {
                     value: action.presetId ?? "",
-                    label: `${action.presetName} (저장된 스냅샷)`,
+                    label: t("batchEditorMessages.savedSnapshot", {
+                      p0: action.presetName,
+                    }),
                   },
                 ]),
             ...presets.map((preset) => ({
@@ -55,7 +59,8 @@ export function PresetActionEditor({
         />
       </Field>
       <div className={styles.snapshotMeta}>
-        저장된 값 · {action.groupIds.join(", ")}
+        {t("batchEditorCopy.savedValue")}
+        {action.groupIds.join(", ")}
       </div>
     </>
   );

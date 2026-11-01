@@ -155,7 +155,10 @@ export function PageStatus({
     ? "running"
     : resolvePageDisplayStatus(page, statusMode);
   return (
-    <span className={`page-row-status ${status}`}>
+    <span
+      className={`page-row-status ${status}`}
+      title={status === "failed" ? page.lastError : undefined}
+    >
       <span className="page-row-status-dot" aria-hidden="true" />
       {locked
         ? t("status.editLocked")

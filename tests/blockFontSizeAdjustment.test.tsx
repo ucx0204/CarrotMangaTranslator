@@ -502,8 +502,8 @@ describe("selected block font-size adjustment", () => {
       </FontsTestProvider>,
     );
 
-    const erase = screen.getByRole("button", { name: "원문 지우기" });
-    const fit = screen.getByRole("button", { name: "말풍선 맞춤" });
+    const erase = screen.getByRole("button", { name: "이 블록 원문 지우기" });
+    const fit = screen.getByRole("button", { name: "이 블록을 말풍선에 맞춤" });
     // Both act on this block's source art, so they sit with its OCR text,
     // below the translation instead of above it.
     const source = screen.getByRole("region", { name: "원문 OCR" });
@@ -540,14 +540,14 @@ describe("selected block font-size adjustment", () => {
     expect(
       (
         screen.getByRole("button", {
-          name: "원문 지우기",
+          name: "이 블록 원문 지우기",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
     expect(
       (
         screen.getByRole("button", {
-          name: "말풍선 맞춤",
+          name: "이 블록을 말풍선에 맞춤",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
@@ -689,7 +689,7 @@ describe("selected block font-size adjustment", () => {
       "적용 대상: 선택한 글자",
     );
     const opacity = within(inlinePanel).getByRole("spinbutton", {
-      name: "글자 투명도",
+      name: "글자 불투명도",
     }) as HTMLInputElement;
     fireEvent.pointerDown(opacity);
     act(() => opacity.focus());
@@ -912,7 +912,7 @@ describe("selected block font-size adjustment", () => {
       "36",
     );
     commitNumber(
-      within(panel).getByRole("spinbutton", { name: "글자 투명도" }),
+      within(panel).getByRole("spinbutton", { name: "글자 불투명도" }),
       "70",
     );
     commitNumber(
@@ -1029,7 +1029,7 @@ describe("selected block font-size adjustment", () => {
     expect(
       (
         within(inlinePanel).getByRole("spinbutton", {
-          name: "글자 투명도",
+          name: "글자 불투명도",
         }) as HTMLInputElement
       ).value,
     ).toBe("60");
@@ -1350,8 +1350,8 @@ describe("selected block font-size adjustment", () => {
     act(() => document.dispatchEvent(new Event("selectionchange")));
 
     fireEvent.click(screen.getByRole("button", { name: "기호" }));
-    expect(screen.getByTitle("〜 입력")).toBeTruthy();
-    fireEvent.click(screen.getByTitle("!? 입력"));
+    expect(screen.getByRole("button", { name: "〜" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "!?" }));
 
     await waitFor(() =>
       expect(onUpdate).toHaveBeenLastCalledWith({
@@ -1384,7 +1384,7 @@ describe("selected block font-size adjustment", () => {
     fireEvent.select(code);
 
     fireEvent.click(screen.getByRole("button", { name: "기호" }));
-    fireEvent.click(screen.getByTitle("♥ 입력"));
+    fireEvent.click(screen.getByRole("button", { name: "♥" }));
 
     await waitFor(() =>
       expect(onUpdate).toHaveBeenLastCalledWith({ translatedText: "가♥다" }),
@@ -1417,7 +1417,7 @@ describe("selected block font-size adjustment", () => {
     fireEvent.select(code);
 
     fireEvent.click(screen.getByRole("button", { name: "기호" }));
-    fireEvent.click(screen.getByTitle("!? 입력"));
+    fireEvent.click(screen.getByRole("button", { name: "!?" }));
 
     await waitFor(() =>
       expect(onUpdate).toHaveBeenLastCalledWith({
@@ -1647,7 +1647,7 @@ describe("selected block font-size adjustment", () => {
     });
 
     const backgroundOpacity = screen.getByRole("slider", {
-      name: "블록 배경 투명도",
+      name: "블록 배경 불투명도",
     });
     fireEvent.pointerDown(backgroundOpacity);
     fireEvent.pointerUp(backgroundOpacity);
@@ -2055,10 +2055,10 @@ describe("selected block font-size adjustment", () => {
 
     selectEditorTab("서식");
     const textOpacity = screen.getByRole("spinbutton", {
-      name: "글자 투명도",
+      name: "글자 불투명도",
     }) as HTMLInputElement;
     const backgroundOpacity = screen.getByRole("slider", {
-      name: "블록 배경 투명도",
+      name: "블록 배경 불투명도",
     });
     expect(characterFormatRegion().contains(textOpacity)).toBe(true);
     expect(backgroundOpacity.closest(".editor-group")).not.toBe(

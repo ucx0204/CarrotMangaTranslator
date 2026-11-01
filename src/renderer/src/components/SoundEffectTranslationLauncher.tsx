@@ -41,7 +41,9 @@ export function SoundEffectTranslationLauncher({
         type="button"
       >
         <img alt="" aria-hidden="true" src={sfxIcon} />
-        <small aria-hidden="true">{pendingCount}</small>
+        {pendingCount > 0 ? (
+          <small aria-hidden="true">{pendingCount}</small>
+        ) : null}
       </IconButton>
     </ControlTooltip>
   );

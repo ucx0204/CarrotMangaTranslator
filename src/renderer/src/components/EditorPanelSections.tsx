@@ -156,12 +156,24 @@ function SourceActionButtons({
   return (
     <div className={styles.sourceActions}>
       {onEraseOriginal ? (
-        <Button size="sm" disabled={actionDisabled} onClick={onEraseOriginal}>
+        <Button
+          size="sm"
+          aria-label={t("editor.eraseOriginalScope")}
+          title={t("editor.eraseOriginalScope")}
+          disabled={actionDisabled}
+          onClick={onEraseOriginal}
+        >
           {t("editor.eraseOriginal")}
         </Button>
       ) : null}
       {onFitBubble ? (
-        <Button size="sm" disabled={actionDisabled} onClick={onFitBubble}>
+        <Button
+          size="sm"
+          aria-label={t("editor.fitBubbleScope")}
+          title={t("editor.fitBubbleScope")}
+          disabled={actionDisabled}
+          onClick={onFitBubble}
+        >
           {t("editor.fitBubble")}
         </Button>
       ) : null}

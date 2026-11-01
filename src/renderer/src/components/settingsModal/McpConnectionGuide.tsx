@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { appI18n } from "../../appI18n";
 import React from "react";
 import { mcpGateway } from "../../api/mcpGateway";
 import { Button } from "../ui/Button";
@@ -12,6 +14,8 @@ import {
   McpCommandCopy,
 } from "./McpClaudeGuide";
 import styles from "./McpSettingsPanel.module.css";
+
+const t = appI18n.getFixedT(null, "components");
 
 const MCP_CLIENTS = [
   "codex",
@@ -30,19 +34,39 @@ const CLIENT_LABELS: Record<McpClient, string> = {
   claude: "Claude",
   "claude-code": "Claude Code",
   opencode: "OpenCode",
-  grok: "Grok 웹",
+  get grok() {
+    return t("mcpGuideCopy.grokWeb");
+  },
   "grok-build": "Grok Build",
-  generic: "기타 MCP 앱",
+  get generic() {
+    return t("mcpGuideCopy.otherMcpApp");
+  },
 };
 const HELP_LABELS: Record<McpClient, string> = {
-  codex: "Codex 연결 문서",
-  chatgpt: "ChatGPT 열기",
-  claude: "Claude 열기",
-  "claude-code": "Claude Code 연결 문서",
-  opencode: "OpenCode 연결 문서",
-  grok: "Grok 커넥터 열기",
-  "grok-build": "Grok Build 연결 문서",
-  generic: "MCP 연결 문서",
+  get codex() {
+    return t("mcpGuideCopy.codexConnectionDocs");
+  },
+  get chatgpt() {
+    return t("mcp.openChatgpt");
+  },
+  get claude() {
+    return t("mcpGuideCopy.openClaude");
+  },
+  get "claude-code"() {
+    return t("mcpGuideCopy.claudeCodeConnectionDocs");
+  },
+  get opencode() {
+    return t("mcpGuideCopy.opencodeConnectionDocs");
+  },
+  get grok() {
+    return t("mcpGuideCopy.openGrokConnectors");
+  },
+  get "grok-build"() {
+    return t("mcpGuideCopy.grokBuildConnectionDocs");
+  },
+  get generic() {
+    return t("mcpGuideCopy.mcpConnectionDocs");
+  },
 };
 
 export function McpTailscaleGuide({
@@ -52,57 +76,56 @@ export function McpTailscaleGuide({
   busy: boolean;
   run: (action: () => Promise<unknown>) => Promise<void>;
 }) {
+  useTranslation();
   return (
     <div className={styles.body}>
-      <ol className={styles.setupSteps} aria-label="Tailscale 연결 순서">
+      <ol
+        className={styles.setupSteps}
+        aria-label={t("mcpGuideCopy.tailscaleSetup")}
+      >
         <li>
-          <strong>Tailscale 설치</strong>
-          <p className={styles.note}>당근을 실행하는 PC에 설치하세요.</p>
+          <strong>{t("mcpGuideCopy.installTailscale")}</strong>
+          <p className={styles.note}>
+            {t("mcpGuideCopy.installItOnThePcRunningCarrot")}
+          </p>
           <Button
             size="sm"
             disabled={busy}
             onClick={() => void run(() => mcpGateway.openMcpHelp("tailscale"))}
           >
-            Tailscale 다운로드
+            {t("mcpGuideCopy.downloadTailscale")}
           </Button>
         </li>
         <li>
-          <strong>로그인·PC 연결</strong>
+          <strong>{t("mcpGuideCopy.signInAndConnectThePc")}</strong>
           <p className={styles.note}>
-            Windows: 시계 옆 숨겨진 아이콘(위쪽 화살표) → Tailscale 우클릭.
-            macOS: 상단 메뉴 막대 → Tailscale.
+            {t("mcpGuideCopy.windowsHiddenIconsBesideTheClockUpArrowRight")}
           </p>
           <p className={styles.note}>
-            Log in(로그인) → 브라우저 로그인 → 기기 연결 화면에서 Connect(연결).
-            Tailscale 메뉴가 연결된 상태인지 확인하세요.
+            {t("mcpGuideCopy.logInSignInInTheBrowserConnectOn")}
           </p>
         </li>
         <li>
-          <strong>MCP 켜기</strong>
+          <strong>{t("mcp.enable")}</strong>
           <p className={styles.note}>
-            위의 MCP 켜기를 누르세요. Tailscale에서 연결 허용 버튼이 나오면
-            HTTPS·Funnel을 허용한 뒤, 당근에서 MCP 켜기를 다시 누르세요.
-            Funnel은 이 PC의 연결 주소를 인터넷에 공개합니다.
+            {t("mcpGuideCopy.clickEnableMcpAboveIfTailscaleAsksForPermission")}
           </p>
         </li>
         <li>
-          <strong>AI 앱 연결</strong>
+          <strong>{t("mcpGuideCopy.connectAnAiApp")}</strong>
           <p className={styles.note}>
-            연결 가능 표시 → 연결 진단 → 주소 복사. /mcp를 포함한 주소로 아래
-            사용하는 AI 앱의 안내를 따라 등록하고, 당근에서 같은 코드를 확인해
-            승인하세요.
+            {t("mcpGuideCopy.waitForReadyToConnectDiagnoseConnectionCopyUrl")}
           </p>
         </li>
       </ol>
-      <p className={styles.note}>사용하는 동안 당근과 Tailscale을 켜 두세요.</p>
       <p className={styles.note}>
-        로그인 오류: Tailscale에서 로그인·Connect를 확인하세요.
-        MagicDNS·HTTPS·Funnel 권한 오류: Tailscale 네트워크 관리자에게
-        요청하세요.
+        {t("mcpGuideCopy.keepCarrotAndTailscaleRunningWhileInUse")}
       </p>
       <p className={styles.note}>
-        443 사용 중: 개발 버전 등 다른 당근의 MCP를 먼저 끄세요. 다른 앱이 사용
-        중이면 해당 공유가 끝난 뒤 다시 시도하세요.
+        {t("mcpGuideCopy.signInErrorCheckLogInAndConnectIn")}
+      </p>
+      <p className={styles.note}>
+        {t("mcpGuideCopy.port443InUseTurnOffMcpInOther")}
       </p>
     </div>
   );
@@ -117,12 +140,13 @@ export function McpConnectionGuide({
   busy: boolean;
   run: (action: () => Promise<unknown>) => Promise<void>;
 }) {
+  useTranslation();
   const [client, setClient] = React.useState<McpClient>("codex");
   const id = React.useId();
   return (
     <div className={styles.body}>
       <Tabs
-        ariaLabel="연결할 AI 앱"
+        ariaLabel={t("mcpGuideCopy.aiAppToConnect")}
         className={styles.clientTabs}
         tabClassName={styles.clientTab}
         value={client}
@@ -156,11 +180,15 @@ export function McpConnectionGuide({
           <ChatgptGuide />
         ) : (
           <McpCliSteps
-            registerTitle="Codex에 서버 등록"
+            registerTitle={t("mcpGuideCopy.registerTheServerInCodex")}
             registration={<CodexRegistration url={url} busy={busy} run={run} />}
-            approveTitle="같은 코드 확인 후 승인"
-            approveNote="열린 브라우저와 위 승인 요청의 숫자 코드를 비교하고, 요청 권한을 확인하세요."
-            requestNote="연결 후 Codex에서 새 작업을 여세요. 당근 앱은 켜 두세요."
+            approveTitle={t("mcpGuideCopy.compareCodesAndApprove")}
+            approveNote={t(
+              "mcpGuideCopy.compareTheNumericCodesInTheBrowserAndThe",
+            )}
+            requestNote={t(
+              "mcpGuideCopy.afterConnectingOpenANewTaskInCodexKeep",
+            )}
           />
         )}
         <div className={styles.actions}>
@@ -186,11 +214,11 @@ function CodexRegistration({
   busy: boolean;
   run: (action: () => Promise<unknown>) => Promise<void>;
 }) {
+  useTranslation();
   return (
     <>
       <p className={styles.note}>
-        Codex CLI가 설치된 PC의 터미널에서 두 줄을 차례로 실행하세요. 같은 PC의
-        Codex 앱·CLI가 설정을 공유합니다.
+        {t("mcpGuideCopy.runBothLinesInOrderInATerminalOn")}
       </p>
       <McpCommandCopy
         commands={

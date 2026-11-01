@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { closestCenter, DndContext } from "@dnd-kit/core";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar } from "./ui/ModalActionBar";
+import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import { FontManagerGroup, FontFileList } from "./FontManagerList";
 import { Select } from "./ui/Select";
 import styles from "./FontManagerModal.module.css";
@@ -89,22 +89,18 @@ function FontManagerFooter({
         </Button>
       }
       actions={
-        <>
-          <Button
-            variant="secondary"
-            disabled={model.disabled}
-            onClick={onClose}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            variant="primary"
-            disabled={model.disabled}
-            onClick={model.save}
-          >
-            {t("common.save")}
-          </Button>
-        </>
+        <ModalActionButtons
+          cancel={{
+            label: t("common.cancel"),
+            onClick: onClose,
+            disabled: model.disabled,
+          }}
+          confirm={{
+            label: t("common.save"),
+            onClick: model.save,
+            disabled: model.disabled,
+          }}
+        />
       }
     />
   );

@@ -123,6 +123,16 @@ export function UnifiedRightRail(
     <>
       {props.currentChapter ? (
         <ChapterTaskHub
+          translateLabel={resolveAppCommandLabel(
+            props.commandLabels,
+            "open-translate-options",
+            t("translationOptions.workspaceAction"),
+          )}
+          chatTranslateLabel={resolveAppCommandLabel(
+            props.commandLabels,
+            "open-chat",
+            t("chat.translateInChat"),
+          )}
           currentChapter={props.currentChapter}
           canRunBubbleLayout={props.canRunBubbleLayout}
           hasSelectedPage={Boolean(props.selectedPage)}

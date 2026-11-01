@@ -370,6 +370,11 @@
   color: var(--review-warning-text);
 }
 
+/* Same pending meaning as a page waiting for translation. */
+.page-block-badge.untranslated {
+  color: var(--info-text);
+}
+
 .page-block-badge.sound {
   color: var(--page-block-badge-sound-color);
 }

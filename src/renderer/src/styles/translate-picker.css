@@ -449,8 +449,11 @@
 /* Chapter / page picker */
 .translate-picker {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: var(--sp-3);
+  min-width: 0;
+  width: 100%;
   min-height: 0;
 }
 
@@ -487,6 +490,7 @@
 }
 
 .translate-picker-list {
+  min-width: 0;
   max-height: 44vh;
   overflow-y: auto;
   border: 1px solid var(--border-soft);
@@ -494,48 +498,29 @@
   background: var(--bg-sunken);
 }
 
-/*
- * Page-picking dialogs spend otherwise empty height on the picker. As the
- * viewport contracts, the list returns to its former per-dialog height; only
- * after reaching that floor does the modal body's existing scrollbar take
- * over. This keeps all three workflows on one responsive layout contract.
- */
-.page-picker-fill-modal {
-  --page-picker-list-floor: 44vh;
-  --page-picker-shell-floor: calc(var(--page-picker-list-floor) + 72px);
-  --page-picker-row-floor: var(--page-picker-shell-floor);
-}
-
-.translation-options-modal.page-picker-fill-modal {
-  --page-picker-list-floor: min(28vh, 280px);
-  --page-picker-row-floor: calc(var(--page-picker-shell-floor) + 24px);
-}
-
+/* The dialog body owns scrolling; page lists and warnings grow with content. */
 .page-picker-fill-modal-body {
-  align-content: stretch;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
-
+.page-picker-fill-modal-body > * {
+  flex: 0 0 auto;
+}
 .page-picker-fill-modal .translate-picker {
-  height: 100%;
+  grid-template-rows: auto auto auto;
+  height: auto;
 }
-
-.page-picker-fill-modal .translate-picker-list {
-  min-height: 0;
+.page-picker-fill-modal .translate-picker-list,
+.page-picker-fill-modal .export-preflight-issues {
   max-height: none;
+  overflow: visible;
 }
-
+.translation-options-modal.page-picker-fill-modal .translate-options,
+.export-options-modal .export-options-stack,
 .auto-inpainting-options-modal-body {
-  grid-template-rows: minmax(var(--page-picker-row-floor), 1fr) auto;
-}
-
-.export-options-modal-body > .export-options-stack {
-  height: 100%;
-  min-height: 100%;
-}
-
-.export-options-modal .export-options-stack {
-  grid-template-rows: minmax(var(--page-picker-row-floor), 1fr) auto auto;
+  grid-template-rows: auto;
+  height: auto;
+  min-height: 0;
 }
 
 .translate-picker-note {
@@ -1077,4 +1062,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.translation-options-modal-body > .settings-field-stack {
+  padding: var(--sp-4) var(--sp-6) 0;
 }

@@ -1,12 +1,19 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { AppCommand } from "../lib/appCommandTypes";
+import type { KeybindingOverrides } from "../../../shared/shortcutSettings";
+import {
+  effectiveCombo,
+  getShortcutAction,
+} from "../lib/shortcuts/shortcutBindingResolution";
+import { formatCombo } from "../lib/shortcuts/comboFromEvent";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Field";
 
 type CommandPaletteProps = {
   open: boolean;
+  overrides?: KeybindingOverrides;
   commands: readonly AppCommand[];
   onClose: () => void;
 };
@@ -14,6 +21,7 @@ type CommandPaletteProps = {
 export function CommandPalette({
   open,
   commands,
+  overrides = {},
   onClose,
 }: CommandPaletteProps): React.JSX.Element | null {
   const { t } = useTranslation("components");
@@ -85,6 +93,7 @@ export function CommandPalette({
         value={query}
       />
       <CommandPaletteList
+        overrides={overrides}
         activeIndex={activeIndex}
         commands={filtered}
         listRef={listRef}
@@ -165,6 +174,7 @@ function handleCommandPaletteKeyDown({
 }
 
 function CommandPaletteList({
+  overrides,
   activeIndex,
   commands,
   listRef,
@@ -173,6 +183,7 @@ function CommandPaletteList({
 }: {
   activeIndex: number;
   commands: readonly AppCommand[];
+  overrides: KeybindingOverrides;
   listRef: React.RefObject<HTMLDivElement | null>;
   runIndex: (index: number) => void;
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
@@ -193,6 +204,7 @@ function CommandPaletteList({
             key={command.id}
             active={index === activeIndex}
             command={command}
+            overrides={overrides}
             index={index}
             runIndex={runIndex}
             setActiveIndex={setActiveIndex}
@@ -204,6 +216,7 @@ function CommandPaletteList({
 }
 
 function CommandPaletteItem({
+  overrides,
   active,
   command,
   index,
@@ -212,10 +225,15 @@ function CommandPaletteItem({
 }: {
   active: boolean;
   command: AppCommand;
+  overrides: KeybindingOverrides;
   index: number;
   runIndex: (index: number) => void;
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
 }): React.JSX.Element {
+  const action = getShortcutAction(
+    command.id === "show-shortcuts" ? "toggle-shortcut-help" : command.id,
+  );
+  const keys = action ? formatCombo(effectiveCombo(action.id, overrides)) : [];
   return (
     <Button
       type="button"
@@ -227,6 +245,13 @@ function CommandPaletteItem({
       variant="bare"
     >
       <span className="command-palette-label">{command.label}</span>
+      {keys.length ? (
+        <span className="command-palette-shortcut">
+          {keys.map((key, index) => (
+            <kbd key={`${key}-${index}`}>{key}</kbd>
+          ))}
+        </span>
+      ) : null}
       {command.hint ? (
         <span className="command-palette-hint">{command.hint}</span>
       ) : null}

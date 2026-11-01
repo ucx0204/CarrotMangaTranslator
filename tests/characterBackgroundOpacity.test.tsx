@@ -283,7 +283,7 @@ describe("letter background opacity controls", () => {
       />,
     );
     const opacity = screen.getByRole("spinbutton", {
-      name: "글자 배경 투명도",
+      name: "글자 배경 불투명도",
     });
     expect(opacity).toHaveProperty("value", "100");
 
@@ -301,7 +301,9 @@ describe("letter background opacity controls", () => {
       />,
     );
     // 100% is the legacy opaque fill, stored as no value.
-    const reset = screen.getByRole("spinbutton", { name: "글자 배경 투명도" });
+    const reset = screen.getByRole("spinbutton", {
+      name: "글자 배경 불투명도",
+    });
     fireEvent.change(reset, { target: { value: "100" } });
     fireEvent.blur(reset);
     expect(apply).toHaveBeenLastCalledWith({ backgroundOpacity: null });
@@ -322,7 +324,7 @@ describe("letter background opacity controls", () => {
       />,
     );
     expect(
-      screen.getByRole("spinbutton", { name: "글자 배경 투명도" }),
+      screen.getByRole("spinbutton", { name: "글자 배경 불투명도" }),
     ).toHaveProperty("disabled", true);
     fireEvent.click(screen.getByRole("checkbox", { name: "글자 배경" }));
     expect(apply).toHaveBeenLastCalledWith({ backgroundColor: "#ffffff" });
@@ -336,7 +338,7 @@ describe("letter background opacity controls", () => {
       />,
     );
     expect(
-      screen.getByRole("spinbutton", { name: "글자 배경 투명도" }),
+      screen.getByRole("spinbutton", { name: "글자 배경 불투명도" }),
     ).toHaveProperty("value", "");
   });
 });

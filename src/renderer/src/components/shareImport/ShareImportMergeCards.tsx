@@ -68,7 +68,9 @@ export function SortableFinalChapterCard({
         disabled={busy}
         onChange={(event) => onTitleChange(event.target.value)}
       />
-      <span className="page-count-chip">{item.pageCount}p</span>
+      <span className="page-count-chip">
+        {t("common.pageCount", { count: item.pageCount })}
+      </span>
       <Button
         className="icon-danger-button"
         disabled={busy}
@@ -165,7 +167,9 @@ export function FinalChapterPreview({
         )}
       </span>
       <strong className="preview-title">{item.title}</strong>
-      <span className="page-count-chip">{item.pageCount}p</span>
+      <span className="page-count-chip">
+        {t("common.pageCount", { count: item.pageCount })}
+      </span>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconCopy, IconEdit, IconTrash } from "@tabler/icons-react";
 import React from "react";
 import type { ConditionalBatchSequenceV2 } from "../../../shared/conditionalBatchRules";
@@ -29,6 +30,7 @@ type ConditionalBatchSequenceRunCardProps = Pick<
 export function ConditionalBatchSequenceManager(
   props: ConditionalBatchSequenceManagerProps,
 ): React.JSX.Element {
+  const { t } = useTranslation("components");
   const bodyId = React.useId();
   const editor = useConditionalBatchSequenceEditor(
     props.savedSchemes,
@@ -45,7 +47,7 @@ export function ConditionalBatchSequenceManager(
         <ConditionalBatchCollapsibleTrigger
           bodyId={bodyId}
           expanded={props.expanded}
-          title="연속 실행"
+          title={t("batchEditorCopy.sequence")}
           onToggle={props.onToggle}
         />
         {props.expanded ? (
@@ -55,7 +57,7 @@ export function ConditionalBatchSequenceManager(
             disabled={props.savedSchemes.length === 0}
             onClick={editor.startNew}
           >
-            새 연속 실행
+            {t("batchEditorCopy.newSequence")}
           </Button>
         ) : null}
       </header>
@@ -92,27 +94,35 @@ function SequenceList({
   onEdit: (sequence: ConditionalBatchSequenceV2, duplicate?: boolean) => void;
   onPreview: (id: string) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
     <>
       {sequences.map((sequence) => (
         <div className={styles.sequenceRow} key={sequence.id}>
           <span>
             <strong>{sequence.name}</strong>
-            <small>{sequence.steps.length}단계</small>
+            <small>
+              {sequence.steps.length}
+              {t("pageList.timing.workflow.stage")}
+            </small>
           </span>
           <Button size="sm" onClick={() => onPreview(sequence.id)}>
-            미리보기
+            {t("batchEditorCopy.preview")}
           </Button>
           <IconButton
             size="sm"
-            label={`${sequence.name} 편집`}
+            label={t("batchEditorMessages.edit", {
+              p0: sequence.name,
+            })}
             onClick={() => onEdit(sequence)}
           >
             <IconEdit size={14} />
           </IconButton>
           <IconButton
             size="sm"
-            label={`${sequence.name} 복제`}
+            label={t("batchEditorMessages.duplicate", {
+              p0: sequence.name,
+            })}
             onClick={() => onEdit(sequence, true)}
           >
             <IconCopy size={14} />
@@ -120,7 +130,9 @@ function SequenceList({
           <IconButton
             size="sm"
             variant="danger"
-            label={`${sequence.name} 삭제`}
+            label={t("batchEditorMessages.delete", {
+              p0: sequence.name,
+            })}
             onClick={() => onDelete(sequence.id)}
           >
             <IconTrash size={14} />
@@ -134,6 +146,7 @@ function SequenceList({
 export function ConditionalBatchSequenceRunCard(
   props: ConditionalBatchSequenceRunCardProps,
 ): React.JSX.Element | null {
+  const { t } = useTranslation("components");
   const sequence = props.activeSequence;
   if (!sequence) return null;
   const previewByStep = new Map(
@@ -143,11 +156,11 @@ export function ConditionalBatchSequenceRunCard(
     <section className={styles.schemeCard}>
       <header className={styles.sequenceRunHeader}>
         <span>
-          <small>연속 실행</small>
+          <small>{t("batchEditorCopy.sequence")}</small>
           <strong>{sequence.name}</strong>
         </span>
         <Button size="sm" variant="ghost" onClick={props.onExitSequence}>
-          규칙 편집으로 돌아가기
+          {t("batchEditorCopy.backToRuleEditing")}
         </Button>
       </header>
       <ol className={styles.sequenceRunSteps}>
@@ -161,8 +174,10 @@ export function ConditionalBatchSequenceRunCard(
               <span>{scheme?.name ?? step.schemeId}</span>
               <small>
                 {step.enabled
-                  ? `${preview?.results.length ?? 0}개 결과`
-                  : "사용 안 함"}
+                  ? t("batchEditorMessages.results", {
+                      p0: preview?.results.length ?? 0,
+                    })
+                  : t("transform.inactive")}
               </small>
             </li>
           );

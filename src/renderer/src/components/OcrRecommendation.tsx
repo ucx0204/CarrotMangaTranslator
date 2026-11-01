@@ -15,9 +15,10 @@ export function OcrRecommendation({
   pipeline?: OcrPipeline;
   onApply?: (pipeline: OcrPipeline) => void;
   disabled?: boolean;
-}): React.JSX.Element {
+}): React.JSX.Element | null {
   const { t } = useTranslation("components");
   const recommended = recommendedOcrPipeline(sourceLanguage);
+  if (recommended === pipeline) return null;
   return (
     <div className="settings-field-stack">
       <p className="muted-line modal-note">
@@ -31,6 +32,11 @@ export function OcrRecommendation({
             })
           : t("settings.hardware.hunyuan.autoLanguage")}
       </p>
+      {!onApply ? (
+        <p className="muted-line modal-note">
+          {t("ocrRecommendation.settingsHint")}
+        </p>
+      ) : null}
       {onApply && recommended && recommended !== pipeline ? (
         <Button
           size="sm"

@@ -56,11 +56,15 @@ describe("TranslateSourceModal", () => {
     for (const name of [
       "이미지 열기",
       "폴더 열기",
-      "압축파일 열기",
+      "압축파일 열기 ZIP · CBZ · RAR · CBR",
       "PDF 열기",
       "링크로 열기",
     ]) {
-      fireEvent.click(screen.getByRole("button", { name }));
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: new RegExp(name.startsWith("압축") ? "^압축" : name),
+        }),
+      );
     }
     expect(onSelect.mock.calls).toEqual([
       ["images"],
@@ -90,7 +94,7 @@ describe("TranslateSourceModal", () => {
         onSelect={onSelect}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+    fireEvent.click(screen.getByRole("button", { name: "닫기" }));
     expect(onCancel).toHaveBeenCalledOnce();
   });
 });

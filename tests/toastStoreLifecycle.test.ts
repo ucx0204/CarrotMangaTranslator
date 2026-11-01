@@ -22,7 +22,11 @@ describe("toast store lifecycle", () => {
 
     expect(duplicateId).toBe(firstId);
     expect(getToasts()).toHaveLength(1);
-    expect(vi.getTimerCount()).toBe(1);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(60_000);
+    expect(getToasts()).toHaveLength(1);
+    dismissToast(firstId);
+    expect(getToasts()).toHaveLength(0);
   });
 
   it("keeps removal timers bounded to the visible toast limit", () => {

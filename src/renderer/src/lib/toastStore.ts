@@ -29,7 +29,7 @@ const DEFAULT_DURATION: Record<ToastVariant, number> = {
   success: 3800,
   warn: 5200,
   info: 4200,
-  error: 6500,
+  error: 0,
 };
 
 let toasts: Toast[] = [];

@@ -138,7 +138,7 @@ describe("chapter display commands", () => {
       target: { value: "배경 테두리" },
     });
     fireEvent.click(
-      screen.getByRole("option", { name: "배경/테두리 표시 전환" }),
+      screen.getByRole("option", { name: /배경\/테두리 표시 전환/ }),
     );
 
     expect(onClose).toHaveBeenCalledOnce();
@@ -153,7 +153,9 @@ describe("chapter display commands", () => {
     };
     const { result } = renderHook(() => useAppCommands(options));
 
-    expect(Object.keys(result.current.byId)).toEqual(APP_COMMAND_IDS);
+    expect(Object.keys(result.current.byId).sort()).toEqual(
+      [...APP_COMMAND_IDS].sort(),
+    );
     expect(result.current.byId["translate-all"].paletteVisible).toBe(false);
     expect(result.current.byId["cancel-job"].paletteVisible).toBe(true);
     expect(result.current.paletteCommands.map(({ id }) => id)).not.toContain(

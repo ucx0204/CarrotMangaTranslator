@@ -190,13 +190,18 @@ describe("page block list", () => {
     );
     expect(onOpenEditor).toHaveBeenCalledWith("left");
 
-    fireEvent.click(screen.getByRole("button", { name: "검토만" }));
+    // The toggle keeps one stable name; only its pressed state changes.
+    const reviewOnly = screen.getByRole("button", { name: "검토 필요만" });
+    expect(reviewOnly.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(reviewOnly);
+    expect(reviewOnly.getAttribute("aria-pressed")).toBe("true");
     expect(container.querySelectorAll("[data-page-block-id]")).toHaveLength(1);
     expect(
       container.querySelector('[data-page-block-id="left"]'),
     ).not.toBeNull();
     expect(screen.getByText("검토 1개 남음")).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "전체 보기" }));
+    fireEvent.click(screen.getByRole("button", { name: "검토 필요만" }));
+    expect(reviewOnly.getAttribute("aria-pressed")).toBe("false");
     expect(container.querySelectorAll("[data-page-block-id]")).toHaveLength(3);
   });
 

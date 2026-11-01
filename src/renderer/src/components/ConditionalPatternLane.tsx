@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconPlus } from "@tabler/icons-react";
 import React from "react";
 import { Button as UiButton } from "./ui/Button";
@@ -36,6 +37,7 @@ export function PatternLane({
   onChange: (nodes: ConditionalPatternNodeV3[]) => void;
   depth?: number;
 }) {
+  const { t } = useTranslation("components");
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [draggedId, setDraggedId] = React.useState<string | null>(null);
   const activeNode = nodes.find((node) => node.id === activeId);
@@ -76,7 +78,7 @@ export function PatternLane({
       ) : null}
       {activeNode?.kind === "group" ? (
         <PatternLane
-          label="묶음"
+          label={t("batchEditorCopy.group")}
           depth={depth + 1}
           nodes={activeNode.nodes}
           captureLabels={captureLabels}
@@ -104,12 +106,13 @@ function EmptyPatternLiteral({
   onChange: (nodes: ConditionalPatternNodeV3[]) => void;
   setActiveId: React.Dispatch<React.SetStateAction<string | null>>;
 }) {
+  const { t } = useTranslation("components");
   return (
     <span className={styles.patternLiteralPart}>
       <Input
         className={styles.patternLiteralInput}
-        aria-label="글자 그대로"
-        placeholder="찾을 글자"
+        aria-label={t("patternEditorCopy.literalText")}
+        placeholder={t("conditionalBatch.then.find")}
         value=""
         onChange={(event) => {
           const node: Extract<ConditionalPatternNodeV3, { kind: "literal" }> = {
@@ -145,6 +148,7 @@ function PatternSequence({
   setDraggedId: React.Dispatch<React.SetStateAction<string | null>>;
   updateNode: (id: string, next: ConditionalPatternNodeV3) => void;
 }) {
+  useTranslation();
   return (
     <div className={styles.patternSequence}>
       {nodes.length === 0 ? (
@@ -207,9 +211,13 @@ function AddPatternPart({
   onEditCurrent?: () => void;
   onAdd: (node: ConditionalPatternNodeV3) => void;
 }) {
+  const { t } = useTranslation("components");
   return (
     <details className={styles.patternAdd}>
-      <summary aria-label="패턴 조각 추가" aria-disabled={disabled}>
+      <summary
+        aria-label={t("patternEditorCopy.addPatternPart")}
+        aria-disabled={disabled}
+      >
         <IconPlus size={15} />
       </summary>
       <div className={styles.patternMenu}>
@@ -222,21 +230,21 @@ function AddPatternPart({
             }}
             variant="bare"
           >
-            반복·기억 설정
+            {t("patternEditorCopy.repetitionAndCapture")}
           </UiButton>
         ) : null}
         {(
           [
-            ["literal", "글자 그대로"],
-            ["number", "숫자"],
-            ["letter", "글자"],
-            ["whitespace", "공백"],
-            ["newline", "줄바꿈"],
-            ["any", "아무 글자"],
-            ["choice", "여러 후보 중 하나"],
-            ["start", "말풍선 처음"],
-            ["end", "말풍선 끝"],
-            ["group", "여러 조각 묶기"],
+            ["literal", t("patternEditorCopy.literalText")],
+            ["number", t("batchEditorCopy.number")],
+            ["letter", t("batchEditorCopy.character")],
+            ["whitespace", t("batchEditorCopy.whitespace")],
+            ["newline", t("patternEditorCopy.lineBreak")],
+            ["any", t("batchEditorCopy.anyCharacter")],
+            ["choice", t("patternEditorCopy.oneOfSeveralOptions")],
+            ["start", t("batchEditorCopy.balloonStart")],
+            ["end", t("batchEditorCopy.balloonEnd")],
+            ["group", t("patternEditorCopy.groupParts")],
           ] as const
         ).map(([kind, label]) => (
           <UiButton

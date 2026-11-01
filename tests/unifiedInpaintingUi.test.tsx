@@ -850,7 +850,7 @@ describe("unified right rail", () => {
     expect(
       (
         screen.getByRole("button", {
-          name: "원문 지우기",
+          name: "현재 페이지 원문 지우기",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(false);
@@ -865,7 +865,9 @@ describe("unified right rail", () => {
     fireEvent.click(screen.getByRole("button", { name: "결과물 출력" }));
     expect(props.onOpenExport).toHaveBeenCalledOnce();
 
-    fireEvent.click(screen.getByRole("button", { name: "원문 지우기" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "현재 페이지 원문 지우기" }),
+    );
     expect(props.onOpenAutoInpaintingOptions).toHaveBeenCalledOnce();
     expect(props.onOpenAutoInpaintingOptions).toHaveBeenCalledWith("select");
     expect(screen.queryByRole("menu")).toBeNull();
@@ -887,7 +889,7 @@ describe("unified right rail", () => {
           ".current-page-actions button",
         ),
       ).map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["원문 지우기", "현재 페이지 말풍선 자동 감지"]);
+    ).toEqual(["현재 페이지 원문 지우기", "현재 페이지 말풍선 자동 감지"]);
 
     view.rerender(<AppRightRail {...props} canRunBubbleLayout={false} />);
     const disabledBubbleLayout = screen.getByRole("button", {
@@ -906,13 +908,13 @@ describe("unified right rail", () => {
     const props = makeRightRailProps();
     const view = renderRightRail(props);
     const eraseButton = screen.getByRole("button", {
-      name: "원문 지우기",
+      name: "현재 페이지 원문 지우기",
     }) as HTMLButtonElement;
     expect(eraseButton.disabled).toBe(false);
 
     view.rerender(<AppRightRail {...props} jobActive={true} />);
     const disabledEraseButton = screen.getByRole("button", {
-      name: "원문 지우기",
+      name: "현재 페이지 원문 지우기",
     }) as HTMLButtonElement;
     expect(disabledEraseButton.disabled).toBe(false);
     fireEvent.click(disabledEraseButton);
@@ -925,7 +927,7 @@ describe("unified right rail", () => {
 
     expect(
       screen.queryByRole("button", {
-        name: "원문 지우기",
+        name: "현재 페이지 원문 지우기",
       }),
     ).toBeNull();
   });

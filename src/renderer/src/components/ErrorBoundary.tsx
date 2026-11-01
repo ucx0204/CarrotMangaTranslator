@@ -3,9 +3,11 @@ import { Translation } from "react-i18next";
 import { errorReportGateway } from "../lib/errorReportGateway";
 import { Button } from "./ui/Button";
 import { ErrorReportDialog } from "./ErrorReportDialog";
+import { Modal } from "./ui/Modal";
 
 type ErrorBoundaryProps = {
   children: React.ReactNode;
+  onRecover?: () => void;
 };
 
 type ErrorBoundaryState = {
@@ -25,13 +27,13 @@ export class ErrorBoundary extends React.Component<
   };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { error, componentStack: "", reportOpen: true };
+    return { error, componentStack: "", reportOpen: false };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     this.setState({
       componentStack: info.componentStack ?? "",
-      reportOpen: true,
+      reportOpen: !this.props.onRecover,
     });
     void errorReportGateway
       .writeLog("error", "렌더러 화면 오류", {
@@ -68,6 +70,11 @@ export class ErrorBoundary extends React.Component<
     this.setState({ reportOpen: false });
   };
 
+  private readonly handleRecover = (): void => {
+    this.props.onRecover?.();
+    this.setState({ error: null, reportOpen: false, componentStack: "" });
+  };
+
   render(): React.ReactNode {
     const { componentStack, error, reportOpen } = this.state;
     if (!error) {
@@ -75,42 +82,71 @@ export class ErrorBoundary extends React.Component<
     }
     return (
       <Translation ns="components">
-        {(t) => (
-          <div className="app-crash" role="alert">
-            <div className="app-crash-card">
-              <h1>{t("errorBoundary.title")}</h1>
-              <p>{t("errorBoundary.description")}</p>
-              {error.message ? (
-                <pre className="app-crash-detail">{error.message}</pre>
+        {(t) =>
+          this.props.onRecover ? (
+            <Modal
+              title={t("errorBoundary.title")}
+              onClose={this.handleRecover}
+              footer={
+                <Button onClick={this.handleRecover}>
+                  {t("errorBoundary.closePanel")}
+                </Button>
+              }
+            >
+              <p role="alert">{t("errorBoundary.panelDescription")}</p>
+              <Button onClick={this.handleOpenReport}>
+                {t("errorBoundary.report")}
+              </Button>
+              {reportOpen ? (
+                <ErrorReportDialog
+                  context={{
+                    source: "react-boundary",
+                    summary: error.message,
+                    message: error.message,
+                    stack: error.stack,
+                    componentStack,
+                  }}
+                  onClose={this.handleCloseReport}
+                />
               ) : null}
-              <div className="app-crash-actions">
-                <Button variant="primary" onClick={this.handleRestart}>
-                  {t("errorBoundary.restart")}
-                </Button>
-                <Button onClick={this.handleOpenReport}>
-                  {t("errorBoundary.report")}
-                </Button>
-                <Button onClick={this.handleOpenLogs}>
-                  {t("errorBoundary.openLogs")}
-                </Button>
+            </Modal>
+          ) : (
+            <div className="app-crash" role="alert">
+              <div className="app-crash-card">
+                <h1>{t("errorBoundary.title")}</h1>
+                <p>{t("errorBoundary.description")}</p>
+                {error.message ? (
+                  <pre className="app-crash-detail">{error.message}</pre>
+                ) : null}
+                <div className="app-crash-actions">
+                  <Button variant="primary" onClick={this.handleRestart}>
+                    {t("errorBoundary.restart")}
+                  </Button>
+                  <Button onClick={this.handleOpenReport}>
+                    {t("errorBoundary.report")}
+                  </Button>
+                  <Button onClick={this.handleOpenLogs}>
+                    {t("errorBoundary.openLogs")}
+                  </Button>
+                </div>
               </div>
+              {reportOpen ? (
+                <ErrorReportDialog
+                  context={{
+                    source: "react-boundary",
+                    summary: error.message || t("errorBoundary.title"),
+                    message: error.message,
+                    stack: error.stack,
+                    componentStack,
+                  }}
+                  fatal
+                  onClose={this.handleCloseReport}
+                  onRestart={this.handleRestart}
+                />
+              ) : null}
             </div>
-            {reportOpen ? (
-              <ErrorReportDialog
-                context={{
-                  source: "react-boundary",
-                  summary: error.message || t("errorBoundary.title"),
-                  message: error.message,
-                  stack: error.stack,
-                  componentStack,
-                }}
-                fatal
-                onClose={this.handleCloseReport}
-                onRestart={this.handleRestart}
-              />
-            ) : null}
-          </div>
-        )}
+          )
+        }
       </Translation>
     );
   }

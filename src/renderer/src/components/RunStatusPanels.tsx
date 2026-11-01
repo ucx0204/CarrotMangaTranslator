@@ -39,7 +39,7 @@ export const ChapterTaskHub = React.memo(function ChapterTaskHub(
             onClick={props.onOpenTranslateOptions}
             disabled={!props.currentChapter}
           >
-            {t("translationOptions.workspaceAction")}
+            {props.translateLabel ?? t("translationOptions.workspaceAction")}
           </Button>
           <Button
             variant="primary"
@@ -47,7 +47,7 @@ export const ChapterTaskHub = React.memo(function ChapterTaskHub(
             onClick={props.onOpenChat}
             disabled={!props.onOpenChat}
           >
-            {t("chat.translateInChat")}
+            {props.chatTranslateLabel ?? t("chat.translateInChat")}
           </Button>
         </div>
         <ChapterOutputActions
@@ -154,6 +154,7 @@ function AutomaticEraseActions({
   return (
     <Button
       aria-label={t("inpainting.auto.currentPageAction")}
+      title={t("inpainting.auto.currentPageAction")}
       disabled={disabled}
       fullWidth
       iconLeft={<IconEraser size={16} stroke={2.1} />}

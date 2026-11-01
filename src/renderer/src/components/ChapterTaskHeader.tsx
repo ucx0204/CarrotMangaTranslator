@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { ChapterSaveStatus } from "../hooks/chapterPersistenceTypes";
+import { IconCheck, IconDeviceFloppy } from "@tabler/icons-react";
 import { Button } from "./ui/Button";
 
 export type ChapterTaskHeaderProps = {
@@ -51,7 +52,8 @@ function ChapterInlineSaveStatus({
       role="status"
       aria-live="polite"
     >
-      {t(`chapterSave.${saveStatus}`)}
+      <IconDeviceFloppy size={14} aria-hidden="true" />
+      <span className="visually-hidden">{t(`chapterSave.${saveStatus}`)}</span>
     </span>
   );
 }
@@ -71,7 +73,8 @@ function ChapterSavedBadge(): React.JSX.Element | null {
   if (!visible) return null;
   return (
     <span className="chapter-save-badge saved" role="status" aria-live="polite">
-      {t("chapterSave.saved")}
+      <IconCheck size={14} aria-hidden="true" />
+      <span className="visually-hidden">{t("chapterSave.saved")}</span>
     </span>
   );
 }
@@ -91,7 +94,12 @@ function ChapterSaveStatusIndicator({
       role="status"
       aria-live="polite"
     >
-      <span>{t(`chapterSave.${saveStatus}`)}</span>
+      <span>
+        {t(`chapterSave.${saveStatus}`)}
+        {saveStatus === "conflict"
+          ? ` ${t("chapterSave.resolveConflict")}`
+          : ""}
+      </span>
       {saveStatus === "error" ? (
         <Button type="button" onClick={onRetrySave} variant="bare">
           {t("chapterSave.retry")}

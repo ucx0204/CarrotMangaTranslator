@@ -54,8 +54,8 @@ describe("library work disclosure", () => {
 
     fireEvent.click(workToggle("Alpha"));
     expect(isExpanded("Alpha")).toBe(false);
-    expect(screen.queryByTitle("A-1")).toBeNull();
-    expect(screen.getByTitle("B-1")).not.toBeNull();
+    expect(screen.queryByText("A-1")).toBeNull();
+    expect(screen.getByText("B-1")).not.toBeNull();
     expect(screen.getByText("2개 화")).not.toBeNull();
     expect(storedIds()).toEqual(["work-a"]);
 
@@ -87,7 +87,7 @@ describe("library work disclosure", () => {
     search("A-");
 
     expect(isExpanded("Alpha")).toBe(true);
-    expect(screen.getByTitle("A-1")).not.toBeNull();
+    expect(screen.getByText("A-1")).not.toBeNull();
     expect(
       bulkButton("모든 작품 접기 · 검색어를 지우면 사용할 수 있습니다")
         .disabled,
