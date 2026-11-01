@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ok } from "node:assert";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { retentionFixture } from "./mcpRetention.fixture";
 import {
   MCP_RETENTION_BYTES,
@@ -345,6 +345,8 @@ it("rolls back rotation on actual disk-full errors and reports storage separatel
 });
 
 it("bounds rotation work per commit and continues cleanup on later saves", async () => {
+  let now = Date.now();
+  const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
   const f = await retentionFixture();
   try {
     await f.edit("history before a large released backlog");
@@ -369,12 +371,15 @@ it("bounds rotation work per commit and continues cleanup on later saves", async
       await f.storage.path(),
       JSON.stringify(await f.codec.seal(index)),
     );
+    // The synthetic backlog must precede new saves even on a fast filesystem.
+    now += MCP_RETENTION_CLEANUP_BATCH + 1;
     await f.edit("first bounded cleanup");
     expect(
       (await f.storage.index()).entries.filter(
         (entry) => entry.reclaimedAt !== undefined,
       ),
     ).toHaveLength(MCP_RETENTION_CLEANUP_BATCH);
+    now += 1;
     await f.edit("next cleanup makes more progress");
     expect(
       (await f.storage.index()).entries.filter(
@@ -382,6 +387,10 @@ it("bounds rotation work per commit and continues cleanup on later saves", async
       ),
     ).toHaveLength(MCP_RETENTION_CLEANUP_BATCH + 1);
   } finally {
-    await f.close();
+    try {
+      await f.close();
+    } finally {
+      clock.mockRestore();
+    }
   }
 });
