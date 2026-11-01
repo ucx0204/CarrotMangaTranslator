@@ -6,7 +6,7 @@ A desktop app for **OCR → translation → text removal → lettering and revie
 
 [한국어](README.md) · **English** · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[Download v3.8.1](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v3.8.1)** · [Release notes](docs/release-notes/v3.8.1.md) · [Bugs and requests](https://github.com/ucx0204/CarrotMangaTranslator/issues)
+**[Download v3.8.2](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v3.8.2)** · [Release notes](docs/release-notes/v3.8.2.md) · [Bugs and requests](https://github.com/ucx0204/CarrotMangaTranslator/issues)
 
 [Getting started](#start) · [Edit text](#edit) · [SFX ImageGen](#sfx) · [Shortcuts](#shortcuts) · [Troubleshooting](#troubleshooting)
 

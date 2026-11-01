@@ -28,6 +28,7 @@ load.extensions[".ts"] = (module, filename) => {
   module._compile(compiled.outputText, filename);
 };
 const { AppUpdateDownload } = load("../../src/main/appUpdateDownload.ts");
+const { waitForMountedVolume } = load("./appUpdateMacMount.cjs");
 const root = await mkdtemp(join(tmpdir(), "carrot-update-한글-"));
 app.setPath("userData", root);
 app.disableHardwareAcceleration();
@@ -70,11 +71,9 @@ async function run() {
     await download.install(release);
     const cachedDmg = realpathSync(join(root, "app-updates", version, name));
     const cachedIdentity = statSync(cachedDmg);
-    const deadline = Date.now() + 90000;
-    let images = [];
-    while (Date.now() < deadline) {
-      images = mountedImages();
-      mounted = images.find((entry) => {
+    mounted = await waitForMountedVolume({
+      readImages: mountedImages,
+      matchesImage: (entry) => {
         try {
           // APFS/hdiutil can return decomposed Korean names even after realpath.
           // Compare the file itself, rather than the path's Unicode spelling.
@@ -87,14 +86,8 @@ async function run() {
           if (error.code === "ENOENT") return false;
           throw error;
         }
-      });
-      if (mounted) break;
-      await new Promise((done) => setTimeout(done, 500));
-    }
-    assert.ok(
-      mounted,
-      `shell.openPath must mount ${cachedDmg}; observed images: ${JSON.stringify(images.map((entry) => entry["image-path"]))}`,
-    );
+      },
+    });
     assert.ok(
       mounted["system-entities"].some((entry) => entry["mount-point"]),
       "The downloaded DMG must have a mounted volume",
