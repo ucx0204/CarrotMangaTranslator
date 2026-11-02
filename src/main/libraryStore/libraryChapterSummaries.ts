@@ -6,9 +6,12 @@ import type { LibraryChapterSummary } from "../../shared/libraryTypes";
 import { assertUniqueIds, readLibraryJsonFile } from "./libraryJsonValidation";
 import { getChapterFilePath } from "./libraryPaths";
 import { readJsonFile } from "./storage";
+import { PageWorkflowReceiptSchema } from "../../shared/pageWorkflowReceipt";
 import { resolveChapterStatus } from "./chapterRecords";
 
 const ChapterSummaryPageStateSchema = z.object({
+  blocks: z.array(z.unknown()).optional(),
+  pageWorkflow: PageWorkflowReceiptSchema.optional(),
   analysisStatus: z.enum(["idle", "running", "completed", "failed"]),
   translationCompletion: z
     .object({

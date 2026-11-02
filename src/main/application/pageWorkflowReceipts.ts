@@ -15,10 +15,11 @@ export function workflowReceipt(
   const planKey = hashStableValue(input.plan);
   const previous = page.pageWorkflow;
   return previous?.runId === input.runId && previous.planKey === planKey
-    ? structuredClone(previous)
+    ? { ...structuredClone(previous), stages: [...input.plan.stages] }
     : {
         runId: input.runId,
         planKey,
+        stages: [...input.plan.stages],
         steps: {},
         findings: [],
         emptyDetectionKey: previous?.emptyDetectionKey,
@@ -67,6 +68,9 @@ export function completeWorkflowReceipt(
   }
   return {
     ...after,
+    ...(stage === "translate" && after.blocks.length === 0
+      ? { analysisStatus: "completed" as const, lastError: undefined }
+      : {}),
     pageWorkflow: {
       ...receipt,
       emptyDetectionKey:

@@ -53,7 +53,11 @@ export type JobState = {
   progressCurrent?: number;
   progressTotal?: number;
   /** Aggregate counters count page-stage operations, not distinct pages. */
-  workflowProgress?: { pageCount: number; stageCount: number };
+  workflowProgress?: {
+    pageCount: number;
+    stageCount: number;
+    chapterId?: string;
+  };
   pageIndex?: number;
   pageTotal?: number;
   attempt?: number;

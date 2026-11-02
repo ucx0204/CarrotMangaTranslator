@@ -1,3 +1,4 @@
+import { createLibraryRefreshCoordinator } from "../lib/libraryRefreshCoordinator";
 import { useEffect, useRef, type MutableRefObject } from "react";
 import type {
   ChapterSnapshot,
@@ -32,7 +33,11 @@ export function useMcpEditorSync(options: Options): void {
         console.warn("MCP editor synchronization unavailable", error);
       }
     };
-    const library = createLibraryRefresh(() => latest.current, reportError);
+    const library = createLibraryRefreshCoordinator({
+      read: () => libraryGateway.getLibrary(),
+      publish: (value) => latest.current.setLibrary(value),
+      reportError,
+    });
     const metadataRequested = new Set<string>();
     const refresh = createLiveChapterRefreshCoordinator({
       discardSuperseded: true,
@@ -91,37 +96,4 @@ export function useMcpEditorSync(options: Options): void {
       refresh.dispose();
     };
   }, []);
-}
-
-/** Coalesce metadata notifications without publishing an already superseded read. */
-function createLibraryRefresh(
-  current: () => Options,
-  reportError: (error: unknown) => void,
-) {
-  let running = false;
-  let pending = false;
-  let disposed = false;
-  const refresh = async () => {
-    running = true;
-    do {
-      pending = false;
-      try {
-        const library = await libraryGateway.getLibrary();
-        if (!disposed && !pending) current().setLibrary(library);
-      } catch (error) {
-        if (!disposed) reportError(error);
-      }
-    } while (!disposed && pending);
-    running = false;
-  };
-  return {
-    request: () => {
-      if (disposed) return;
-      pending = true;
-      if (!running) void refresh();
-    },
-    dispose: () => {
-      disposed = true;
-    },
-  };
 }

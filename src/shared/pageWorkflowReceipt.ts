@@ -18,6 +18,8 @@ type PageWorkflowStepReceipt = {
 export type PageWorkflowReceipt = {
   runId: string;
   planKey: string;
+  /** Selected stages for truthful whole-page completion; absent on older receipts. */
+  stages?: PageWorkflowStage[];
   emptyDetectionKey?: string;
   steps: Partial<Record<PageWorkflowStage, PageWorkflowStepReceipt>>;
   findings: PageWorkflowFinding[];
@@ -26,6 +28,11 @@ export const PageWorkflowReceiptSchema: z.ZodType<PageWorkflowReceipt> = z
   .object({
     runId: z.string().uuid(),
     planKey: z.string().max(100),
+    stages: z
+      .array(StageSchema)
+      .min(1)
+      .max(PAGE_WORKFLOW_STAGES.length)
+      .optional(),
     emptyDetectionKey: z.string().max(100).optional(),
     steps: z.partialRecord(
       StageSchema,

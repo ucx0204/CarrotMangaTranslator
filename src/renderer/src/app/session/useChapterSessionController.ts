@@ -404,6 +404,7 @@ function useChapterRuntimeEffects({
     jobState: core.jobState,
     mergeLiveChapter,
     onJobTerminal,
+    setLibrary: core.setLibrary,
     setJobState: core.setJobState,
     suppressTerminalEvents: uiState.exclusiveFlowActive,
   });

@@ -86,6 +86,7 @@ export const JobEventSchema = z
       .object({
         pageCount: z.number().int().positive(),
         stageCount: z.number().int().positive(),
+        chapterId: z.string().min(1).max(200).optional(),
       })
       .strict()
       .optional(),

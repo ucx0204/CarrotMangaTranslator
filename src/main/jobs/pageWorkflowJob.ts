@@ -112,6 +112,7 @@ export async function startPageWorkflowJob(
       workflowProgress: {
         pageCount: preflight.pageCount,
         stageCount: run.request.plan.stages.length,
+        chapterId: event.workflowProgress?.chapterId,
       },
     });
   emit({
@@ -142,6 +143,18 @@ export async function startPageWorkflowJob(
 }
 
 type WorkflowRun = Awaited<ReturnType<typeof preparePageWorkflowRun>>;
+type WorkflowJobInput = {
+  context: PageWorkflowJobContext;
+  run: WorkflowRun;
+  settings: AppSettings;
+  abortController: AbortController;
+  lifetime: ReturnType<typeof createJobLifetimeCleanupBoundary>;
+  emit: (event: JobEvent) => void;
+  chapters: Awaited<ReturnType<typeof openChapter>>[];
+  preflight: ReturnType<typeof preflightPageWorkflow>;
+  timing: PageWorkflowTimingRecorder;
+};
+
 async function runWorkflowJob({
   context,
   run,
@@ -152,20 +165,16 @@ async function runWorkflowJob({
   chapters,
   preflight,
   timing,
-}: {
-  context: PageWorkflowJobContext;
-  run: WorkflowRun;
-  settings: AppSettings;
-  abortController: AbortController;
-  lifetime: ReturnType<typeof createJobLifetimeCleanupBoundary>;
-  emit: (event: JobEvent) => void;
-  chapters: Awaited<ReturnType<typeof openChapter>>[];
-  preflight: ReturnType<typeof preflightPageWorkflow>;
-  timing: PageWorkflowTimingRecorder;
-}) {
+}: WorkflowJobInput) {
   const dependencies = workflowDependencies(context.appPaths, settings);
-  const total = preflight.pageCount * run.request.plan.stages.length;
-  const progress = createPageWorkflowProgress(run.id, total, emit);
+  const progress = createPageWorkflowProgress(
+    run.id,
+    {
+      pageCount: preflight.pageCount,
+      stageCount: run.request.plan.stages.length,
+    },
+    emit,
+  );
   const runtime = createPageWorkflowRuntime({
     runId: run.id,
     ...run.request,
@@ -191,6 +200,11 @@ async function runWorkflowJob({
       },
       {
         ...runtime,
+        prepareStage: async (stage, chapter, pageIds) => {
+          progress.prepare(stage, chapter);
+          await runtime.prepareStage(stage, chapter, pageIds);
+        },
+        pageSettled: progress.settled,
         reportFailure: (error, location) =>
           logError("Page workflow failure", {
             id: run.id,

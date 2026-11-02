@@ -568,3 +568,58 @@ describe("page workflow input and preservation", () => {
     expect(workflowStageKey(page, "erase")).not.toBe(key);
   });
 });
+
+it("publishes page checkpoints only after durable saves, before the next chapter starts", async () => {
+  const first = makeChapter(makePage());
+  const second = {
+    ...makeChapter({ ...makePage(), id: "page-2" }),
+    id: "chapter-2",
+    title: "2화",
+  };
+  const chapters = new Map(
+    [first, second].map((chapter) => [chapter.id, chapter]),
+  );
+  const order: string[] = [];
+  const h = harness(["ocr", "translate"]);
+  h.input.selection = [first, second].map((c) => ({
+    chapterId: c.id,
+    pageIds: c.pages.map((p) => p.id),
+  }));
+  h.port.readChapter = async (id) => structuredClone(chapters.get(id) ?? first);
+  h.port.execute = async (stage, chapter, page) => {
+    order.push(`execute:${chapter.id}:${stage}`);
+    return page;
+  };
+  h.port.save = async (id, _before, after) => {
+    const chapter = chapters.get(id);
+    if (!chapter) throw new Error("Missing chapter");
+    chapter.pages = [after];
+    order.push(`save:${id}`);
+  };
+  h.port.pageSettled = (stage, _page, chapter) => {
+    expect(
+      chapters.get(chapter.id)?.pages[0].pageWorkflow?.steps[stage]?.status,
+    ).toBe("completed");
+    order.push(`checkpoint:${chapter.id}:${stage}`);
+  };
+  expect((await executePageWorkflow(h.input, h.port)).status).toBe("completed");
+  expect(order).toEqual(
+    ["chapter-1", "chapter-2"].flatMap((id) =>
+      ["ocr", "translate"].flatMap((stage) => [
+        `execute:${id}:${stage}`,
+        `save:${id}`,
+        `checkpoint:${id}:${stage}`,
+      ]),
+    ),
+  );
+});
+
+it("does not publish a saved checkpoint when persistence fails", async () => {
+  const h = harness(["ocr"]);
+  h.port.save = async () => {
+    throw new Error("disk full");
+  };
+  h.port.pageSettled = vi.fn();
+  expect((await executePageWorkflow(h.input, h.port)).status).toBe("failed");
+  expect(h.port.pageSettled).not.toHaveBeenCalled();
+});

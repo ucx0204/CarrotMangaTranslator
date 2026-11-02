@@ -28,6 +28,7 @@ type JobWithProgress = Pick<
   | "attemptTotal"
   | "failureGuidance"
   | "codexProgress"
+  | "workflowProgress"
 > & {
   progressText?: string;
 };
@@ -109,29 +110,32 @@ export function formatJobLabel(
   t?: TFunction<"renderer">,
   options: { preserveUnknownProgressText?: boolean } = {},
 ): string {
+  if (job.workflowProgress && job.progressText) return job.progressText;
+  return formatStandardJobLabel(job, t, options);
+}
+
+function formatStandardJobLabel(
+  job: JobWithProgress,
+  t: TFunction<"renderer"> | undefined,
+  options: { preserveUnknownProgressText?: boolean },
+): string {
   const codexLabel = formatCodexStageLabel(job, t);
   if (codexLabel) return codexLabel;
   const failureGuidance = resolveFailedJobGuidance(job, t);
-  if (failureGuidance) {
-    return failureGuidance;
-  }
+  if (failureGuidance) return failureGuidance;
   const preserveUnknownProgressText =
     options.preserveUnknownProgressText ?? true;
   if (!job.phase) {
     return fallbackJobLabelFromStatus(job.status, t);
   }
   const ocrLabel = formatOcrProgressLabel(job, t, preserveUnknownProgressText);
-  if (ocrLabel) {
-    return ocrLabel;
-  }
+  if (ocrLabel) return ocrLabel;
   const directPhaseLabel = formatDirectPhaseLabel(
     job,
     t,
     preserveUnknownProgressText,
   );
-  if (directPhaseLabel) {
-    return directPhaseLabel;
-  }
+  if (directPhaseLabel) return directPhaseLabel;
   if (job.phase === "page_retry") {
     return formatRetryLabel(job, t);
   }

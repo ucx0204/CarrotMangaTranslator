@@ -55,7 +55,16 @@ export type PageWorkflowExecutionPort = {
     chapter: ChapterSnapshot,
     page: MangaPage,
   ) => Promise<MangaPage>;
-  progress: (stage: PageWorkflowStage, page: MangaPage) => void;
+  progress: (
+    stage: PageWorkflowStage,
+    page: MangaPage,
+    chapter: ChapterSnapshot,
+  ) => void;
+  pageSettled?: (
+    stage: PageWorkflowStage,
+    page: MangaPage,
+    chapter: ChapterSnapshot,
+  ) => void;
   isFatal: (error: unknown) => boolean;
 };
 export type PageWorkflowExecution = {
@@ -188,7 +197,8 @@ function reportCompletedStage(
   );
   if (complete)
     pages.forEach((page) => {
-      port.progress(stage, page);
+      port.progress(stage, page, chapter);
+      port.pageSettled?.(stage, page, chapter);
       port.skipPageTiming?.(stage, chapter.id, page.id);
     });
   return complete;
@@ -226,7 +236,7 @@ async function executeWorkflowPage(
   const before = current.pages.find((page) => page.id === pageId);
   if (!before) throw new Error("작업 대상 페이지가 사라졌습니다.");
   const receipt = workflowReceipt(input, before);
-  port.progress(stage, before);
+  port.progress(stage, before, current);
   if (
     workflowStageComplete(
       receipt,
@@ -311,6 +321,8 @@ async function executeWorkflowPages(
       pageId,
       stage,
     );
+    const page = chapter.pages.find((item) => item.id === pageId);
+    if (page) port.pageSettled?.(stage, page, chapter);
     if (issue) onIssue(issue);
   }
 }

@@ -250,6 +250,7 @@ function dispatchJobEvent(
       phase: event.phase,
       progressCurrent: event.progressCurrent,
       progressTotal: event.progressTotal,
+      workflowProgress: event.workflowProgress,
       progressMode: event.progressMode,
       progressPercent: event.progressPercent,
       progressBytes: event.progressBytes,

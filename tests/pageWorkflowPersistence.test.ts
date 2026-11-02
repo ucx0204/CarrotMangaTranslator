@@ -181,6 +181,27 @@ describe("page content and receipt transaction", () => {
     expect(jobs.hasActive).toBe(false);
     stopHandoffs();
   });
+  it("reads historical empty translations as completed in both the chapter and library summary without rewriting files", async () => {
+    const f = await fixture();
+    const stored = JSON.parse(await readFile(f.file, "utf8"));
+    stored.pages[0] = {
+      ...completeWorkflowReceipt(
+        { runId: randomUUID(), planKey: "empty", steps: {}, findings: [] },
+        { ...f.page, blocks: [] },
+        { ...f.page, blocks: [] },
+        "translate",
+      ),
+      analysisStatus: "idle",
+    };
+    delete stored.pages[0].dataUrl;
+    stored.status = "partial";
+    await writeFile(f.file, JSON.stringify(stored));
+    const before = await readFile(f.file, "utf8");
+    const { openChapter, listLibrary } = await import("../src/main/library");
+    expect((await openChapter(f.chapterId)).status).toBe("completed");
+    expect((await listLibrary()).works[0].chapters[0].status).toBe("completed");
+    expect(await readFile(f.file, "utf8")).toBe(before);
+  });
   it("persists source and stage receipt together while retaining analysis status", async () => {
     const f = await fixture();
     f.after.blocks[0].bubbleLayoutPaddingRatio = 0;

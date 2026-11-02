@@ -1,7 +1,11 @@
 import React from "react";
+import { createLibraryRefreshCoordinator } from "../lib/libraryRefreshCoordinator";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import type { ChapterSnapshot } from "../../../shared/libraryTypes";
+import type {
+  ChapterSnapshot,
+  LibraryIndex,
+} from "../../../shared/libraryTypes";
 import type { JobEvent, JobState } from "../../../shared/jobTypes";
 import type { PageTimingUpdatedEvent } from "../../../shared/pageProcessingTiming";
 import { isTerminalJobStatus } from "../../../shared/jobContracts";
@@ -12,10 +16,7 @@ import {
 import { formatJobEventLine } from "../lib/jobProgress";
 import { toast } from "../lib/toastStore";
 import { noteMcpJobEvent } from "../lib/mcpNotificationBatch";
-import {
-  createLiveChapterRefreshCoordinator,
-  type LiveChapterRefreshCoordinator,
-} from "../lib/liveChapterRefreshCoordinator";
+import { createLiveChapterRefreshCoordinator } from "../lib/liveChapterRefreshCoordinator";
 import { analysisGateway as mangaGateway } from "../api/analysisGateway";
 import { libraryGateway } from "../api/libraryGateway";
 import {
@@ -37,6 +38,7 @@ type UseJobEventsOptions = {
   jobState?: JobState;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
   onJobTerminal?: (job: JobState) => void;
+  setLibrary?: (library: LibraryIndex) => void;
   openChapter?: (
     chapterId: string,
     workId?: string,
@@ -63,6 +65,7 @@ type JobEventSubscriptionOptions = Required<
   >
 > & {
   onJobTerminal?: (job: JobState) => void;
+  setLibrary?: (library: LibraryIndex) => void;
   aggregateGuardRef: React.MutableRefObject<AggregateJobEventGuard>;
   jobStateRef: React.MutableRefObject<JobState | undefined>;
   t: TFunction<"renderer">;
@@ -94,6 +97,7 @@ export function useJobEvents({
   jobState,
   mergeLiveChapter,
   onJobTerminal,
+  setLibrary,
   openChapter = openChapterFromLibrary,
   setJobState,
   suppressTerminalEvents = false,
@@ -129,6 +133,7 @@ export function useJobEvents({
         jobStateRef,
         mergeLiveChapter,
         onJobTerminal,
+        setLibrary,
         openChapter,
         setJobState,
         subscribeJobEvents,
@@ -141,6 +146,7 @@ export function useJobEvents({
       currentChapterRef,
       mergeLiveChapter,
       onJobTerminal,
+      setLibrary,
       openChapter,
       setJobState,
       subscribeJobEvents,
@@ -158,6 +164,7 @@ function subscribeToJobEventUpdates({
   jobStateRef,
   mergeLiveChapter,
   onJobTerminal,
+  setLibrary,
   openChapter,
   setJobState,
   subscribeJobEvents,
@@ -165,16 +172,11 @@ function subscribeToJobEventUpdates({
   suppressTerminalEvents,
   t,
 }: JobEventSubscriptionOptions): () => void {
-  const liveChapterRefresh = createLiveChapterRefreshCoordinator({
-    getCurrentChapterId: () => currentChapterRef.current?.id,
+  const refresh = createJobChapterRefresh({
+    currentChapterRef,
     mergeLiveChapter,
-    openChapter: (chapterId) =>
-      openChapter === openChapterFromLibrary
-        ? openChapter(chapterId, currentChapterRef.current?.workId)
-        : openChapter(chapterId),
-    reportError: (error) => {
-      console.error(error);
-    },
+    openChapter,
+    setLibrary,
   });
   const pendingBatch = createPendingJobEventBatch({
     aggregateGuardRef,
@@ -211,18 +213,15 @@ function subscribeToJobEventUpdates({
       toast[event.notification.variant](event.notification.message);
     }
     pendingBatch.enqueue(event);
-    refreshLiveChapterAfterJobEvent({ event, liveChapterRefresh });
+    refresh.request(event);
   });
-  const unsubscribeTiming = subscribePageTimingUpdates((event) => {
-    if (event.chapterId === currentChapterRef.current?.id) {
-      liveChapterRefresh.request();
-    }
-  });
+  const unsubscribeTiming = subscribePageTimingUpdates(refresh.timing);
+
   return () => {
     pendingBatch.dispose();
     unsubscribe();
     unsubscribeTiming();
-    liveChapterRefresh.dispose();
+    refresh.dispose();
   };
 }
 
@@ -313,19 +312,52 @@ function appendJobStatusLine(
 }
 
 function resolveSingleEventChapterId(event: JobEvent): string | undefined {
+  if (event.workflowProgress?.chapterId)
+    return event.workflowProgress.chapterId;
   const chapterIds = new Set(event.targets?.map((target) => target.chapterId));
   return chapterIds.size === 1 ? chapterIds.values().next().value : undefined;
 }
 
-function refreshLiveChapterAfterJobEvent({
-  event,
-  liveChapterRefresh,
-}: {
-  event: JobEvent;
-  liveChapterRefresh: LiveChapterRefreshCoordinator;
-}): void {
-  if (!shouldRefreshLiveChapter(event)) {
-    return;
-  }
-  liveChapterRefresh.request();
+function createJobChapterRefresh({
+  currentChapterRef,
+  mergeLiveChapter,
+  openChapter,
+  setLibrary,
+}: Pick<
+  JobEventSubscriptionOptions,
+  "currentChapterRef" | "mergeLiveChapter" | "openChapter" | "setLibrary"
+>) {
+  const libraryRefresh = createLibraryRefreshCoordinator({
+    read: () => libraryGateway.getLibrary(),
+    publish: (library) => setLibrary?.(library),
+    reportError: (error) => console.error(error),
+  });
+  const liveChapterRefresh = createLiveChapterRefreshCoordinator({
+    getCurrentChapterId: () => currentChapterRef.current?.id,
+    mergeLiveChapter,
+    openChapter: (chapterId) =>
+      openChapter === openChapterFromLibrary
+        ? openChapter(chapterId, currentChapterRef.current?.workId)
+        : openChapter(chapterId),
+    reportError: (error) => {
+      console.error(error);
+    },
+  });
+  return {
+    request: (event: JobEvent) => {
+      if (!shouldRefreshLiveChapter(event)) return;
+      if (event.workflowProgress && setLibrary) libraryRefresh.request();
+      const chapterId = event.workflowProgress?.chapterId;
+      if (!chapterId || chapterId === currentChapterRef.current?.id)
+        liveChapterRefresh.request();
+    },
+    timing: (event: PageTimingUpdatedEvent) => {
+      if (event.chapterId === currentChapterRef.current?.id)
+        liveChapterRefresh.request();
+    },
+    dispose: () => {
+      liveChapterRefresh.dispose();
+      libraryRefresh.dispose();
+    },
+  };
 }
