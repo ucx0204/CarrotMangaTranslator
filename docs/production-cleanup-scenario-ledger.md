@@ -492,3 +492,22 @@ Job events bound presentation text before storing or dispatching terminal state,
 with unabridged diagnostics retained in logs. Tests cover traceback overflow,
 renderer absence, bounded install history and unchanged ordinary fields. Existing
 coverage floors remain unchanged.
+
+## 2026-11-06 build identity and empty-page completion
+
+`src/main/buildChannel.ts` and `src/shared/pageCompletion.ts` are now included
+in the existing-file inventory. Their floors come from the unchanged Node 22
+baseline `.tmp/production-cleanup-coverage-baseline-node22.json` (SHA-256
+`a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a`).
+Build identity retains lines 9/12, statements 11/14, functions 3/4 and branches
+19/25. Page completion retains lines/statements/functions 1/1 and branches 3/3.
+The current full run measures build identity at 15/16, 17/18, 5/6 and 32/38,
+and page completion at 8/8, 8/8, 4/4 and 12/12 respectively. No existing floor,
+historical provenance or deletion record was changed.
+
+The new `src/renderer/src/lib/libraryRefreshCoordinator.ts` receives its first
+floor from `.tmp/cli-update-20261106/workflow-coverage/coverage-summary.json`
+(SHA-256 `74a3714e8189c316fd1b47306022cebcd9af03b64e368415fb0970e19514ceb1`):
+lines 17/17, statements 21/21, functions 4/4 and branches 12/12. The five focused
+scenarios cover live saved-page refresh, coalescing overlapping reads, failure
+recovery and disposal with both successful and rejected in-flight reads.

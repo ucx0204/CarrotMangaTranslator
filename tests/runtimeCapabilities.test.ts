@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   readBakedBuildChannel,
+  readBakedBuildIdentity,
   resolveBuildChannel,
 } from "../src/main/buildChannel";
 import { buildRuntimeCapabilities } from "../src/main/runtimeCapabilities";
@@ -30,6 +31,48 @@ describe("build channel", () => {
       expect(readBakedBuildChannel(packageJsonPath)).toBe("stable");
       writeFileSync(packageJsonPath, '{"buildChannel":"unknown"}', "utf8");
       expect(readBakedBuildChannel(packageJsonPath)).toBeUndefined();
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("reads installer build identity and tolerates old or invalid metadata", () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), "mgt-build-identity-"));
+    const packageJsonPath = join(fixtureRoot, "package.json");
+    const unknownIdentity = { buildCommit: null, buildDirty: null };
+    try {
+      expect(readBakedBuildIdentity(packageJsonPath)).toEqual(unknownIdentity);
+      const { extraMetadata } = require("../electron-builder.config.cjs") as {
+        extraMetadata: { buildCommit: string; buildDirty: boolean };
+      };
+      expect(extraMetadata.buildCommit).toMatch(/^[a-f0-9]{40}$/u);
+      expect(typeof extraMetadata.buildDirty).toBe("boolean");
+      writeFileSync(packageJsonPath, JSON.stringify(extraMetadata), "utf8");
+      expect(readBakedBuildIdentity(packageJsonPath)).toEqual({
+        buildCommit: extraMetadata.buildCommit,
+        buildDirty: extraMetadata.buildDirty,
+      });
+      for (const contents of [
+        '{"version":"3.8.3"}',
+        '{"buildCommit":"invalid","buildDirty":false}',
+        "null",
+        "[]",
+        "{broken",
+      ]) {
+        writeFileSync(packageJsonPath, contents, "utf8");
+        expect(readBakedBuildIdentity(packageJsonPath)).toEqual(
+          unknownIdentity,
+        );
+      }
+      writeFileSync(
+        packageJsonPath,
+        JSON.stringify({
+          buildCommit: extraMetadata.buildCommit,
+          buildDirty: "false",
+        }),
+        "utf8",
+      );
+      expect(readBakedBuildIdentity(packageJsonPath).buildDirty).toBeNull();
     } finally {
       rmSync(fixtureRoot, { recursive: true, force: true });
     }

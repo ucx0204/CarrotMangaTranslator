@@ -132,7 +132,7 @@ it("uses the official advertised model catalogue and cached login without exposi
   const init = grokInitialization.parse({
     authMethods: [{ id: "cached_token" }],
     _meta: {
-      agentVersion: "1.0.70",
+      agentVersion: "1.0.77",
       modelState: {
         currentModelId: "grok-4.7",
         availableModels: [
@@ -151,7 +151,7 @@ it("uses the official advertised model catalogue and cached login without exposi
   expect(grokAccountFromInitialization(init)).toEqual({
     authenticated: true,
     runtimeInstalled: true,
-    version: "1.0.70",
+    version: "1.0.77",
     models: [
       {
         id: "grok-4.7",

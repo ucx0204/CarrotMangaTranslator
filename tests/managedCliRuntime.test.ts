@@ -192,7 +192,7 @@ it("reuses existing bundled CLI files without modifying or downloading them", as
   await writeFile(codex, "legacy");
   await writeFile(
     join(paths().resourcesDir, "c", "codex-package.json"),
-    JSON.stringify({ version: "0.164.0" }),
+    JSON.stringify({ version: "0.167.0" }),
   );
   expect((await ensureCodexAppServerBinary(paths())).executablePath).toBe(
     codex,

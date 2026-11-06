@@ -1,5 +1,15 @@
 # 코드 경계와 품질 규칙
 
+## 2026-11-06 시작 로그의 앱·빌드 식별
+
+`app.log`와 `bootstrap.log`의 시작 기록에 Electron의 앱 버전, 플랫폼·아키텍처,
+Electron·Node 버전과 설치본의 커밋·미커밋 변경 여부를 기록한다. Windows/macOS 공용
+패키징 설정이 Git 정보를 package metadata에 넣으며 실행 시 Git을 호출하지 않는다.
+기존 `buildChannel`의 package reader를 재사용하고, 구버전·개발 실행·메타데이터 오류는
+식별 정보 `null`로 구분한다. 이 직접 재사용의 실측 import 상한만 bootstrap 13,
+index 35로 기록하며 전역 상한은 유지한다. `runtimeCapabilities` 테스트가 패키징
+metadata 왕복과 누락·손상 데이터를 검증한다.
+
 ## 2026-10-25 채팅 복구 이력 자동 순환
 
 `mcpRetentionStorage`는 일반 페이지 변경 이력의 1 GiB/4,096개 목표를 저장 거부

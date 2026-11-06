@@ -354,7 +354,7 @@ it.each(["claude", "codex", "grok"] as const)(
     );
     await writeFile(
       join(f.root, "c", "codex-package.json"),
-      JSON.stringify({ version: "0.164.0" }),
+      JSON.stringify({ version: "0.167.0" }),
     );
     const close = vi.fn();
     const connectChat = vi.fn(async () => ({

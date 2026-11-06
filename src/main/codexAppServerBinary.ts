@@ -10,7 +10,7 @@ import {
   type CliInstallOptions,
 } from "./runtimeSupport/managedCliRuntime";
 
-export const BUNDLED_CODEX_VERSION = "0.164.0";
+export const BUNDLED_CODEX_VERSION = "0.167.0";
 
 function spawnCodexAppServer(
   executable: string,

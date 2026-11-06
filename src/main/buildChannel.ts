@@ -9,18 +9,45 @@ function normalizeBuildChannel(value: unknown): BuildChannel | undefined {
     : undefined;
 }
 
-export function readBakedBuildChannel(
+function readBakedBuildMetadata(
   packageJsonPath: string = join(__dirname, "..", "..", "package.json"),
-): BuildChannel | undefined {
+): Record<string, unknown> {
   try {
-    const metadata = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
-      buildChannel?: unknown;
-    };
-    return normalizeBuildChannel(metadata.buildChannel);
+    const metadata: unknown = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>)
+      : {};
   } catch (error) {
     void error;
-    return undefined;
+    return {};
   }
+}
+
+export function readBakedBuildChannel(
+  packageJsonPath?: string,
+): BuildChannel | undefined {
+  return normalizeBuildChannel(
+    readBakedBuildMetadata(packageJsonPath).buildChannel,
+  );
+}
+
+export function readBakedBuildIdentity(packageJsonPath?: string): {
+  buildCommit: string | null;
+  buildDirty: boolean | null;
+} {
+  const metadata = readBakedBuildMetadata(packageJsonPath);
+  const buildCommit =
+    typeof metadata.buildCommit === "string" &&
+    /^[a-f0-9]{40}$/u.test(metadata.buildCommit)
+      ? metadata.buildCommit
+      : null;
+  return {
+    buildCommit,
+    buildDirty:
+      buildCommit && typeof metadata.buildDirty === "boolean"
+        ? metadata.buildDirty
+        : null,
+  };
 }
 
 export function resolveBuildChannel(

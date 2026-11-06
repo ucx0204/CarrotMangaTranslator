@@ -18,6 +18,7 @@ import {
   releaseDataRootInstanceLockLease,
 } from "./dataRootInstanceLockState";
 import { createBootstrapLogger } from "./bootstrapLogger";
+import { readBakedBuildIdentity } from "./buildChannel";
 import { describeWindowsNativeRuntimeFailure } from "./windowsNativeRuntimeFailure";
 import {
   prepareWindowsStartup,
@@ -86,6 +87,12 @@ function bootstrap(): void {
   configureGraphicsGpu(guard.dataRoot);
   installBootstrapErrorListeners();
   writeBootstrapLog("bootstrap:start", {
+    appVersion: app.getVersion(),
+    ...readBakedBuildIdentity(),
+    platform: process.platform,
+    arch: process.arch,
+    electronVersion: process.versions.electron,
+    nodeVersion: process.versions.node,
     isPackaged: app.isPackaged,
     execPath: process.execPath,
     dirname: __dirname,

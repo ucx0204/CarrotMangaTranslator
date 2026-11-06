@@ -21,7 +21,7 @@ export async function codexChatProtocolFixture(mode = "normal") {
     {
       resolveBinary: () => ({
         executablePath: "codex",
-        packageVersion: "0.164.0",
+        packageVersion: "0.167.0",
         source: "packaged",
         packageName: "@openai/codex-win32-x64",
         triple: "x86_64-pc-windows-msvc",
@@ -89,7 +89,7 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
  if(m.id === undefined) return;
  const reply = result => emit({id:m.id,result});
  const notification = (method,params) => emit({method,params:{threadId:'persistent',...params}});
- if(m.method==='initialize') return reply({userAgent:'codex/0.164.0'});
+ if(m.method==='initialize') return reply({userAgent:'codex/0.167.0'});
  if(m.method==='account/read') return reply({account:{type:'chatgpt',email:'test@example.com',planType:'plus'},requiresOpenaiAuth:true});
  if(m.method==='thread/start'||m.method==='thread/resume') return reply({thread:{id:'persistent'}});
  if(m.method==='turn/start') {

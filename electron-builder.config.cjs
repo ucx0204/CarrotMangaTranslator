@@ -1,4 +1,5 @@
 const { existsSync, readdirSync } = require("node:fs");
+const { spawnSync } = require("node:child_process");
 const { join } = require("node:path");
 const asar = require("@electron/asar");
 const {
@@ -284,11 +285,36 @@ function listFilesRecursively(directory) {
   return files;
 }
 
+// Bake identity into the installed package; end-user startup never needs Git.
+function readPackagingBuildIdentity() {
+  const options = {
+    cwd: __dirname,
+    encoding: /** @type {const} */ ("utf8"),
+    windowsHide: true,
+    timeout: 5000,
+  };
+  const revision = spawnSync("git", ["rev-parse", "HEAD"], options);
+  const commit = revision.status === 0 ? revision.stdout.trim() : "";
+  if (!/^[a-f0-9]{40}$/u.test(commit)) {
+    return { buildCommit: null, buildDirty: null };
+  }
+  const status = spawnSync(
+    "git",
+    ["status", "--porcelain", "--untracked-files=normal"],
+    options,
+  );
+  return {
+    buildCommit: commit,
+    buildDirty: status.status === 0 ? status.stdout.trim().length > 0 : null,
+  };
+}
+
 module.exports = {
   appId: "com.sam40.mangagemma.translator",
   productName,
   extraMetadata: {
     buildChannel: isMacBuild ? macBuildChannel : "stable",
+    ...readPackagingBuildIdentity(),
   },
   directories: {
     output: "dist",

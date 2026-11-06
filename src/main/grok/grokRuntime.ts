@@ -9,7 +9,7 @@ import {
 } from "../runtimeSupport/managedCliRuntime";
 import { GrokAcpClient } from "./grokAcpClient";
 
-export const GROK_VERSION = "1.0.70";
+export const GROK_VERSION = "1.0.77";
 const modelState = z.object({
   currentModelId: z.string().optional(),
   availableModels: z

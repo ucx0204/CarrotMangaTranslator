@@ -97,7 +97,7 @@ const bridgeTemplate = `(() => {
     displayName: id.replace("gpt", "GPT"),
     isDefault: false,
   })));
-  let claudeAccount = {authenticated: true, email: "reader@example.com", plan: "pro", version: "2.1.311", models: [
+  let claudeAccount = {authenticated: true, email: "reader@example.com", plan: "pro", version: "2.1.318", models: [
     {id:"default",displayName:"Default",supportedReasoningEfforts:["low","medium","high","xhigh","max"],defaultReasoningEffort:"high",isDefault:true},
     {id:"sonnet",displayName:"Sonnet",supportedReasoningEfforts:["low","medium","high","xhigh","max"],defaultReasoningEffort:"high",isDefault:false},
     {id:"opus",displayName:"Opus",supportedReasoningEfforts:["low","medium","high","xhigh","max"],defaultReasoningEffort:"high",isDefault:false}]};
@@ -107,7 +107,7 @@ const bridgeTemplate = `(() => {
     email: "reader@example.com",
     planType: "plus",
     requiresOpenaiAuth: true,
-    appServerVersion: "0.164.0",
+    appServerVersion: "0.167.0",
     models: codexModels,
   };
   let codexAccount = signedInCodexAccount;

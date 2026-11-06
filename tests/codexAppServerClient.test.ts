@@ -59,7 +59,7 @@ describe("CodexAppServerClient", () => {
           threadId: "thread-1",
           turnId: "turn-1",
           itemId: "image-1",
-          imageGenerationDiagnostics: { codexVersion: "0.164.0" },
+          imageGenerationDiagnostics: { codexVersion: "0.167.0" },
         });
         const saved = readFileSync(join(root, "app.log"), "utf8");
         expect(saved).toContain('"itemId":"image-1"');
@@ -232,7 +232,7 @@ describe("CodexAppServerClient", () => {
         {
           resolveBinary: () => ({
             executablePath: "fake-codex",
-            packageVersion: "0.164.0",
+            packageVersion: "0.167.0",
             source: "packaged",
             packageName: "@openai/codex-win32-x64",
             triple: "x86_64-pc-windows-msvc",
@@ -722,7 +722,7 @@ async function startImageFailureFixture(delivery: string) {
     {
       resolveBinary: () => ({
         executablePath: "fake-codex",
-        packageVersion: "0.164.0",
+        packageVersion: "0.167.0",
         source: "packaged",
         packageName: "@openai/codex-win32-x64",
         triple: "x86_64-pc-windows-msvc",

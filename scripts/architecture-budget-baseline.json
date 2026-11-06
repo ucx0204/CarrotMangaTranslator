@@ -22,6 +22,10 @@
     "src/renderer/src/app/useAppSessionModel.ts": 14
   },
   "allow": {
+    "src/main/bootstrap.ts": {
+      "maxRuntimeImports": 13,
+      "reason": "Startup diagnostics directly reuse buildChannel's packaged metadata reader to log the build identity before main loads. This adds one measured import (13 total), with no alternate package reader or global budget change. Runtime capabilities tests cover packaged identity and missing/invalid metadata."
+    },
     "src/main/libraryStore/libraryTransactionStorage.ts": {
       "maxImportedBy": 28,
       "reason": "Encrypted paged MCP retention indexes add one direct consumer of the canonical durable JSON writer (28 total). Native atomic publication and crash recovery stay unchanged; mcpRetentionIndex and mcpRetentionRotation integration tests cover migration, corruption and rollback. No global ceiling change."
@@ -59,8 +63,8 @@
       "reason": "Whole-page composition adds fresh-input handoff and checkpoint compatibility without moving OCR/font algorithms. Whole-page handoff parity tests compare unchanged output and context order."
     },
     "src/main/index.ts": {
-      "maxRuntimeImports": 34,
-      "reason": "Electron main composition root Startup composition owns the persistent desktop MCP service and legacy local test listener, including terminal shutdown. Global chat adds one direct consumer/registration of this existing authority; contracts and algorithms are unchanged. See docs/global-chat-translation-20261009.md. Issue 151 directly normalizes main-process incident fields with the shared report context contract before strict IPC validation; one measured additional import, no global budget change."
+      "maxRuntimeImports": 35,
+      "reason": "Electron main composition root Startup composition owns the persistent desktop MCP service and legacy local test listener, including terminal shutdown. Global chat adds one direct consumer/registration of this existing authority; contracts and algorithms are unchanged. See docs/global-chat-translation-20261009.md. Issue 151 directly normalizes main-process incident fields with the shared report context contract before strict IPC validation; one measured additional import, no global budget change. Startup diagnostics reuse buildChannel's packaged metadata reader directly (35 imports); runtime capabilities tests cover identity parsing and absent/invalid metadata."
     },
     "src/main/ipc/registerIpc.ts": {
       "maxRuntimeImports": 28,

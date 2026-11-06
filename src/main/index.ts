@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- startup recovery, IPC publication, window creation, and quit ordering stay co-located for auditability */
 import { app, BrowserWindow, dialog, shell } from "electron";
+import { readBakedBuildIdentity } from "./buildChannel";
 import { ensureWritableAppDirectories, getAppPaths } from "./appPaths";
 import { AppActivityGate } from "./appActivityGate";
 import { cleanupLegacyLogs } from "./appMaintenance";
@@ -246,6 +247,12 @@ app.on(
 );
 
 logInfo("Application process starting", {
+  appVersion: app.getVersion(),
+  ...readBakedBuildIdentity(),
+  platform: process.platform,
+  arch: process.arch,
+  electronVersion: process.versions.electron,
+  nodeVersion: process.versions.node,
   cwd: process.cwd(),
   isPackaged: app.isPackaged,
   processExecPath: process.execPath,

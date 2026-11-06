@@ -589,7 +589,8 @@ describe("production cleanup coverage floor gate", () => {
     // Block-background visibility adds its batch action with the original floor.
     // Complete diagnostics touch logger rotation and the renderer error boundary.
     // Issue 168 touches response text; preserve its original measured floor.
-    expect(scope.existing).toHaveLength(868);
+    // Build identity and empty-page completion retain the original measured floors.
+    expect(scope.existing).toHaveLength(870);
     // Includes global chat, shared actions, OpenCode help, MCP event streams, shared
     // translation instructions and image budget; inherited floors remain unchanged.
     // inherited floors remain unchanged.
@@ -615,7 +616,7 @@ describe("production cleanup coverage floor gate", () => {
     // Issue 166 adds three relocation owners and one action, removing the unused folder legend.
     // Issue 167 adds sixteen updater domain, IPC and production UI owners.
     // UI focus continuity adds the shared focus-order owner (Modal trap, NumberField).
-    expect(scope.added).toHaveLength(1618);
+    expect(scope.added).toHaveLength(1619);
     expect(scope.deleted).toHaveLength(12);
   });
 });
