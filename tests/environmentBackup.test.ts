@@ -57,6 +57,20 @@ vi.mock("electron", () => ({
     decryptString: (value: Buffer) => value.toString().replace(/^sealed:/, ""),
   },
 }));
+// Keep settings, ZIP bytes and restore transactions real; GPU discovery is host I/O.
+// A stalled cached hardware query otherwise blocks all three archive round trips.
+vi.mock("node:child_process", async (original) => ({
+  ...(await original<typeof import("node:child_process")>()),
+  execFile: vi.fn((_file: string, ...args: unknown[]) => {
+    const callback = args.at(-1) as (
+      error: Error | null,
+      stdout: string,
+      stderr: string,
+    ) => void;
+    queueMicrotask(() => callback(null, "", ""));
+    return {};
+  }),
+}));
 const dirs: string[] = [];
 afterEach(async () => {
   for (const directory of dirs.splice(0))

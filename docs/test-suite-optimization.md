@@ -112,3 +112,31 @@ Local validation on Windows passed all 27 Check gates (386.00 seconds), includin
 functions 87.80%, lines 86.70%. The earlier local reference was 356.18 seconds;
 this run does not establish a full-suite speed improvement. GitHub native-cache
 savings require the cold/restored-cache comparison described above.
+
+## 2026-11-07 environment backup hardware boundary
+
+Release run [42234804347](https://github.com/ucx0204/CarrotMangaTranslator/actions/runs/42234804347)
+on `234fb48a` timed out in three environment-backup cases at 45 seconds each;
+11,573 other tests passed. The same commit's Windows Check shard passed those
+cases in 1,241, 324 and 106 ms. The failing runner did not retain a per-operation
+trace, so its exact host-level stall is not established.
+
+The backup tests called real `getAppSettings` / `getDefaultAppSettings`, which
+wait for a cached external GPU probe. That process query has no deadline. A
+controlled `execFile` that never calls back reproduced exactly the same three
+case timeouts before ZIP work could complete. This is an unwanted dependency on
+host hardware in backup tests, regardless of which command stalled on that runner.
+
+Only `node:child_process.execFile` is fixed to an asynchronous empty hardware
+response in this suite. Real settings normalization, ZIP I/O, checksums, secret
+exclusion, restore transactions, corruption rejection and all existing assertions
+remain active. No timeout, retry or coverage threshold changed. Production code
+is unchanged. Five focused files (backup, safety, files, concurrency and GPU
+helpers) passed 58 tests under the CI Node 26.10.0 / one-worker configuration.
+The unmodified whole-suite diagnostic was stopped after this independent boundary
+reproduction; it is not recorded as a completed verification.
+
+Evidence is retained in `.tmp/backup-gpu-stall-repro.log`,
+`.tmp/backup-fixed-boundary.log`, `.tmp/release-backup-node2610.log` and
+`.tmp/check-ci-backup-evidence/`. The temporary injected-stall test was removed
+from `tests` and retained only in `.tmp`.
