@@ -2356,7 +2356,6 @@
         "logoutFailed": "Codex sign-out failed."
       },
       "imageReasoning": "Image task reasoning effort",
-      "imageReasoningHint": "Applies to image review and Codex default generation. Explicit image models generate using their own reasoning defaults.",
       "imageGenerationModel": "Image model",
       "imageGenerationAuto": "Codex default",
       "imageGenerationAutoHint": "Uses the built-in Codex image tool.",

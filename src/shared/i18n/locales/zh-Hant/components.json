@@ -2356,7 +2356,6 @@
         "logoutFailed": "Codex 登出失敗。"
       },
       "imageReasoning": "圖像任務推理強度",
-      "imageReasoningHint": "適用於圖像檢查和 Codex 預設生成。直接選取的圖像模型使用自身的預設推理設定生成。",
       "imageGenerationModel": "圖像模型",
       "imageGenerationAuto": "Codex 預設",
       "imageGenerationAutoHint": "使用 Codex 內建圖像工具。",

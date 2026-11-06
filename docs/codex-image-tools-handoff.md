@@ -25,9 +25,11 @@ Codex 기본 생성 경로는 기존 추론 강도를 유지한다.
 - A/B 근거: 개발 checkout의 `.tmp/imagegen-failure-20261106/`.
 - 최종 실호출: `.tmp/imagegen-final/results.json` 및 `*-verified.png`.
 - 요청 계약·설정·IPC·MCP·실제 UI 테스트: 5개 파일, 93개 통과.
-- 실제 production 설정 UI: `C:/tmp/manga-image-models-26-wide.png` (1440x900),
-  `C:/tmp/manga-image-models-26-narrow.png` (780x760, 모델 선택 메뉴 열린 상태).
-  선택 시인성, 메뉴와 화면 경계, 문구 줄바꿈을 직접 확인했다.
+- Codex 기본 경로도 CLI 0.167.0의 production App Server로 실제 생성에 성공했다.
+  근거는 `.tmp/imagegen-final/auto-results.json`이다.
+- 실제 production 설정 UI: `C:/tmp/manga-image-models-clean-wide.png` (1440x900),
+  `C:/tmp/manga-image-models-clean-narrow.png` (780x760).
+  사용자가 요청하지 않은 설명 상자는 제거했다. 선택 시인성과 화면 경계를 직접 확인했다.
 - 현재 모델 문서: <https://developers.openai.com/api/docs/guides/image-generation>.
   공개 Image API의 complexity 계약을 ChatGPT backend와 동일하다고 가정하지 않는다.
 

@@ -2356,7 +2356,6 @@
         "logoutFailed": "Codex 로그아웃에 실패했습니다."
       },
       "imageReasoning": "이미지 작업 추론 강도",
-      "imageReasoningHint": "이미지 검수와 Codex 기본 생성에 적용됩니다. 직접 선택한 이미지 모델은 기본 추론 설정으로 생성합니다.",
       "imageGenerationModel": "이미지 모델",
       "imageGenerationAuto": "Codex 기본",
       "imageGenerationAutoHint": "Codex 내장 이미지 도구를 사용합니다.",

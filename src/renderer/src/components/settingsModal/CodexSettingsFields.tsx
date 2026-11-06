@@ -102,7 +102,6 @@ export function CodexSettingsFields(
               image
             />
           </div>
-          <InlineMessage title={t("settings.codex.imageReasoningHint")} />
           {/^gpt-5\.6(?:-|$)/.test(imageModel) && (
             <InlineMessage
               variant="warning"
