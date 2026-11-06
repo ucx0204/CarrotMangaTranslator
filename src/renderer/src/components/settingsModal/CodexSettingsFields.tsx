@@ -102,6 +102,7 @@ export function CodexSettingsFields(
               image
             />
           </div>
+          <InlineMessage title={t("settings.codex.imageReasoningHint")} />
           {/^gpt-5\.6(?:-|$)/.test(imageModel) && (
             <InlineMessage
               variant="warning"
@@ -128,20 +129,20 @@ function ImageGenerationModelField(props: CodexSettingsFieldsProps) {
     >
       <Select
         ariaLabel={t("settings.codex.imageGenerationModel")}
-        value={props.codexImageGenerationModel ?? "gpt-image-2.5-flare"}
+        value={props.codexImageGenerationModel ?? "gpt-image-2.6-flare"}
         disabled={props.controlsBusy}
         options={CODEX_IMAGE_GENERATION_MODELS.map((value) => ({
           value,
           label:
             value === "auto"
               ? t("settings.codex.imageGenerationAuto")
-              : value === "gpt-image-2.5-flare"
-                ? "GPT Image 2.5 Flare"
-                : "GPT Image 2.5 Sunburst",
+              : value === "gpt-image-2.6-flare"
+                ? "GPT Image 2.6 Flare"
+                : "GPT Image 2.6 Sunburst",
           tooltip:
             value === "auto"
               ? t("settings.codex.imageGenerationAutoHint")
-              : value === "gpt-image-2.5-flare"
+              : value === "gpt-image-2.6-flare"
                 ? t("settings.codex.imageGenerationFlareHint")
                 : t("settings.codex.imageGenerationSunburstHint"),
         }))}

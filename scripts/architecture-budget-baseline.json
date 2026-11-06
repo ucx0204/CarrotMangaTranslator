@@ -55,8 +55,8 @@
       "reason": "Master stale-image recovery, SFX review/restore and MCP editor refresh jointly have 28 direct consumers. All preserve the same typed gateway and dirty-page merge behavior. The workflow page selector reads other chapters through the existing library gateway. Master integration: MCP editor synchronization and the workflow page selector share the existing typed library gateway. The merged runtime-consumer count is exactly 29; global limits are unchanged. Post-append navigation reopens the committed chapter after flushing edits using the canonical typed gateway. Import destination selection reads a chosen chapter through the existing library gateway and presents read failures through the existing error boundary; stale-read and retry tests cover this additional consumer. Page organization action uses the existing library gateway. Issue 156 chapter multi-delete calls the typed library gateway like the single delete action; the term file hook receives the gateway from the style guide model instead of importing it."
     },
     "src/shared/ipcSettingsSchemas.ts": {
-      "maxRuntimeImports": 14,
-      "reason": "Settings IPC composition adds the separately owned Codex typesetting preset contract; existing domain validators remain authoritative"
+      "maxRuntimeImports": 15,
+      "reason": "Settings IPC composition adds the separately owned Codex typesetting preset contract; existing domain validators remain authoritative Image model migration reuses codexSettingsSchemas with MCP discovery (15 direct imports). Legacy family-preserving migration, strict unknown-value rejection and unchanged settings reads are covered by codexDelegation and mcpSoundEffectGeneration tests."
     },
     "src/main/wholePagePipeline.ts": {
       "maxRuntimeImports": 27,

@@ -1,5 +1,36 @@
 # Codex 보조 이미지 도구 통합
 
+## 2026-11-06 이미지 요청 오류와 2.6 설정 갱신
+
+실행 로그의 효과음 생성·배경 복원 실패는 `Complexity 'low' is not supported for this image model.`이었다.
+현재 ChatGPT Codex Responses endpoint에서 동일한 요청에 `reasoning.effort`를 넣으면
+low와 high 모두 실패했고, 해당 필드만 빼면 생성과 이미지 편집이 성공했다.
+2.6 모델로 바꾸기만 한 요청도 같은 오류가 나므로 CLI 버전이나 모델명만의 문제가 아니다.
+서버 내부 구현은 확인할 수 없으며, 이 판단은 동일 입력의 요청 A/B 결과에 근거한다.
+명시적 이미지 모델 경로에서만 reasoning을 생략한다. App Server의 이미지 검수와
+Codex 기본 생성 경로는 기존 추론 강도를 유지한다.
+
+설정 목록·기본값·IPC·MCP·renderer form을 GPT Image 2.6 Flare/Sunburst로 맞췄다.
+기존 2.5 Flare/Sunburst 값은 shared migration에서 같은 계열의 2.6으로 읽고,
+알 수 없는 값에 대한 엄격한 schema 검증은 유지한다. MCP 조회는 설정 파일을 쓰지 않는다.
+아래 과거 2.5 기록은 당시 검증 근거이므로 새 버전으로 소급 치환하지 않았다.
+
+검증은 사용자 원본 대신 단색 원 이미지를 사용했다. 최종 production 함수로 두 모델의
+파란 원→빨간 원 편집을 실행했고 모두 완료했다. 요청 크기는 1024x1024였지만 서버가
+반환한 PNG는 각각 1254x1254였다. 이 smoke는 요청 성공·실제 색상 편집을 확인하며,
+서버의 요청 크기 준수를 보증하지 않는다. 최초 두 smoke는 고정 1024 크기 assertion에서
+실패했고, 반환 크기를 기록하도록 수정한 최종 smoke에서 붉은 픽셀과 파란 픽셀 제거를 확인했다.
+원본·보관함·사용자 출력물은 수정하지 않았다.
+
+- A/B 근거: 개발 checkout의 `.tmp/imagegen-failure-20261106/`.
+- 최종 실호출: `.tmp/imagegen-final/results.json` 및 `*-verified.png`.
+- 요청 계약·설정·IPC·MCP·실제 UI 테스트: 5개 파일, 93개 통과.
+- 실제 production 설정 UI: `C:/tmp/manga-image-models-26-wide.png` (1440x900),
+  `C:/tmp/manga-image-models-26-narrow.png` (780x760, 모델 선택 메뉴 열린 상태).
+  선택 시인성, 메뉴와 화면 경계, 문구 줄바꿈을 직접 확인했다.
+- 현재 모델 문서: <https://developers.openai.com/api/docs/guides/image-generation>.
+  공개 Image API의 complexity 계약을 ChatGPT backend와 동일하다고 가정하지 않는다.
+
 ## 2026-09-12 짧은 한글 효과음의 문자 구조
 
 저장된 `두근`·`탁` 생성물은 번역 문자열이 정확한데도 받침이나 초성 획이 빠지고

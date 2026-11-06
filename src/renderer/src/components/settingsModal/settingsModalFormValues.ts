@@ -273,7 +273,7 @@ function resolveModelFormValues(
     codexImageReasoningEffort: settings.codex.imageReasoningEffort ?? "low",
     codexImageModel: settings.codex.imageModel ?? "gpt-6-astra",
     codexImageGenerationModel:
-      settings.codex.imageGenerationModel ?? "gpt-image-2.5-flare",
+      settings.codex.imageGenerationModel ?? "gpt-image-2.6-flare",
     codexReasoningEffort: resolveCodexReasoningEffortForModel(
       settings.codex.model,
       settings.codex.reasoningEffort,

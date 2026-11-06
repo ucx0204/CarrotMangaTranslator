@@ -24,7 +24,27 @@ const account: CodexAccountSnapshot = {
   ],
 };
 describe("auxiliary Codex image capability", () => {
-  it.each(["auto", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"] as const)(
+  it.each([
+    ["gpt-image-2.5-flare", "gpt-image-2.6-flare"],
+    ["gpt-image-2.5-sunburst", "gpt-image-2.6-sunburst"],
+  ])(
+    "upgrades stored %s without changing the selected image family",
+    (legacy, current) => {
+      const defaults = resolveDefaultAppSettings({});
+      const stored = {
+        ...defaults,
+        codex: { ...defaults.codex, imageGenerationModel: legacy },
+      };
+      expect(normalizeAppSettings(stored).codex.imageGenerationModel).toBe(
+        current,
+      );
+      expect(AppSettingsSchema.parse(stored).codex.imageGenerationModel).toBe(
+        current,
+      );
+      expect(stored.codex.imageGenerationModel).toBe(legacy);
+    },
+  );
+  it.each(["auto", "gpt-image-2.6-flare", "gpt-image-2.6-sunburst"] as const)(
     "roundtrips the %s image backend separately from its controller",
     (imageGenerationModel) => {
       const defaults = resolveDefaultAppSettings({});
@@ -40,7 +60,7 @@ describe("auxiliary Codex image capability", () => {
       };
       expect(AppSettingsSchema.safeParse(invalid).success).toBe(false);
       expect(normalizeAppSettings(invalid).codex.imageGenerationModel).toBe(
-        "gpt-image-2.5-flare",
+        "gpt-image-2.6-flare",
       );
     },
   );

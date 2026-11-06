@@ -231,7 +231,7 @@ it("reports Claude verification independently from the Codex image generator", a
     await f.close();
   }
 });
-it.each(["auto", "gpt-image-2.5-sunburst"] as const)(
+it.each(["auto", "gpt-image-2.6-sunburst"] as const)(
   "passes the configured %s backend with a supported newer controller",
   async (imageGenerationModel) => {
     const f = await soundEffectFixture();
@@ -257,6 +257,33 @@ it.each(["auto", "gpt-image-2.5-sunburst"] as const)(
     }
   },
 );
+it.each([
+  ["gpt-image-2.5-flare", "gpt-image-2.6-flare"],
+  ["gpt-image-2.5-sunburst", "gpt-image-2.6-sunburst"],
+])(
+  "reads legacy %s for MCP generation without writing settings",
+  async (legacy, current) => {
+    const f = await soundEffectFixture();
+    try {
+      await writeFile(
+        f.app.appPaths.settingsPath,
+        JSON.stringify({
+          codex: { ...f.settings.codex, imageGenerationModel: legacy },
+        }),
+      );
+      const before = await readFile(f.app.appPaths.settingsPath);
+      const page = (await f.snapshot()).pages[0];
+      await f.preview(command(f, [page.blocks[0].id]));
+      expect(f.startClient.mock.calls[0][1].codex.imageGenerationModel).toBe(
+        current,
+      );
+      expect(await readFile(f.app.appPaths.settingsPath)).toEqual(before);
+    } finally {
+      await f.close();
+    }
+  },
+);
+
 it("requires external consent and the exact supported configured controller before starting a client", async () => {
   const f = await soundEffectFixture();
   try {

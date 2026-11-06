@@ -2,6 +2,7 @@ import type { AppSettings } from "../../shared/settingsTypes";
 import {
   isCodexImageModel,
   CODEX_IMAGE_GENERATION_MODELS,
+  migrateCodexImageGenerationModel,
 } from "../../shared/codexSettings";
 import { CODEX_TYPESETTING_MODEL } from "../../shared/codexTypesettingDefaults";
 import {
@@ -17,8 +18,10 @@ export function normalizeCodexSettings(
   return {
     imageGenerationModel:
       CODEX_IMAGE_GENERATION_MODELS.find(
-        (model) => model === codex?.imageGenerationModel,
-      ) ?? "gpt-image-2.5-flare",
+        (model) =>
+          model ===
+          migrateCodexImageGenerationModel(codex?.imageGenerationModel),
+      ) ?? "gpt-image-2.6-flare",
     imageModel: isCodexImageModel(imageModel)
       ? imageModel
       : CODEX_TYPESETTING_MODEL,

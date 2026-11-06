@@ -146,7 +146,7 @@ export function buildSettingsFromForm(
       imageReasoningEffort: input.codexImageReasoningEffort,
       imageModel: input.codexImageModel ?? "gpt-6-astra",
       imageGenerationModel:
-        input.codexImageGenerationModel ?? "gpt-image-2.5-flare",
+        input.codexImageGenerationModel ?? "gpt-image-2.6-flare",
     },
     internetResearch: {
       claude: input.researchClaude,

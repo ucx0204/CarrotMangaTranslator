@@ -568,3 +568,14 @@ cleanup 기준 이후 추가된 파일이므로 introduced inventory에서만 �
 `.tmp/issue166-context-ui-coverage/coverage-summary.json`이며 SHA-256은
 `6a12febd65d10a00c22389b81208fd6edb9c2b6e9795151c519e8bc6b33e64dc`다.
 introduced inventory는 1,595개이며 기존 floor는 유지했다.
+
+## 2026-11-06 Codex 이미지 모델 설정 계약
+
+GPT Image 2.6 모델 목록과 2.5 설정 마이그레이션은 shared 계약을 사용한다.
+IPC와 MCP가 같은 `CodexImageGenerationModelSchema`를 직접 소비하므로
+`ipcSettingsSchemas`의 runtimeImports 상한만 실측 14에서 15로 갱신한다.
+전역 예산과 기존 coverage floor는 유지한다. 새 schema의 최초 coverage는
+`.tmp/imagegen-coverage/coverage-summary.json`이며 SHA-256은
+`966a34ff4a35314a5cc90507921e707bedaedefc3d042d312968a75131805c81`다.
+설정 정규화, IPC, MCP의 이전 모델 계열 유지와 저장 파일 불변 테스트를 포함한
+5개 파일 93개 테스트가 통과했다. introduced inventory는 1620개다.

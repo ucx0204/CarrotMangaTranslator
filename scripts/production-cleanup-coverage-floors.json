@@ -50510,6 +50510,28 @@
         "pct": 100
       }
     },
+    "src/shared/codexSettingsSchemas.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/shared/codexTypesettingBlend.ts": {
       "lines": {
         "covered": 43,

@@ -2355,7 +2355,8 @@
         "loginFailed": "Codex 登录失败。",
         "logoutFailed": "Codex 退出登录失败。"
       },
-      "imageReasoning": "图像生成推理强度",
+      "imageReasoning": "图像任务推理强度",
+      "imageReasoningHint": "适用于图像检查和 Codex 默认生成。直接选择的图像模型使用自身的默认推理设置生成。",
       "imageGenerationModel": "图像模型",
       "imageGenerationAuto": "Codex 默认",
       "imageGenerationAutoHint": "使用 Codex 内置图像工具。",

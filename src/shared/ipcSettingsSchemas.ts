@@ -20,11 +20,8 @@ import {
   hexColor,
 } from "./ipcSchemaPrimitives";
 import { MAX_LANGUAGE_CODE_LENGTH } from "./translationLanguages";
-import {
-  CODEX_REASONING_EFFORTS,
-  isCodexImageModel,
-  CODEX_IMAGE_GENERATION_MODELS,
-} from "./codexSettings";
+import { CODEX_REASONING_EFFORTS, isCodexImageModel } from "./codexSettings";
+import { CodexImageGenerationModelSchema } from "./codexSettingsSchemas";
 import { TEXT_WORD_BREAK_VALUES } from "./textWrapping";
 import {
   MAX_BUBBLE_LAYOUT_PADDING_RATIO,
@@ -231,7 +228,7 @@ export const AppSettingsSchema = z
       .object({
         imageReasoningEffort: z.enum(CODEX_REASONING_EFFORTS).optional(),
         imageModel: z.string().max(120).refine(isCodexImageModel).optional(),
-        imageGenerationModel: z.enum(CODEX_IMAGE_GENERATION_MODELS).optional(),
+        imageGenerationModel: CodexImageGenerationModelSchema.optional(),
         model: z.string().min(1).max(120),
         reasoningEffort: z.enum(CODEX_REASONING_EFFORTS),
       })

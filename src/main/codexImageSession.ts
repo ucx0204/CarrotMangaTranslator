@@ -44,7 +44,7 @@ export async function startCodexImageSession(
         "선택한 Codex 이미지 작업 모델·추론 강도를 사용할 수 없습니다.",
       );
     const imageGenerationModel =
-      settings.codex.imageGenerationModel ?? "gpt-image-2.5-flare";
+      settings.codex.imageGenerationModel ?? "gpt-image-2.6-flare";
     const lifetime = new AbortController();
     return {
       imageModel,

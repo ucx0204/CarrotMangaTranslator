@@ -83,7 +83,7 @@ afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 
-it.each(["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"] as const)(
+it.each(["gpt-image-2.6-flare", "gpt-image-2.6-sunburst"] as const)(
   "sends selected %s with independent controller and preserved image inputs",
   async (model) => {
     http.mockResolvedValue(stream([completed], true));
@@ -102,7 +102,6 @@ it.each(["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"] as const)(
     });
     expect(JSON.parse(String(options?.body))).toMatchObject({
       model: "gpt-6-astra",
-      reasoning: { effort: "low" },
       store: false,
       tools: [{ type: "image_generation", model, size: "1024x1024" }],
       input: [
@@ -122,6 +121,9 @@ it.each(["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"] as const)(
         },
       ],
     });
+    const body = JSON.parse(String(options?.body));
+    expect(body).not.toHaveProperty("reasoning");
+    expect(body.tools[0]).not.toHaveProperty("complexity");
     expect(JSON.parse(result.text)).toMatchObject({
       result: image.result,
       revisedPrompt: "원문",
@@ -216,7 +218,7 @@ it.each([401, 403, 429, 500])(
     await expect(
       runCodexImageResponse(
         { dataRoot: directory },
-        "gpt-image-2.5-flare",
+        "gpt-image-2.6-flare",
         request,
       ),
     ).rejects.toMatchObject({ status, code: "request_denied" });
@@ -234,7 +236,7 @@ it("handles non-JSON HTTP errors and invalid credentials without exposing them",
   await expect(
     runCodexImageResponse(
       { dataRoot: directory },
-      "gpt-image-2.5-flare",
+      "gpt-image-2.6-flare",
       request,
     ),
   ).rejects.toThrow("Bad Gateway");
@@ -249,7 +251,7 @@ it("handles non-JSON HTTP errors and invalid credentials without exposing them",
   await expect(
     runCodexImageResponse(
       { dataRoot: directory },
-      "gpt-image-2.5-flare",
+      "gpt-image-2.6-flare",
       request,
     ),
   ).rejects.toThrow("다시 로그인");
@@ -265,7 +267,7 @@ it.each([{ output: [] }, { output: [image, { ...image, id: "image-2" }] }])(
     await expect(
       runCodexImageResponse(
         { dataRoot: directory },
-        "gpt-image-2.5-flare",
+        "gpt-image-2.6-flare",
         request,
       ),
     ).rejects.toThrow("한 장");
@@ -276,7 +278,7 @@ it("does not send cancelled requests", async () => {
   const abort = new AbortController();
   abort.abort();
   await expect(
-    runCodexImageResponse({ dataRoot: directory }, "gpt-image-2.5-flare", {
+    runCodexImageResponse({ dataRoot: directory }, "gpt-image-2.6-flare", {
       ...request,
       signal: abort.signal,
     }),
@@ -286,9 +288,9 @@ it("does not send cancelled requests", async () => {
 
 it.each([
   ["auto", "image-generation"],
-  ["gpt-image-2.5-flare", "image-generation"],
-  ["gpt-image-2.5-sunburst", "image-generation"],
-  ["gpt-image-2.5-sunburst", "isolated"],
+  ["gpt-image-2.6-flare", "image-generation"],
+  ["gpt-image-2.6-sunburst", "image-generation"],
+  ["gpt-image-2.6-sunburst", "isolated"],
 ] as const)(
   "routes saved %s with capability %s through the production image session",
   async (model, capability) => {
@@ -341,6 +343,17 @@ it.each([
     const native = model === "auto" || capability === "isolated";
     expect(nativeTurn).toHaveBeenCalledTimes(native ? 1 : 0);
     expect(http).toHaveBeenCalledTimes(native ? 0 : 1);
+    if (native) {
+      expect(nativeTurn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          effort: settings.codex.imageReasoningEffort,
+        }),
+      );
+    } else {
+      expect(
+        JSON.parse(String(http.mock.calls[0][1]?.body)),
+      ).not.toHaveProperty("reasoning");
+    }
     expect(account).toHaveBeenCalledTimes(native ? 1 : 2);
     await session.dispose();
     await expect(session.runEphemeralTurn(request)).rejects.toThrow();

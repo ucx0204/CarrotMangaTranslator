@@ -106,7 +106,8 @@ function imageResponseRequest(
 ) {
   return {
     model: request.model,
-    reasoning: { effort: request.effort },
+    // Sending reasoning here currently triggers unsupported image complexity errors.
+    // Use the image backend's default; App Server review retains its own effort.
     store: false,
     stream: true,
     instructions: request.instructions,

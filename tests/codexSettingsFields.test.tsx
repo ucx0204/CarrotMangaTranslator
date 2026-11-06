@@ -132,13 +132,13 @@ describe("CodexSettingsFields", () => {
     await screen.findByText("reader@example.com");
     expect(customSelectOptionValues("이미지 모델")).toEqual([
       "auto",
-      "gpt-image-2.5-flare",
-      "gpt-image-2.5-sunburst",
+      "gpt-image-2.6-flare",
+      "gpt-image-2.6-sunburst",
     ]);
     for (const [label, value] of [
-      ["GPT Image 2.5 Sunburst", "gpt-image-2.5-sunburst"],
+      ["GPT Image 2.6 Sunburst", "gpt-image-2.6-sunburst"],
       ["Codex 기본", "auto"],
-      ["GPT Image 2.5 Flare", "gpt-image-2.5-flare"],
+      ["GPT Image 2.6 Flare", "gpt-image-2.6-flare"],
     ]) {
       chooseCustomSelectOption("이미지 모델", label);
       expect(screen.getByTestId("generation-model").textContent).toBe(value);
@@ -155,7 +155,7 @@ describe("CodexSettingsFields", () => {
         .hasAttribute("disabled"),
     ).toBe(true);
     expect(screen.getByTestId("generation-model").textContent).toBe(
-      "gpt-image-2.5-flare",
+      "gpt-image-2.6-flare",
     );
   });
   it("keeps Astra image effort independent and starts at low", async () => {
@@ -169,9 +169,9 @@ describe("CodexSettingsFields", () => {
     render(
       <Harness initialModel="gpt-5.6-sol" initialEffort="high" imageOnly />,
     );
-    await screen.findByRole("combobox", { name: "이미지 생성 추론 강도" });
+    await screen.findByRole("combobox", { name: "이미지 작업 추론 강도" });
     expect(screen.getByTestId("image-effort").textContent).toBe("low");
-    chooseCustomSelectOption("이미지 생성 추론 강도", "최대");
+    chooseCustomSelectOption("이미지 작업 추론 강도", "최대");
     expect(screen.getByTestId("image-effort").textContent).toBe("max");
     expect(screen.getByTestId("selected-effort").textContent).toBe("high");
     expect(screen.getByRole("combobox", { name: "Codex 모델" })).toBeTruthy();
@@ -521,7 +521,7 @@ function Harness({
   const [model, setModel] = React.useState(initialModel);
   const [effort, setEffort] = React.useState(initialEffort);
   const [generationModel, setGenerationModel] =
-    React.useState<CodexImageGenerationModel>("gpt-image-2.5-flare");
+    React.useState<CodexImageGenerationModel>("gpt-image-2.6-flare");
   const [imageModel, setImageModel] = React.useState("gpt-6-astra");
   const [imageEffort, setImageEffort] =
     React.useState<CodexReasoningEffort>("low");

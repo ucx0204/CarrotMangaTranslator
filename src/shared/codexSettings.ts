@@ -21,9 +21,16 @@ export function isCodexImageModel(model: unknown): model is string {
 
 export const CODEX_IMAGE_GENERATION_MODELS = [
   "auto",
-  "gpt-image-2.5-flare",
-  "gpt-image-2.5-sunburst",
+  "gpt-image-2.6-flare",
+  "gpt-image-2.6-sunburst",
 ] as const;
 
 export type CodexImageGenerationModel =
   (typeof CODEX_IMAGE_GENERATION_MODELS)[number];
+
+/** Preserve the chosen image family when reading settings saved before 2.6. */
+export function migrateCodexImageGenerationModel(value: unknown): unknown {
+  if (value === "gpt-image-2.5-flare") return "gpt-image-2.6-flare";
+  if (value === "gpt-image-2.5-sunburst") return "gpt-image-2.6-sunburst";
+  return value;
+}
