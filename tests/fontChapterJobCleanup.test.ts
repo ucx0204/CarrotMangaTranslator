@@ -4,8 +4,8 @@ import {
   readdir,
   readFile,
   rm,
-  rmdir,
   symlink,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -131,7 +131,7 @@ it("rejects a nested junction before deleting any scratch file or following it t
       "keep on unsafe tree",
     );
   } finally {
-    if (link) await rmdir(link);
+    if (link) await unlink(link);
   }
 });
 
@@ -150,7 +150,7 @@ it("rejects a redirected cache before creating a job in the library", async () =
     expect(prepare).not.toHaveBeenCalled();
     expect(await readdir(join(root, "library"))).toEqual([]);
   } finally {
-    await rmdir(link);
+    await unlink(link);
   }
 });
 
@@ -173,6 +173,6 @@ it("reports preparation and cleanup failures together while preserving a linked 
       "keep:library/original.png",
     );
   } finally {
-    if (link) await rmdir(link);
+    if (link) await unlink(link);
   }
 });

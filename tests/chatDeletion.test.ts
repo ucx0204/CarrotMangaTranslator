@@ -3,8 +3,8 @@ import {
   mkdir,
   readFile,
   readdir,
-  rmdir,
   symlink,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
@@ -141,7 +141,7 @@ it.each(["attachments", "summary", "image"])(
       );
       expect((await f.repository.read(f.session.id)).id).toBe(f.session.id);
     } finally {
-      if (link) await rmdir(link);
+      if (link) await unlink(link);
       await f.cleanup();
     }
   },
