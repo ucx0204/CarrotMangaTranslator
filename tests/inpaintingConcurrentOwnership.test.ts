@@ -148,6 +148,7 @@ describe("inpainting resource and queued input ownership", () => {
     expect(result.status).toBe("failed");
     expect(result.error).toMatch(/방식이 변경/);
     expect(f.harness.inpaintPatternPage).not.toHaveBeenCalled();
-    expect(f.harness.releaseEngine).toHaveBeenCalledOnce();
+    expect(f.harness.acquireEngine).not.toHaveBeenCalled();
+    expect(f.harness.releaseEngine).not.toHaveBeenCalled();
   });
 });

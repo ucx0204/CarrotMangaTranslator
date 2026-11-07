@@ -616,7 +616,8 @@ describe("production cleanup coverage floor gate", () => {
     // Issue 166 adds three relocation owners and one action, removing the unused folder legend.
     // Issue 167 adds sixteen updater domain, IPC and production UI owners.
     // UI focus continuity adds the shared focus-order owner (Modal trap, NumberField).
-    expect(scope.added).toHaveLength(1620);
+    // Issue 173 adds the owned font-analysis scratch directory lifecycle.
+    expect(scope.added).toHaveLength(1621);
     expect(scope.deleted).toHaveLength(12);
   });
 });

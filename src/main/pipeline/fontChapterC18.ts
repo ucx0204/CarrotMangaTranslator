@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import type { AppPaths } from "../appPaths";
@@ -20,7 +20,7 @@ import type {
   FontChapterC18Style,
 } from "./fontChapterC18Types";
 import { logPipelineInfo } from "./pipelineLogger";
-import { withFontChapterC18Worker } from "./fontChapterC18Lifecycle";
+import { withFontChapterC18Job } from "./fontChapterC18Lifecycle";
 import { runLocalInference } from "../runtimeSupport/localInferenceSection";
 import { prepareFontGlyphVerificationAssets } from "./fontGlyphVerificationAssets";
 
@@ -77,51 +77,52 @@ async function prepareChapter(
         phase: "font_matching_downloading",
       }),
   });
-  const parent = join(paths.dataRoot, "cache/font-chapter-c18");
-  await mkdir(parent, { recursive: true });
-  const job = await mkdtemp(join(parent, "chapter-"));
-  const request = join(job, "request.json");
-  const manifestPath = join(job, "manifest.json");
-  const glyphVerificationAssets = await prepareChapterGlyphVerification(
-    paths,
-    options,
-  );
-  await writeFile(manifestPath, JSON.stringify(manifest));
-  await writeFile(
-    request,
-    JSON.stringify({
-      pages: input.pages,
+  return withFontChapterC18Job(paths.dataRoot, async (job) => {
+    const request = join(job, "request.json");
+    const manifestPath = join(job, "manifest.json");
+    const glyphVerificationAssets = await prepareChapterGlyphVerification(
+      paths,
+      options,
+    );
+    await writeFile(manifestPath, JSON.stringify(manifest));
+    await writeFile(
+      request,
+      JSON.stringify({
+        pages: input.pages,
+        assets,
+        manifest: manifestPath,
+        output: join(job, "analysis"),
+        workingDir: paths.dataRoot,
+        hayaiScript: join(paths.runtimeDir, "hayai-bboxes.py"),
+        ocrDevice: options.ocrDevice === "gpu" ? "gpu" : "cpu",
+        glyphVerificationAssets,
+      }),
+    );
+    signal.throwIfAborted();
+    const worker = await launchFontChapterC18Worker(
+      paths,
+      options,
       assets,
-      manifest: manifestPath,
-      output: join(job, "analysis"),
-      workingDir: paths.dataRoot,
-      hayaiScript: join(paths.runtimeDir, "hayai-bboxes.py"),
-      ocrDevice: options.ocrDevice === "gpu" ? "gpu" : "cpu",
-      glyphVerificationAssets,
-    }),
-  );
-  signal.throwIfAborted();
-  const worker = await launchFontChapterC18Worker(
-    paths,
-    options,
-    assets,
-    runtime,
-  );
-  return withFontChapterC18Worker(worker, async () => {
-    const { response } = worker.startRequest({ request }, signal);
-    const result = await response;
-    if (!result.ok)
-      throw new Error(`C18 chapter font matching failed: ${result.error}`);
-    const parsed = resultSchema.parse(result.result);
-    const resolver = bindChoices(parsed.choices, input.identities);
-    logPipelineInfo("C18 chapter palette ready", {
-      version: parsed.version,
-      pages: selected.length,
-      choices: parsed.choices.length,
-      elapsedMs: result.elapsed_ms,
-      job,
-    });
-    return resolver;
+      runtime,
+    );
+    return {
+      worker,
+      read: async () => {
+        const result = await worker.startRequest({ request }, signal).response;
+        if (!result.ok)
+          throw new Error(`C18 chapter font matching failed: ${result.error}`);
+        const parsed = resultSchema.parse(result.result);
+        const resolver = bindChoices(parsed.choices, input.identities);
+        logPipelineInfo("C18 chapter palette ready", {
+          version: parsed.version,
+          pages: selected.length,
+          choices: parsed.choices.length,
+          elapsedMs: result.elapsed_ms,
+          job,
+        });
+        return resolver;
+      },
+    };
   });
 }
 

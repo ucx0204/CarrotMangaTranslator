@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { z } from "zod";
 import type { AppPaths } from "../appPaths";
 import {
   CodexAppServerClient,
@@ -18,6 +19,32 @@ import type {
 import { CHAT_INSTRUCTIONS } from "./chatInstructions";
 
 export class CodexChatRuntime implements AgentRuntime {
+  static async deleteThread(
+    paths: AppPaths,
+    appVersion: string,
+    threadId: string,
+    runtime?: CodexAppServerClientStartRuntime,
+  ): Promise<void> {
+    z.string().uuid().parse(threadId);
+    const client = await CodexAppServerClient.start(
+      { paths, appVersion },
+      runtime,
+    );
+    try {
+      await client.connection.request("thread/delete", { threadId });
+    } catch (error) {
+      // A previous successful deletion may have lost its acknowledgement.
+      // Only this exact missing-thread response is safe to treat as complete.
+      if (
+        !(error instanceof Error) ||
+        error.message !==
+          `Codex App Server thread/delete 요청 실패: no rollout found for thread id ${threadId}`
+      )
+        throw error;
+    } finally {
+      await client.dispose();
+    }
+  }
   private threadId: string | null = null;
   private preparing: Promise<string> | null = null;
   private turnId: string | null = null;

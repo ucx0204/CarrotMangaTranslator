@@ -52,7 +52,7 @@ describe("global chat durable execution", () => {
       await f.cleanup();
     }
   });
-  it("deletes only the selected record and cannot resurrect it through late events or shutdown", async () => {
+  it("deletes the selected chat and attachments without resurrection through late events or shutdown", async () => {
     const f = await chatFixture();
     try {
       const other = await f.service.create("claude");
@@ -84,7 +84,10 @@ describe("global chat durable execution", () => {
       expect(
         (await new ChatRepository(f.root).list()).map((entry) => entry.id),
       ).toEqual([other.id]);
-      expect(await f.repository.image(f.session.id, image.id)).toEqual(image);
+      await expect(
+        f.repository.image(f.session.id, image.id),
+      ).rejects.toMatchObject({ code: "ENOENT" });
+      expect(f.deleteNativeSession).toHaveBeenCalledOnce();
     } finally {
       await f.cleanup();
     }
@@ -371,6 +374,7 @@ describe("global chat durable execution", () => {
         runtime: f.connect,
         publish: vi.fn(),
         reportError: f.errors,
+        deleteNativeSession: f.deleteNativeSession,
       });
       const snapshot = await restored.read(f.session.id);
       expect(snapshot.state).toBe("paused");

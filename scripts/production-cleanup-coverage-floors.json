@@ -24022,6 +24022,28 @@
         "pct": 70.83
       }
     },
+    "src/main/fontChapterWorkspace.ts": {
+      "lines": {
+        "covered": 22,
+        "total": 23,
+        "pct": 95.65
+      },
+      "statements": {
+        "covered": 25,
+        "total": 26,
+        "pct": 96.15
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 3,
+        "total": 4,
+        "pct": 75
+      }
+    },
     "src/main/fontPostScriptName.ts": {
       "lines": {
         "covered": 26,

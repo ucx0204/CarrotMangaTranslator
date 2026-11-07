@@ -42,6 +42,7 @@ import {
 import {
   createPageProcessingTimingCollector,
   measureSharedProcessingStage,
+  type PageProcessingTimingCollector,
 } from "../pipeline/pageProcessingTiming";
 
 type EmitJobEvent = (event: JobEvent) => void;
@@ -241,11 +242,24 @@ async function processInpaintingPages(
   if (context.retainPageOwnership)
     for (const targetPage of targets)
       await acquireInpaintingTarget(options, targetPage);
-  const timing = await prepareInpaintingPageRuntime(options);
+  const timing = await createInpaintingPageTiming(options);
+  let runtimePrepared = false;
 
   for (const [pageIndex, targetPage] of targets.entries()) {
     if (!context.retainPageOwnership)
       await acquireInpaintingTarget(options, targetPage);
+    const pageTargetCount = countInpaintingPageTargets(
+      targetPage.page,
+      state,
+      target,
+    );
+    if (!runtimePrepared && pageTargetCount > 0) {
+      await prepareInpaintingPageRuntime(
+        { ...options, totalTargetBlocks: pageTargetCount },
+        timing,
+      );
+      runtimePrepared = true;
+    }
     const result = await processInpaintingPage({
       continueOnNoChanges: request.mode === "selection-pattern",
       abortController,
@@ -276,6 +290,12 @@ async function processInpaintingPages(
       );
   }
 
+  assertInpaintingJobHasTargets(
+    targets,
+    state,
+    target,
+    state.pagesChanged + state.pagesIncomplete,
+  );
   return {
     savedChapters: [...state.chapters.values()],
     pagesChanged: state.pagesChanged,
@@ -308,23 +328,18 @@ async function acquireInpaintingTarget(
   assertInpaintingCompletionWorkflow(targetPage.page, state);
 }
 
-async function prepareInpaintingPageRuntime({
-  abortController,
+async function createInpaintingPageTiming({
   context,
-  emit,
   id,
   request,
   targets,
-  state,
-  target,
-  totalTargetBlocks,
   runtime,
 }: ProcessInpaintingPagesOptions) {
   const timingChapterId = targets[0]?.chapterId;
   if (!timingChapterId) {
     throw new Error("Inpainting timing requires at least one target page.");
   }
-  const timing = request.timingSession
+  return request.timingSession
     ? await runtime.openPageTimingSession({
         chapterId: timingChapterId,
         getMainWindow: context.getMainWindow,
@@ -337,6 +352,23 @@ async function prepareInpaintingPageRuntime({
         id,
         targets.map(({ page }) => page.id),
       );
+}
+
+async function prepareInpaintingPageRuntime(
+  {
+    abortController,
+    context,
+    emit,
+    id,
+    request,
+    targets,
+    state,
+    target,
+    totalTargetBlocks,
+    runtime,
+  }: ProcessInpaintingPagesOptions,
+  timing: PageProcessingTimingCollector,
+): Promise<void> {
   const preparedBubbleLayout = await measureSharedProcessingStage(
     timing,
     "preparing",
@@ -346,17 +378,12 @@ async function prepareInpaintingPageRuntime({
         context,
         request,
         runtime,
-        totalTargetBlocks: context.jobs.get(id)?.resources
-          ? Math.max(1, totalTargetBlocks)
-          : totalTargetBlocks,
+        totalTargetBlocks,
       }),
   );
   const { appSettings } = preparedBubbleLayout;
   state.bubbleLayoutPostprocess = preparedBubbleLayout.config;
   state.bubbleLayoutRunner = preparedBubbleLayout.runner;
-  if (!context.jobs.get(id)?.resources) {
-    assertInpaintingJobHasTargets(targets, state, target, totalTargetBlocks);
-  }
   await measureSharedProcessingStage(timing, "preparing", () =>
     prepareBubbleLayoutPages(
       preparedBubbleLayout,
@@ -380,11 +407,8 @@ async function prepareInpaintingPageRuntime({
         id,
         shouldAcquireEngine: !target.layoutOnly,
         pageCount: targets.length,
-        totalTargetBlocks: context.jobs.get(id)?.resources
-          ? Math.max(1, totalTargetBlocks)
-          : totalTargetBlocks,
+        totalTargetBlocks,
         runtime,
       }),
   );
-  return timing;
 }

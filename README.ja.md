@@ -6,7 +6,7 @@
 
 [한국어](README.md) · [English](README.en.md) · **日本語** · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[v3.8.4 ダウンロード](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v3.8.4)** · [更新内容](docs/release-notes/v3.8.4.md) · [不具合・要望](https://github.com/ucx0204/CarrotMangaTranslator/issues)
+**[v3.8.5 ダウンロード](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v3.8.5)** · [更新内容](docs/release-notes/v3.8.5.md) · [不具合・要望](https://github.com/ucx0204/CarrotMangaTranslator/issues)
 
 [はじめに](#start) · [文字編集](#edit) · [効果音 ImageGen](#sfx) · [ショートカット](#shortcuts) · [困ったとき](#troubleshooting)
 

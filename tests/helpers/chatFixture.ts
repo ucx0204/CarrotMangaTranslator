@@ -44,13 +44,17 @@ export async function chatFixture(
     },
   );
   const errors = vi.fn();
+  const deleteNativeSession = vi.fn(async (_threadId: string) => undefined);
   const service = new ChatService({
     repository,
     runtime: connect,
     publish: vi.fn(),
     reportError: errors,
+    deleteNativeSession,
   });
   const session = await service.create();
+  let disposal: Promise<void> | undefined;
+  const dispose = () => (disposal ??= service.dispose());
   return {
     root,
     repository,
@@ -58,12 +62,14 @@ export async function chatFixture(
     connect,
     service,
     session,
+    dispose,
     errors,
+    deleteNativeSession,
     cancelOperations,
     observe: (value: McpChatObservation) => observe(value),
     events: () => events,
     cleanup: async () => {
-      await service.dispose();
+      await dispose();
       await rm(root, { recursive: true, force: true });
     },
   };

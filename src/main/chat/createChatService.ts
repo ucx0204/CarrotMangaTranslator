@@ -19,6 +19,12 @@ export function createChatService(options: {
     repository: new ChatRepository(options.paths.dataRoot),
     publish: options.publish,
     reportError: options.reportError,
+    deleteNativeSession: (threadId) =>
+      CodexChatRuntime.deleteThread(
+        options.paths,
+        options.appVersion,
+        threadId,
+      ),
     runtime: async (session, events, observe) => {
       const connection = await options.mcp.connectChat(
         session.id,

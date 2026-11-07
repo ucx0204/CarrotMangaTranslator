@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { vi } from "vitest";
 import type { AppPaths } from "../../src/main/appPaths";
 import { CodexChatRuntime } from "../../src/main/chat/codexChatRuntime";
+import type { CodexAppServerClientStartRuntime } from "../../src/main/codexAppServerClient";
 
 export async function codexChatProtocolFixture(mode = "normal") {
   const root = await mkdtemp(join(tmpdir(), "carrot-chat-protocol-"));
@@ -13,6 +14,27 @@ export async function codexChatProtocolFixture(mode = "normal") {
   await writeFile(script, fixtureSource);
   let argumentsUsed: readonly string[] = [];
   const events = { notification: vi.fn(), failed: vi.fn(), question: vi.fn() };
+  const deletionRuntime: CodexAppServerClientStartRuntime = {
+    resolveBinary: () => ({
+      executablePath: "codex",
+      packageVersion: "0.167.0",
+      source: "packaged" as const,
+      packageName: "@openai/codex-win32-x64",
+      triple: "x86_64-pc-windows-msvc",
+      executableName: "codex.exe",
+    }),
+    spawnAppServer: (
+      _path: string,
+      _args: readonly string[],
+      options: { cwd: string; env: NodeJS.ProcessEnv },
+    ) =>
+      spawn(process.execPath, [script], {
+        ...options,
+        env: { ...options.env, CHAT_TEST_AUDIT: audit, CHAT_TEST_MODE: mode },
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      }),
+  };
   const runtime = await CodexChatRuntime.start(
     paths(root),
     "test",
@@ -41,6 +63,8 @@ export async function codexChatProtocolFixture(mode = "normal") {
   return {
     runtime,
     events,
+    deleteThread: (id: string) =>
+      CodexChatRuntime.deleteThread(paths(root), "test", id, deletionRuntime),
     args: () => argumentsUsed,
     audit: async () =>
       (await readFile(audit, "utf8"))
@@ -90,6 +114,10 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
  const reply = result => emit({id:m.id,result});
  const notification = (method,params) => emit({method,params:{threadId:'persistent',...params}});
  if(m.method==='initialize') return reply({userAgent:'codex/0.167.0'});
+ if(m.method==='thread/delete') {
+  if(mode==='missing'||mode==='delete-failure') return emit({id:m.id,error:{code:-32600,message:mode==='missing'?'no rollout found for thread id '+m.params.threadId:'disk permission denied'}});
+  return reply({});
+ }
  if(m.method==='account/read') return reply({account:{type:'chatgpt',email:'test@example.com',planType:'plus'},requiresOpenaiAuth:true});
  if(m.method==='thread/start'||m.method==='thread/resume') return reply({thread:{id:'persistent'}});
  if(m.method==='turn/start') {

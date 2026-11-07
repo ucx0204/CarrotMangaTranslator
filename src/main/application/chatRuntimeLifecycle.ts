@@ -1,6 +1,29 @@
 import { addChatStatus } from "../chat/chatReducer";
 import type { RuntimeLease } from "./chatRuntimePorts";
 import type { ChatSession } from "../../shared/chatTypes";
+import type { ChatRepository } from "../chat/chatRepository";
+
+export type ChatStoragePorts = {
+  repository: Pick<
+    ChatRepository,
+    "list" | "read" | "save" | "delete" | "image" | "addImage"
+  >;
+  deleteNativeSession: (threadId: string) => Promise<void>;
+};
+
+export async function deleteChatRecords(
+  session: ChatSession,
+  ports: ChatStoragePorts,
+) {
+  if (session.runtime === "codex" && session.nativeThreadId) {
+    await ports.deleteNativeSession(session.nativeThreadId);
+    session.nativeThreadId = null;
+    // Persist provider completion before local cleanup so retries/restarts
+    // cannot resume a native thread that was already deleted.
+    await ports.repository.save(session);
+  }
+  await ports.repository.delete(session.id);
+}
 
 export async function closeChatRuntime(lease: RuntimeLease): Promise<void> {
   try {

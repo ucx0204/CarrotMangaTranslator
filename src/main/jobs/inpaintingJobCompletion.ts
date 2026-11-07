@@ -25,7 +25,7 @@ export function assertInpaintingJobHasTargets(
 ): void {
   if (
     totalTargetBlocks <= 0 &&
-    !targets.some(
+    !targets.every(
       ({ page }) =>
         pageHasMatchingTranslationCompletion(page, state, target) &&
         canCompleteTranslationWorkflowWithoutTargets(page, state, target),

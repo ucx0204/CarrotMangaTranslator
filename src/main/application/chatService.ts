@@ -8,11 +8,12 @@ import type {
   ChatSummary,
 } from "../../shared/chatTypes";
 import type { RuntimeLease, AgentRuntimeEvents } from "./chatRuntimePorts";
-import type { ChatRepository } from "../chat/chatRepository";
 import { deliverChatMessage } from "./chatDelivery";
 import {
   cancelPendingChatOperations,
   closeChatRuntime,
+  deleteChatRecords,
+  type ChatStoragePorts,
   stopAndSaveChat,
   stopChatRuntime,
 } from "./chatRuntimeLifecycle";
@@ -25,11 +26,7 @@ import {
 import { observeChatTool } from "../chat/chatToolObservation";
 import type { McpChatObservation } from "../mcp/mcpLocalHost";
 
-type Ports = {
-  repository: Pick<
-    ChatRepository,
-    "list" | "read" | "save" | "delete" | "image" | "addImage"
-  >;
+type Ports = ChatStoragePorts & {
   runtime: (
     session: ChatSession,
     events: AgentRuntimeEvents,
@@ -116,7 +113,7 @@ export class ChatService {
         }
       }
       await this.sending.get(id);
-      await this.ports.repository.delete(id);
+      await deleteChatRecords(session, this.ports);
       this.sessions.delete(id);
       this.sending.delete(id);
     } catch (error) {
@@ -235,6 +232,8 @@ export class ChatService {
     return chatSnapshot(session);
   }
   async attachImage(id: string, name: string, dataUrl: string) {
+    this.assertOpen();
+    this.assertAvailable(id);
     return this.ports.repository.addImage(id, name, dataUrl);
   }
   async image(id: string, imageId: string, preview = false) {
