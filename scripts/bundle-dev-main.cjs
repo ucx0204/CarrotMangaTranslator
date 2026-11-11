@@ -1,5 +1,5 @@
 const { dirname, isAbsolute, join, relative, resolve } = require("node:path");
-const { writeFileSync } = require("node:fs");
+const { realpathSync, writeFileSync } = require("node:fs");
 const ts = require("typescript");
 
 /**
@@ -50,7 +50,9 @@ function preserveModulePaths(code, modulePath, bundleDirectory) {
  */
 async function bundleDevMain(root) {
   const { build } = await import("vite");
-  const outputRoot = resolve(root, "out");
+  // Vite resolves module IDs through symlinks (including macOS /var).
+  // Compare and preserve paths against that same canonical output root.
+  const outputRoot = realpathSync(resolve(root, "out"));
   const entry = join(outputRoot, "main", "bootstrap.js");
   const result = await build({
     configFile: false,

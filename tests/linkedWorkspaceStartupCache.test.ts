@@ -2,6 +2,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   rename,
   stat,
@@ -28,14 +29,20 @@ const services: LinkedWorkspaceSyncService[] = [];
 afterEach(async () => {
   for (const service of services.splice(0)) await service.dispose();
   for (const root of roots.splice(0)) {
-    if (!root.startsWith(join(tmpdir(), "linked-startup-cache-")))
+    if (
+      !root.startsWith(join(await realpath(tmpdir()), "linked-startup-cache-"))
+    )
       throw new Error("Unexpected test root");
     await rm(root, { recursive: true, force: true });
   }
 });
 
 async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), "linked-startup-cache-"));
+  // macOS aliases /var to /private/var. The cache intentionally rejects
+  // symlink ancestors, so the unchanged-path fixture uses its real directory.
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "linked-startup-cache-")),
+  );
   roots.push(root);
   const chapter = makeChapter();
   chapter.pages[0].imagePath = join(root, "source.png");

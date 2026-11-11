@@ -38,6 +38,72 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it("reports only slow frames with the three longest scripts and disconnects on unmount", () => {
+  let report!: (entries: unknown[]) => void;
+  const observe = vi.fn();
+  const disconnect = vi.fn();
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.stubGlobal(
+    "PerformanceObserver",
+    class {
+      static supportedEntryTypes = ["long-animation-frame"];
+      constructor(callback: PerformanceObserverCallback) {
+        report = (entries) =>
+          callback(
+            { getEntries: () => entries } as PerformanceObserverEntryList,
+            this as unknown as PerformanceObserver,
+          );
+      }
+      observe = observe;
+      disconnect = disconnect;
+    },
+  );
+  try {
+    const { unmount } = renderHook(() => usePageEditHandoff(idle, vi.fn()));
+    expect(observe).toHaveBeenCalledWith({
+      type: "long-animation-frame",
+      buffered: true,
+    });
+    report([
+      { duration: 249, startTime: 0 },
+      {
+        duration: 501.2,
+        startTime: 100,
+        blockingDuration: 300.7,
+        scripts: [10, 80, 40, 60].map((duration) => ({
+          duration,
+          invoker: "event-listener",
+          sourceURL: "app.js",
+          sourceFunctionName: `work${duration}`,
+          forcedStyleAndLayoutDuration: 1.7,
+        })),
+      },
+      { duration: 250, startTime: 200 },
+    ]);
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn.mock.calls[0][0]).toBe("Slow renderer frame");
+    expect(JSON.parse(warn.mock.calls[0][1])).toMatchObject({
+      durationMs: 501,
+      blockingMs: 301,
+      scripts: [80, 60, 40].map((duration) => ({
+        durationMs: duration,
+        function: `work${duration}`,
+        forcedLayoutMs: 2,
+      })),
+    });
+    expect(JSON.parse(warn.mock.calls[1][1])).toMatchObject({
+      blockingMs: 0,
+      scripts: [],
+    });
+    unmount();
+    expect(disconnect).toHaveBeenCalledOnce();
+  } finally {
+    cleanup();
+    vi.unstubAllGlobals();
+    warn.mockRestore();
+  }
+});
+
 it.each(["pointerup", "pointercancel"] as const)(
   "acknowledges after %s reaches the window outside the document",
   async (event) => {

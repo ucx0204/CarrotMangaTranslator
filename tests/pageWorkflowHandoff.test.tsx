@@ -10,6 +10,8 @@ import {
   releaseJobPage,
 } from "../src/main/jobs/jobPageOwnership";
 import { libraryMutationCoordinator } from "../src/main/libraryStore/libraryMutationCoordinator";
+import { withLibraryContentEdit } from "../src/main/library/lock";
+import { pageContentResource } from "../src/shared/appActivityTypes";
 import {
   executePageWorkflow,
   type PageWorkflowExecutionPort,
@@ -182,6 +184,40 @@ function harness(count = 1) {
     },
   };
 }
+
+it("waits for native image writes after the renderer acknowledges before starting translation", async () => {
+  const h = harness();
+  let finishWrite!: () => void;
+  const nativeWrite = withLibraryContentEdit(
+    [pageContentResource(h.chapterId, "page-1")],
+    () =>
+      new Promise<void>((resolve) => {
+        finishWrite = resolve;
+      }),
+  );
+  let result: Awaited<ReturnType<typeof h.start>> | undefined;
+  act(() => {
+    void h.start().then((value) => {
+      result = value;
+    });
+  });
+  try {
+    await waitFor(() => expect(h.saved).toHaveBeenCalledOnce());
+    expect(h.execute).not.toHaveBeenCalled();
+    expect(libraryMutationCoordinator.getActiveCountForTests()).toBe(1);
+    await act(async () => {
+      finishWrite();
+      await nativeWrite;
+    });
+    await waitFor(() => expect(result?.status).toBe("completed"));
+    expect(h.execute).toHaveBeenCalledOnce();
+    expect(libraryMutationCoordinator.getActiveCountForTests()).toBe(0);
+  } finally {
+    finishWrite();
+    await nativeWrite;
+    h.abort.abort();
+  }
+});
 
 it("recovers when a stalled renderer first receives the already timed-out request", async () => {
   vi.useFakeTimers();

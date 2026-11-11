@@ -3,6 +3,8 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,7 +29,9 @@ const { createElectronCompileCacheStep } =
     ): { fingerprintSalt: string };
   };
 const roots: string[] = [];
+const links: string[] = [];
 afterEach(() => {
+  for (const link of links.splice(0)) unlinkSync(link);
   for (const root of roots.splice(0)) {
     if (!root.startsWith(join(tmpdir(), "dev-main-bundle-")))
       throw new Error("Unexpected test directory");
@@ -35,24 +39,26 @@ afterEach(() => {
   }
 });
 
-it("preserves boot ordering, shared state, runtime paths and native worker resolution", async () => {
-  const root = mkdtempSync(join(tmpdir(), "dev-main-bundle-"));
-  roots.push(root);
-  const main = join(root, "out", "main");
-  mkdirSync(join(main, "nested"), { recursive: true });
-  writeFileSync(join(root, "package.json"), '{"type":"commonjs"}');
-  writeFileSync(join(main, "state.js"), "exports.ready = false;");
-  writeFileSync(
-    join(main, "nested", "worker.js"),
-    "module.exports = 'worker';",
-  );
-  writeFileSync(
-    join(main, "nested", "thread.js"),
-    "require('node:worker_threads').parentPort.postMessage('thread-ready');",
-  );
-  writeFileSync(
-    join(main, "nested", "paths.js"),
-    `
+it.each([false, true])(
+  "preserves boot ordering, shared state, runtime paths and native worker resolution (linked root: %s)",
+  async (linked) => {
+    const root = mkdtempSync(join(tmpdir(), "dev-main-bundle-"));
+    roots.push(root);
+    const main = join(root, "out", "main");
+    mkdirSync(join(main, "nested"), { recursive: true });
+    writeFileSync(join(root, "package.json"), '{"type":"commonjs"}');
+    writeFileSync(join(main, "state.js"), "exports.ready = false;");
+    writeFileSync(
+      join(main, "nested", "worker.js"),
+      "module.exports = 'worker';",
+    );
+    writeFileSync(
+      join(main, "nested", "thread.js"),
+      "require('node:worker_threads').parentPort.postMessage('thread-ready');",
+    );
+    writeFileSync(
+      join(main, "nested", "paths.js"),
+      `
     const {createRequire} = require('node:module');
     if (!require('../state').ready) throw Error('Initialization reordered');
     const dynamic = './worker.js';
@@ -61,26 +67,37 @@ it("preserves boot ordering, shared state, runtime paths and native worker resol
       thread: require.resolve('./thread.js'),
       value: createRequire(__filename)('./worker.js') };
   `,
-  );
-  writeFileSync(
-    join(main, "bootstrap.js"),
-    "require('./state').ready = true; const paths = require('./nested/paths'); new (require('node:worker_threads').Worker)(paths.thread).once('message', message => { if (message !== 'thread-ready') throw Error('Worker failed'); console.log(JSON.stringify(paths)); });",
-  );
-  const run = () =>
-    spawnSync(process.execPath, [join(main, "bootstrap.js")], {
-      encoding: "utf8",
-    });
-  const before = run();
-  expect(before.status).toBe(0);
-  await bundleDevMain(root);
-  const after = run();
-  expect(after.stderr).toBe("");
-  expect(after.status).toBe(0);
-  expect(JSON.parse(after.stdout)).toEqual(JSON.parse(before.stdout));
-  expect(readFileSync(join(main, "bootstrap.js.map"), "utf8")).toContain(
-    "paths.js",
-  );
-});
+    );
+    writeFileSync(
+      join(main, "bootstrap.js"),
+      "require('./state').ready = true; const paths = require('./nested/paths'); new (require('node:worker_threads').Worker)(paths.thread).once('message', message => { if (message !== 'thread-ready') throw Error('Worker failed'); console.log(JSON.stringify(paths)); });",
+    );
+    const run = () =>
+      spawnSync(process.execPath, [join(main, "bootstrap.js")], {
+        encoding: "utf8",
+      });
+    const before = run();
+    expect(before.status).toBe(0);
+    let buildRoot = root;
+    if (linked) {
+      buildRoot = `${root}-link`;
+      symlinkSync(
+        root,
+        buildRoot,
+        process.platform === "win32" ? "junction" : "dir",
+      );
+      links.push(buildRoot);
+    }
+    await bundleDevMain(buildRoot);
+    const after = run();
+    expect(after.stderr).toBe("");
+    expect(after.status).toBe(0);
+    expect(JSON.parse(after.stdout)).toEqual(JSON.parse(before.stdout));
+    expect(readFileSync(join(main, "bootstrap.js.map"), "utf8")).toContain(
+      "paths.js",
+    );
+  },
+);
 
 it("does not rewrite strings/comments and separates production and dev cache identities", () => {
   const code =
