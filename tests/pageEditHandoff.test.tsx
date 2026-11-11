@@ -51,11 +51,12 @@ it("reports only slow frames with the three longest scripts and disconnects on u
         report = (entries) =>
           callback(
             { getEntries: () => entries } as PerformanceObserverEntryList,
-            this as unknown as PerformanceObserver,
+            this,
           );
       }
       observe = observe;
       disconnect = disconnect;
+      takeRecords = () => [];
     },
   );
   try {
