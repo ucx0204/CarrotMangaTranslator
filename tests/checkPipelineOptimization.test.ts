@@ -492,9 +492,13 @@ describe("check DAG", () => {
 
 describe("check-only Electron noCheck emit", () => {
   it("adds noCheck only for the already-typechecked check build", () => {
-    expect(compileElectron.parseArguments([])).toEqual({ noCheck: false });
+    expect(compileElectron.parseArguments([])).toEqual({
+      noCheck: false,
+      devBundle: false,
+    });
     expect(compileElectron.parseArguments(["--noCheck"])).toEqual({
       noCheck: true,
+      devBundle: false,
     });
     expect(
       compileElectron.electronTypeScriptArguments({ noCheck: false }),

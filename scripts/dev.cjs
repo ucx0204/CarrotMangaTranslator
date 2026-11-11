@@ -278,9 +278,14 @@ function runSync(command, args) {
  * @param {() => void} build
  */
 function runDevBuildStep(label, step, build) {
+  const started = performance.now();
+  log(`checking ${label}`);
   runCachedBuildStep(step, build, (plan) => {
     log(`${label}: ${plan.decision} (${plan.reason})`);
   });
+  log(
+    `${label}: ready in ${((performance.now() - started) / 1000).toFixed(2)}s`,
+  );
 }
 
 function prepareMacInpaintingRunners() {
@@ -436,13 +441,22 @@ process.on("exit", releaseDevLock);
   const runtimeOutputDir = join(root, "out", "app-runtime");
   runDevBuildStep(
     "runtime assets",
-    createRuntimeAssetsCacheStep(root, runtimeOutputDir),
+    createRuntimeAssetsCacheStep(root, runtimeOutputDir, {
+      reuseFileDigests: true,
+    }),
     () => prepareRuntimeAssets({ root, outputDir: runtimeOutputDir }),
   );
   runDevBuildStep(
     "Electron main process",
-    createElectronCompileCacheStep(root),
-    () => runSync(process.execPath, [join(__dirname, "compile-electron.cjs")]),
+    createElectronCompileCacheStep(root, {
+      reuseFileDigests: true,
+      devBundle: true,
+    }),
+    () =>
+      runSync(process.execPath, [
+        join(__dirname, "compile-electron.cjs"),
+        "--dev-bundle",
+      ]),
   );
   const rendererPort = await findAvailablePort(
     Number(process.env.MANGA_TRANSLATOR_DEV_PORT) || DEFAULT_RENDERER_PORT,

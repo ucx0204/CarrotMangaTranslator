@@ -11,6 +11,8 @@ import { ClaudeChatRuntime } from "../src/main/chat/claudeChatRuntime";
 import { runClaudeCompletion } from "../src/main/claude/claudeCompletion";
 import { startClaudeRuntime } from "../src/main/claude/claudeRuntime";
 import { createChatService } from "../src/main/chat/createChatService";
+import { CodexChatRuntime } from "../src/main/chat/codexChatRuntime";
+import { ChatRepository } from "../src/main/chat/chatRepository";
 
 const sdk = vi.hoisted(() => ({ query: vi.fn() }));
 vi.mock("electron", () => ({
@@ -21,6 +23,37 @@ const disposals: (() => Promise<void>)[] = [];
 afterEach(async () => {
   for (const dispose of disposals.splice(0).reverse()) await dispose();
   sdk.query.mockReset();
+  vi.restoreAllMocks();
+});
+
+it("routes persisted Codex deletion through the factory's native thread port", async () => {
+  const f = await fixture();
+  const repository = new ChatRepository(f.root);
+  const record = { ...f.session, id: randomUUID(), runtime: "codex" as const };
+  await repository.save({
+    ...record,
+    nativeThreadId: "persisted-codex-thread",
+  });
+  const deleteThread = vi
+    .spyOn(CodexChatRuntime, "deleteThread")
+    .mockResolvedValue(undefined);
+  const connectChat = vi.fn();
+  const service = createChatService({
+    paths: f.paths,
+    appVersion: "test",
+    mcp: { connectChat },
+    publish: vi.fn(),
+    reportError: vi.fn(),
+  });
+  disposals.push(() => service.dispose());
+  await service.delete(record.id);
+  expect(deleteThread).toHaveBeenCalledExactlyOnceWith(
+    f.paths,
+    "test",
+    "persisted-codex-thread",
+  );
+  expect(connectChat).not.toHaveBeenCalled();
+  expect(await repository.list()).toEqual([]);
 });
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "carrot-claude-test-"));

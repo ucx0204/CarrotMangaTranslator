@@ -11,7 +11,10 @@ import {
   type BubbleLayoutRunner,
 } from "../src/main/inpainting/bubbleLayoutRunner";
 import type { InpaintingRevisionChange } from "../src/main/inpainting/inpaintingRevisionStore";
-import { runBubbleLayoutMaskPrepass } from "../src/main/jobs/bubbleLayoutJob";
+import {
+  prepareBubbleLayoutJob,
+  runBubbleLayoutMaskPrepass,
+} from "../src/main/jobs/bubbleLayoutJob";
 import { type InpaintingJobRuntime } from "../src/main/jobs/inpaintingJobRuntime";
 import type { BubbleLayout } from "../src/shared/bubbleLayout";
 
@@ -22,6 +25,20 @@ const SECOND_BLOCK_ID = "block-2";
 const NATURAL_LAYOUT_TEXT = "자연스러운 문장 배치를 여러 단어로 확인합니다";
 
 describe("bubble-aware inpainting postprocess", () => {
+  it("does not read settings or construct a layout runner without targets", async () => {
+    const runtime = makeRuntime(new Map(), () => ({
+      runPage: async () => ({ patches: [] }),
+    }));
+    const getSettings = vi.spyOn(runtime, "getSettings");
+    const result = await prepareBubbleLayoutJob({
+      context: makeContext([]),
+      request: { mode: "page-pattern", chapterId: CHAPTER_ID, pageId: PAGE_ID },
+      runtime,
+      totalTargetBlocks: 0,
+    });
+    expect(result).toEqual({ appSettings: null, config: null, runner: null });
+    expect(getSettings).not.toHaveBeenCalled();
+  });
   it.each([false, true])(
     "prepares the entire selection before FLUX and never retries a failed preparation (%s)",
     async (fail) => {

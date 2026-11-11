@@ -217,19 +217,21 @@ function isBuildOutput(value) {
 
 /**
  * @param {string[]} args
- * @returns {{ noCheck: boolean }}
+ * @returns {{ noCheck: boolean; devBundle: boolean }}
  */
 function parseArguments(args) {
-  const unsupported = args.filter((argument) => argument !== "--noCheck");
-  if (
-    unsupported.length > 0 ||
-    args.filter((argument) => argument === "--noCheck").length > 1
-  ) {
+  const unsupported = args.filter(
+    (argument) => !["--noCheck", "--dev-bundle"].includes(argument),
+  );
+  if (unsupported.length > 0 || new Set(args).size !== args.length) {
     throw new Error(
       `Unsupported compile-electron arguments: ${args.join(" ") || "(none)"}`,
     );
   }
-  return { noCheck: args.includes("--noCheck") };
+  return {
+    noCheck: args.includes("--noCheck"),
+    devBundle: args.includes("--dev-bundle"),
+  };
 }
 
 /** @param {{ noCheck: boolean }} options */
@@ -257,6 +259,9 @@ async function main(args = process.argv.slice(2)) {
     "--config",
     "vite.page-export.config.ts",
   ]);
+  if (options.devBundle) {
+    await require("./bundle-dev-main.cjs").bundleDevMain(root);
+  }
 }
 
 module.exports = {

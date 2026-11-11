@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startInpaintingJob } from "../src/main/jobs/inpaintingJobs";
 import {
   createInpaintingRuntimeHarness,
@@ -6,6 +6,14 @@ import {
   makeContext,
   makePage,
 } from "./inpaintingSelectionJobFixtures";
+
+beforeEach(() => {
+  vi.stubEnv(
+    "MANGA_TRANSLATOR_LOG_PATH",
+    ".tmp/inpainting-concurrent-ownership-test.log",
+  );
+});
+afterEach(() => vi.unstubAllEnvs());
 
 function fixture() {
   const chapter = makeChapter("chapter-a", "work-a", [

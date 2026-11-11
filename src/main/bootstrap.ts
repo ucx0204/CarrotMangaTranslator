@@ -100,8 +100,11 @@ function bootstrap(): void {
   });
 
   try {
+    const mainLoadStarted = performance.now();
     require("./index");
-    writeBootstrapLog("bootstrap:loaded-main");
+    writeBootstrapLog("bootstrap:loaded-main", {
+      durationMs: Math.round(performance.now() - mainLoadStarted),
+    });
     if (runPackagedMainRuntimeSmokeExit(guard.dataRoot)) {
       return;
     }

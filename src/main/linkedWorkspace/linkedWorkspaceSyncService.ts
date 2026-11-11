@@ -86,6 +86,7 @@ import {
   recoverLinkedWorkspaceDeletions,
 } from "./linkedWorkspaceDeletion";
 import { AppActivityBusyError } from "../appActivityGate";
+import type { LinkedWorkspaceStartupCache } from "./linkedWorkspaceStartupCache";
 
 const IDLE_DELAY_MS = 3_000;
 const RETRY_DELAYS_MS = [5_000, 30_000, 120_000, 600_000] as const;
@@ -94,6 +95,7 @@ const SESSION_IDLE_CLOSE_MS = 30_000;
 export const MAX_LINKED_WORKSPACE_SYNC_CONCURRENCY = 4;
 
 type ServiceOptions = {
+  startupCache?: LinkedWorkspaceStartupCache;
   dataRoot: string;
   jobs: ActiveJobStore;
   decodeImage: ImageDecodeFallback;
@@ -261,7 +263,9 @@ export class LinkedWorkspaceSyncService {
         await this.disconnect(record.id);
     }
     await this.cleanupInterruptedWrites();
+    await this.options.startupCache?.load();
     await this.reconcilePersistedRecords();
+    await this.options.startupCache?.save();
     await this.persistQueue();
     this.emitStatuses();
     this.schedule(IDLE_DELAY_MS);
@@ -1865,6 +1869,12 @@ export class LinkedWorkspaceSyncService {
     const missingMirrors = new Map<string, boolean>();
     recordLoop: for (const record of this.records.values()) {
       if (record.organization?.error) continue;
+      const startupCache = this.options.startupCache;
+      const before =
+        this.pendingCount(record.id) === 0
+          ? ((await startupCache?.capture(record)) ?? null)
+          : null;
+      if (startupCache?.matches(record.id, before)) continue;
       let chapter: ChapterSnapshot;
       try {
         chapter = await this.dependencies.openChapter(
@@ -2005,6 +2015,17 @@ export class LinkedWorkspaceSyncService {
         });
       }
       if (recordChanged) await this.store.replaceRecord(record);
+      if (
+        startupCache &&
+        before !== null &&
+        this.pendingCount(record.id) === 0
+      ) {
+        startupCache.remember(
+          record.id,
+          before,
+          await startupCache.capture(record),
+        );
+      }
     }
   }
 

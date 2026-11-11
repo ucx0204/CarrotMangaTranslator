@@ -1,5 +1,32 @@
 # 코드 경계와 품질 규칙
 
+## 2026-11-09 기존 변경 커밋 전 검증
+
+대화 삭제의 provider 판별은 `deleteChatRecords`가 소유하고, native 삭제 port에는
+검증된 thread ID만 전달한다. 재시작한 Codex 대화 삭제는 실제 factory 경로로 검증한다.
+대상이 없는 말풍선 준비는 설정·실행기를 읽지 않는 계약을 별도로 확인한다.
+
+커버리지 목록의 누락된 기존 `buildChannel`·`pageCompletion`은 원래 측정 기준을 복구했다.
+새 `libraryRefreshCoordinator`·`codexSettingsSchemas`의 측정 출처는
+`.tmp/pre-opencode-commit-coverage-summary.json`, SHA-256은
+`6f9879c366f6d07e4f18b52fbccb9fc829df4119e091adaf9a0768cd6af32ce7`이다.
+기존 기준값은 낮추지 않았다. 기존 전체 실행에서 11,618개가 통과했고 발견된 두 실패는
+QA fixture 누락과 커버리지 목록 정렬이었다. 수정 후 관련 109개 및 대화·인페인팅
+420개 테스트를 재검증했다. 변경된 세 모듈의 새 측정값과 나머지 전체 실행 측정값을
+파일별로 조합한 `.tmp/pre-opencode-verified-coverage.json`이 보호 기준을 통과한다.
+출처는 `.tmp/pre-opencode-coverage-provenance.json`에 남겼다. 정적 검사·빌드·렌더
+parity·이미지 protocol smoke도 통과했다. 시작 캐시 파일은 Git 추적 대상에서 제외한다.
+
+## 2026-11-08 개발 실행과 시작 감사 캐시
+
+개발 실행만 메타데이터로 검증한 파일별 SHA-256을 재사용하고 Electron main을 묶는다.
+배포 빌드는 별도 캐시 식별자로 기존 바이트 검증/모듈 출력을 유지한다. 워커와 모듈별
+경로 및 초기화 순서는 번들 전후 실행 테스트로 확인한다. 연결 결과물 초기화는 기존
+복구를 먼저 수행하고, 큐가 없는 연결의 레코드와 화/원본/복구/출력 파일이 모두 같을 때만
+이전 감사를 재사용한다. 캐시는 선택적 파생 증거이며 데이터 권위나 복구 알고리즘을
+옮기지 않는다. storage 직접 소비 상한 43→44, libraryPaths 32→33만 실측대로 기록했다.
+검증, 성능 측정의 범위와 새 모듈 coverage 근거는 [시작 성능 기록](dev-startup-performance.md)에 있다.
+
 ## 2026-11-07 대화 삭제와 글꼴 분석 임시 파일 (#173)
 
 대화 삭제는 런타임을 닫은 뒤 해당 `nativeThreadId`를 Codex `thread/delete`로 정리한다.

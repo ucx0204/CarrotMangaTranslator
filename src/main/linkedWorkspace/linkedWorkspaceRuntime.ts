@@ -6,6 +6,8 @@ import { updatePagesAfterInpainting } from "../library/libraryMutationFacade";
 import { createPageExportRenderSession } from "../pageExport";
 import { installLinkedWorkspaceSaveNotifier } from "./linkedWorkspaceNotifications";
 import { LinkedWorkspaceSyncService } from "./linkedWorkspaceSyncService";
+import { LinkedWorkspaceStartupCache } from "./linkedWorkspaceStartupCache";
+import { getChapterFilePath } from "../libraryStore/libraryPaths";
 
 export function createLinkedWorkspaceRuntime(options: {
   dataRoot: string;
@@ -16,6 +18,11 @@ export function createLinkedWorkspaceRuntime(options: {
 }) {
   const service = new LinkedWorkspaceSyncService({
     ...options,
+    startupCache: new LinkedWorkspaceStartupCache(
+      options.dataRoot,
+      getChapterFilePath,
+      options.reportError,
+    ),
     dependencies: {
       listLibrary,
       openChapter,

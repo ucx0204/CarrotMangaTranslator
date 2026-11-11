@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  statSync,
   rmSync,
   unlinkSync,
   utimesSync,
@@ -22,6 +23,7 @@ type CachedBuildStep = {
   getOutputFiles: () => string[];
   getRequiredOutputFiles: () => string[];
   root: string;
+  reuseFileDigests?: boolean;
 };
 
 type CachedBuildPlan = {
@@ -257,6 +259,7 @@ function createRuntimeAssetsCacheFixture() {
   mkdirSync(transportDir, { recursive: true });
   writeFileSync(join(scriptsDir, "prepare-runtime.cjs"), "prepare");
   writeFileSync(join(scriptsDir, "dev-build-cache.cjs"), "cache");
+  writeFileSync(join(scriptsDir, "dev-file-digests.cjs"), "digests");
   writeFileSync(join(sourceDir, "root.cjs"), "root");
   writeFileSync(join(sourceDir, "runtime-jsdoc-types.d.ts"), "types");
   writeFileSync(join(transportDir, "response.cjs"), "nested");
@@ -384,6 +387,58 @@ function canonicalJson(value: unknown): string {
 }
 
 describe("dev content build cache", () => {
+  it("reuses development digests but catches same-size edits with restored mtime", () => {
+    const fixture = createFixture();
+    fixture.step.reuseFileDigests = true;
+    cache.runCachedBuildStep(fixture.step, fixture.rebuild);
+    const inputPath = join(fixture.inputDir, "a.txt");
+    const original = statSync(inputPath);
+    expect(cache.planCachedBuildStep(fixture.step).decision).toBe("skip");
+    writeFileSync(inputPath, "bravo");
+    utimesSync(inputPath, original.atime, original.mtime);
+    expect(cache.planCachedBuildStep(fixture.step)).toMatchObject({
+      decision: "build",
+      reason: "input content changed",
+    });
+    cache.runCachedBuildStep(fixture.step, fixture.rebuild);
+    const outputPath = join(fixture.outputDir, "a.txt");
+    const outputInfo = statSync(outputPath);
+    writeFileSync(outputPath, "wrong");
+    utimesSync(outputPath, outputInfo.atime, outputInfo.mtime);
+    expect(cache.planCachedBuildStep(fixture.step)).toMatchObject({
+      decision: "build",
+      reason: "output content changed",
+    });
+  });
+
+  it("rebuilds corrupt digest indexes and retains exact validation for production", () => {
+    const fixture = createFixture();
+    fixture.step.reuseFileDigests = true;
+    cache.runCachedBuildStep(fixture.step, fixture.rebuild);
+    writeFileSync(`${fixture.cacheFile}.inputs.json`, "broken json");
+    expect(cache.planCachedBuildStep(fixture.step).decision).toBe("skip");
+    const inputPath = join(fixture.inputDir, "a.txt");
+    writeFileSync(inputPath, "bravo");
+    // Even a forged development hint cannot affect the production exact read.
+    fixture.step.reuseFileDigests = false;
+    expect(cache.planCachedBuildStep(fixture.step)).toMatchObject({
+      decision: "build",
+      reason: "input content changed",
+    });
+  });
+
+  it("does not reuse a successful build after inputs change during compilation", () => {
+    const fixture = createFixture();
+    fixture.step.reuseFileDigests = true;
+    expect(() =>
+      cache.runCachedBuildStep(fixture.step, () => {
+        fixture.rebuild();
+        writeFileSync(join(fixture.inputDir, "a.txt"), "bravo");
+      }),
+    ).toThrow("input content changed during the build");
+    expect(existsSync(fixture.cacheFile)).toBe(false);
+  });
+
   it("skips an unchanged step without relying on modification times", () => {
     const fixture = createFixture();
     expect(cache.runCachedBuildStep(fixture.step, fixture.rebuild).status).toBe(

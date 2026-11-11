@@ -624,6 +624,7 @@ describe("library full-pipeline font QA runtime release guard", () => {
     mkdirSync(runtimeDir, { recursive: true });
     writeFileSync(join(scriptsDir, "prepare-runtime.cjs"), "fixture");
     writeFileSync(join(scriptsDir, "dev-build-cache.cjs"), "fixture");
+    writeFileSync(join(scriptsDir, "dev-file-digests.cjs"), "fixture");
     writeFileSync(join(runtimeDir, "existing.cjs"), "existing");
 
     expect(synchronizeQaRuntimeAssets(root).status).toBe("built");

@@ -25,8 +25,9 @@ const {
   resolveElectronRuntimeSupportFiles,
 } = require("./compile-electron.cjs");
 const { resolveTargetRuntime } = require("./stage-onnxruntime-node.cjs");
+const { createFileDigester } = require("./dev-file-digests.cjs");
 
-const CACHE_SCHEMA_VERSION = 1;
+const CACHE_SCHEMA_VERSION = 2;
 const CROSS_SCRIPT_PROXY_RUNTIME_DIRECTORY = "font-matching-crossscript-proxy";
 
 /**
@@ -38,6 +39,7 @@ const CROSS_SCRIPT_PROXY_RUNTIME_DIRECTORY = "font-matching-crossscript-proxy";
  *   getOutputFiles: () => string[];
  *   getRequiredOutputFiles: () => string[];
  *   root: string;
+ *   reuseFileDigests?: boolean;
  * }} CachedBuildStep
  *
  * @typedef {{
@@ -84,6 +86,7 @@ function planCachedBuildStep(step) {
     step.root,
     step.getInputFiles(),
     step.fingerprintSalt,
+    step.reuseFileDigests ? `${step.cacheFile}.inputs.json` : undefined,
   );
   const cached = readCacheRecord(step.cacheFile, step.cacheKey);
   if (cached.status !== "valid") {
@@ -114,6 +117,7 @@ function planCachedBuildStep(step) {
     step.root,
     step.getOutputFiles(),
     step.fingerprintSalt,
+    step.reuseFileDigests ? `${step.cacheFile}.outputs.json` : undefined,
   );
   if (cached.record.outputFingerprint !== outputFingerprint) {
     return {
@@ -138,6 +142,7 @@ function writeSuccessfulCacheRecord(step, plannedInputFingerprint) {
     step.root,
     step.getInputFiles(),
     step.fingerprintSalt,
+    step.reuseFileDigests ? `${step.cacheFile}.inputs.json` : undefined,
   );
   if (currentInputFingerprint !== plannedInputFingerprint) {
     throw new Error(
@@ -161,6 +166,7 @@ function writeSuccessfulCacheRecord(step, plannedInputFingerprint) {
       step.root,
       step.getOutputFiles(),
       step.fingerprintSalt,
+      step.reuseFileDigests ? `${step.cacheFile}.outputs.json` : undefined,
     ),
   };
   writeCacheRecord(step.cacheFile, record);
@@ -168,7 +174,7 @@ function writeSuccessfulCacheRecord(step, plannedInputFingerprint) {
 
 /**
  * @param {string} root
- * @param {{ cacheFile?: string; additionalInputFiles?: string[] }} [options]
+ * @param {{ cacheFile?: string; additionalInputFiles?: string[]; reuseFileDigests?: boolean; devBundle?: boolean }} [options]
  * @returns {CachedBuildStep}
  */
 function createElectronCompileCacheStep(root, options = {}) {
@@ -193,10 +199,11 @@ function createElectronCompileCacheStep(root, options = {}) {
   const getTscInputs = () => [
     ...listTreeFiles(
       mainSource,
-      (sourcePath) =>
-        isTscInputFile(sourcePath) &&
-        !isSameOrDescendant(fontMatchingRuntimeSource, sourcePath) &&
-        !isSameOrDescendant(crossScriptProxyRuntimeSource, sourcePath),
+      isTscInputFile,
+      false,
+      (directory) =>
+        directory !== fontMatchingRuntimeSource &&
+        directory !== crossScriptProxyRuntimeSource,
     ),
     ...listTreeFiles(sharedSource, isTscInputFile),
   ];
@@ -210,10 +217,15 @@ function createElectronCompileCacheStep(root, options = {}) {
     root,
     cacheFile,
     cacheKey: "electron-compile",
-    fingerprintSalt: platformFingerprintSalt(),
+    fingerprintSalt: `${platformFingerprintSalt()}/${options.devBundle ? "dev-bundle" : "unbundled"}`,
+    reuseFileDigests: options.reuseFileDigests,
     getInputFiles: () => [
       join(root, "scripts", "compile-electron.cjs"),
       __filename,
+      join(root, "scripts", "dev-file-digests.cjs"),
+      ...(options.devBundle
+        ? [join(root, "scripts", "bundle-dev-main.cjs")]
+        : []),
       join(root, "tsconfig.json"),
       join(root, "tsconfig.electron.json"),
       join(root, "vite.preload.config.ts"),
@@ -252,6 +264,7 @@ function createElectronCompileCacheStep(root, options = {}) {
  *   cacheKey?: string;
  *   excludedOutputDirectories?: string[];
  *   runtimeModulesOnly?: boolean;
+ *   reuseFileDigests?: boolean;
  * }} [options]
  * @returns {CachedBuildStep}
  */
@@ -264,6 +277,9 @@ function createRuntimeAssetsCacheStep(root, outputDir, options = {}) {
       sourceDir,
       (sourcePath) =>
         !isDevelopmentRuntimePath(relative(sourceDir, sourcePath)),
+      false,
+      (directory) =>
+        !isDevelopmentRuntimePath(relative(sourceDir, directory), true),
     );
   const fontMatchingBundleFiles = () =>
     options.runtimeModulesOnly
@@ -289,9 +305,11 @@ function createRuntimeAssetsCacheStep(root, outputDir, options = {}) {
       join(root, ".tmp", "dev-build-cache", "runtime-assets.json"),
     cacheKey: options.cacheKey ?? "runtime-assets",
     fingerprintSalt: platformFingerprintSalt(),
+    reuseFileDigests: options.reuseFileDigests,
     getInputFiles: () => [
       join(root, "scripts", "prepare-runtime.cjs"),
       join(root, "scripts", "dev-build-cache.cjs"),
+      join(root, "scripts", "dev-file-digests.cjs"),
       ...(options.additionalInputFiles ?? []),
       ...sourceFiles(),
       ...fontMatchingBundleFiles(),
@@ -424,9 +442,15 @@ function createOnnxRuntimeCacheStep(root, outputDir) {
  * @param {string} directory
  * @param {(filePath: string) => boolean} [include]
  * @param {boolean} [allowMissing]
+ * @param {(directory: string) => boolean} [includeDirectory]
  * @returns {string[]}
  */
-function listTreeFiles(directory, include, allowMissing = false) {
+function listTreeFiles(
+  directory,
+  include,
+  allowMissing = false,
+  includeDirectory = () => true,
+) {
   if (!existsSync(directory)) {
     if (allowMissing) return [];
     throw new Error(`Cached input directory is missing: ${directory}`);
@@ -438,7 +462,7 @@ function listTreeFiles(directory, include, allowMissing = false) {
 
   /** @type {string[]} */
   const files = [];
-  visitDirectory(directory, include, files);
+  visitDirectory(directory, include, files, includeDirectory);
   return files.sort(comparePaths);
 }
 
@@ -446,8 +470,9 @@ function listTreeFiles(directory, include, allowMissing = false) {
  * @param {string} directory
  * @param {((filePath: string) => boolean) | undefined} include
  * @param {string[]} files
+ * @param {(directory: string) => boolean} includeDirectory
  */
-function visitDirectory(directory, include, files) {
+function visitDirectory(directory, include, files, includeDirectory) {
   const entries = readdirSync(directory, { withFileTypes: true }).sort(
     (left, right) => comparePaths(left.name, right.name),
   );
@@ -459,7 +484,8 @@ function visitDirectory(directory, include, files) {
       );
     }
     if (entry.isDirectory()) {
-      visitDirectory(entryPath, include, files);
+      if (includeDirectory(entryPath))
+        visitDirectory(entryPath, include, files, includeDirectory);
       continue;
     }
     if (entry.isFile() && (!include || include(entryPath))) {
@@ -472,28 +498,30 @@ function visitDirectory(directory, include, files) {
  * @param {string} root
  * @param {string[]} filePaths
  * @param {string} salt
+ * @param {string} [digestCacheFile]
  */
-function fingerprintFiles(root, filePaths, salt) {
+function fingerprintFiles(root, filePaths, salt, digestCacheFile) {
   const resolvedFiles = [
     ...new Set(filePaths.map((filePath) => resolve(filePath))),
-  ].sort((left, right) =>
-    comparePaths(toRelativePath(root, left), toRelativePath(root, right)),
-  );
+  ]
+    .map((filePath) => ({
+      filePath,
+      relativePath: toRelativePath(root, filePath),
+    }))
+    .sort((left, right) => comparePaths(left.relativePath, right.relativePath));
+  const digester = createFileDigester(digestCacheFile);
   const hash = createHash("sha256");
   hash.update(`manga-dev-build-cache:${CACHE_SCHEMA_VERSION}\0${salt}\0`);
-  for (const filePath of resolvedFiles) {
-    const metadata = lstatSync(filePath);
-    if (!metadata.isFile() || metadata.isSymbolicLink()) {
-      throw new Error(`Cached content must be a real file: ${filePath}`);
-    }
-    const content = readFileSync(filePath);
-    hash.update(toRelativePath(root, filePath));
+  for (const { filePath, relativePath } of resolvedFiles) {
+    const content = digester.digest(filePath);
+    hash.update(relativePath);
     hash.update("\0");
-    hash.update(String(content.byteLength));
+    hash.update(String(content.bytes));
     hash.update("\0");
-    hash.update(content);
+    hash.update(content.sha256);
     hash.update("\0");
   }
+  digester.save();
   return hash.digest("hex");
 }
 

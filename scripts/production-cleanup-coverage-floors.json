@@ -27894,6 +27894,28 @@
         "pct": 100
       }
     },
+    "src/main/linkedWorkspace/linkedWorkspaceStartupCache.ts": {
+      "lines": {
+        "covered": 53,
+        "total": 55,
+        "pct": 96.36
+      },
+      "statements": {
+        "covered": 58,
+        "total": 63,
+        "pct": 92.06
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 38,
+        "total": 45,
+        "pct": 84.44
+      }
+    },
     "src/main/linkedWorkspace/linkedWorkspaceStore.ts": {
       "lines": {
         "total": 37,

@@ -63,6 +63,21 @@ function start(id: string, resources: AppActivityResource[]) {
 }
 
 describe("activity ownership across concurrent work", () => {
+  it("publishes a chapter reservation atomically instead of flooding the renderer per page", () => {
+    const pageIds = Array.from({ length: 660 }, (_, index) => `page-${index}`);
+    const snapshots: string[][] = [];
+    jobs.pageHandoffs.subscribe(() =>
+      snapshots.push(jobs.pageHandoffs.activities.map((page) => page.pageId)),
+    );
+    jobs.pageHandoffs.reserve("workflow", "chapter", pageIds);
+    expect(snapshots).toEqual([pageIds]);
+    jobs.pageHandoffs.reserve("workflow", "chapter", []);
+    expect(snapshots).toHaveLength(1);
+    expect(
+      jobs.pageHandoffs.activities.every((page) => page.phase === "queued"),
+    ).toBe(true);
+  });
+
   it("acquires workflow content only after acknowledgement while other pages remain editable", async () => {
     start("workflow", [model]);
     jobs.pageHandoffs.reserve("workflow", "chapter", ["A"]);

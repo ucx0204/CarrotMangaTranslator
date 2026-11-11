@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startInpaintingJob } from "../src/main/jobs/inpaintingJobs";
 import { prepareBubbleLayoutJob } from "../src/main/jobs/bubbleLayoutJob";
 import { runInpaintingSelectionsSequentially } from "../src/renderer/src/hooks/inpaintingSelectionFlow";
@@ -9,6 +9,14 @@ import {
   makeContext,
   makePage,
 } from "./inpaintingSelectionJobFixtures";
+
+beforeEach(() => {
+  vi.stubEnv(
+    "MANGA_TRANSLATOR_LOG_PATH",
+    ".tmp/inpainting-targetless-result-test.log",
+  );
+});
+afterEach(() => vi.unstubAllEnvs());
 
 async function fixture() {
   const page = makePage("page-a", "11.webp");

@@ -314,7 +314,11 @@ void app
     }
     registerImageProtocolHandler();
     await importRuntime.initialize();
+    const linkedStartupStarted = performance.now();
     await linkedWorkspaceSync.initialize();
+    logInfo("Linked workspace startup completed", {
+      durationMs: Math.round(performance.now() - linkedStartupStarted),
+    });
     removeLinkedWorkspaceNotifier =
       linkedWorkspaceRuntime.installSaveNotifier();
     if (await runMacPackageSmokeExit(appPaths)) {
