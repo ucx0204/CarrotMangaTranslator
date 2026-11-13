@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { hashStableValue } from "../src/shared/blockFingerprint";
@@ -306,7 +307,7 @@ it.each([
       new McpOperationService(
         (error) => errors.push(error),
         () => 100,
-        persistence,
+        jobPersistenceFixture(persistence),
       );
     const first = open();
     let restored: McpOperationService | undefined;
@@ -336,7 +337,7 @@ it.each([
       await first.close();
       restored = open();
       await restored.ready();
-      expect(restored.status(accepted.jobId, "owner")).toMatchObject({
+      expect(await restored.status(accepted.jobId, "owner")).toMatchObject({
         status,
         result: {
           kind: "output-sync",
@@ -346,15 +347,20 @@ it.each([
       });
       expect((await restored.start(request)).jobId).toBe(accepted.jobId);
       expect(execute).toHaveBeenCalledOnce();
-      expect(() => restored?.file(accepted.jobId, "owner")).toThrow();
-      expect(() => restored?.outputMetadata(accepted.jobId, "owner")).toThrow();
-      expect(() =>
-        restored?.retryTarget(
-          accepted.jobId,
-          "owner",
-          "page-v1:" + "1".repeat(16),
-        ),
-      ).toThrow();
+      await expect(
+        async () => await restored?.file(accepted.jobId, "owner"),
+      ).rejects.toThrow();
+      await expect(
+        async () => await restored?.outputMetadata(accepted.jobId, "owner"),
+      ).rejects.toThrow();
+      await expect(
+        async () =>
+          await restored?.retryTarget(
+            accepted.jobId,
+            "owner",
+            "page-v1:" + "1".repeat(16),
+          ),
+      ).rejects.toThrow();
       expect(errors).toEqual([]);
     } finally {
       await first.close();

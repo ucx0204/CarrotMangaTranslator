@@ -52,15 +52,16 @@ it.each(["importDiscover", "importPrepare", "importCreate"] as const)(
         f.web.scan.mock.calls.length,
         f.validate.mock.calls.length,
       ];
-      expect(() =>
-        f
-          .current()
-          .operations.retryTarget(
-            done.jobId,
-            "import-owner",
-            "page-v1:0123456789abcdef",
-          ),
-      ).toThrowError(expect.objectContaining({ code: "invalid_edit" }));
+      await expect(
+        async () =>
+          await f
+            .current()
+            .operations.retryTarget(
+              done.jobId,
+              "import-owner",
+              "page-v1:0123456789abcdef",
+            ),
+      ).rejects.toThrowError(expect.objectContaining({ code: "invalid_edit" }));
       expect([
         f.web.discoverChapters.mock.calls.length,
         f.web.scan.mock.calls.length,

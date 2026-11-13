@@ -33,7 +33,7 @@ import { McpResearchProposalRepository } from "./mcpResearchProposalRepository";
 import type { McpRetentionStorage } from "./mcpRetentionStorage";
 
 type Attempt = z.infer<typeof McpResearchBatchAttemptSchema>;
-type Job = ReturnType<McpOperationService["status"]>;
+type Job = Awaited<ReturnType<McpOperationService["status"]>>;
 type Options = {
   app: InpaintingJobContext;
   operations: McpOperationService;
@@ -319,9 +319,9 @@ async function reconcileResearchWork(
 ): Promise<Attempt | undefined> {
   guard();
   await options.operations.ready();
-  const job = options.operations
-    .list(owner, 0, 512)
-    .jobs.find((entry) => entry.requestId === attempt.requestId);
+  const job = (await options.operations.list(owner, 0, 512)).jobs.find(
+    (entry) => entry.requestId === attempt.requestId,
+  );
   if (job?.status === "running")
     throw new McpEditError(
       "editor_busy",

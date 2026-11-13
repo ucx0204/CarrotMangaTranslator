@@ -48,7 +48,7 @@ export function createMcpSelectionAnalysisSession(
           const input = McpSelectionAnalysisGetSchema.parse(value);
           guard();
           lifetime.signal.throwIfAborted();
-          const job = operations.status(input.analysisId, owner);
+          const job = await operations.status(input.analysisId, owner);
           if (
             job.status !== "completed" ||
             job.result?.selectionAnalysis?.analysisId !== input.analysisId

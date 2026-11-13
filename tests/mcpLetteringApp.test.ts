@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { readFile, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { expect, it } from "vitest";
@@ -275,7 +276,7 @@ it("waits for model cleanup on cancellation and never exposes a cancelled plan",
     ]);
     expect(f.runtime.dispose).toHaveBeenCalledOnce();
     await f.operations.cancel(id, f.owner);
-    expect(f.operations.status(id, f.owner).status).toBe("running");
+    expect((await f.operations.status(id, f.owner)).status).toBe("running");
     expect(f.app.jobs.all).toHaveLength(1);
     release();
     const result = await completed;
@@ -361,11 +362,11 @@ it("restores only durable receipts and never rehydrates a session plan or re-exe
     const restored = new McpOperationService(
       (error) => f.errors.push(error),
       Date.now,
-      f.persistence,
+      jobPersistenceFixture(f.persistence),
     );
     try {
       await restored.ready();
-      const receipt = restored.status(prepared.job.jobId, f.owner);
+      const receipt = await restored.status(prepared.job.jobId, f.owner);
       expect(receipt.status).toBe("completed");
       expect(receipt.result?.letteringPlan).toBeUndefined();
       expect(receipt.result?.proposalExpired).toBe(true);
@@ -388,13 +389,14 @@ it("fails unavailable font requests rather than silently substituting and requir
     });
     expect(result.job.status).toBe("failed");
     expect(result.job.error?.code).toBe("invalid_edit");
-    expect(() =>
-      f.operations.retryTarget(
-        result.job.jobId,
-        f.owner,
-        result.input.pages[0].revision,
-      ),
-    ).toThrow("single-page retry");
+    await expect(
+      async () =>
+        await f.operations.retryTarget(
+          result.job.jobId,
+          f.owner,
+          result.input.pages[0].revision,
+        ),
+    ).rejects.toThrow("single-page retry");
     expect(result.batchId).toBeUndefined();
     expect(await readFile(f.chapterPath)).toEqual(before);
     expect(f.runtime.create).not.toHaveBeenCalled();

@@ -71,7 +71,7 @@ export function createMcpExportBatchTools(
           target,
           resolveSource
             ? await resolveSource(owner, target.sourceJobId, retained)
-            : operations.exportSource(target.sourceJobId, owner),
+            : await operations.exportSource(target.sourceJobId, owner),
           job,
           retained,
         ),

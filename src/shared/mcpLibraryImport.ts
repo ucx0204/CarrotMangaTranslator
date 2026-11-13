@@ -1,3 +1,7 @@
+import {
+  MCP_IMPORT_MAX_PAGES,
+  MCP_IMPORT_MAX_CHAPTERS,
+} from "./mcpImportLimits";
 import { z } from "zod/v4";
 import { McpImportPageMappingSchema } from "./mcpImportMapping";
 
@@ -46,12 +50,12 @@ export const McpImportCreateSchema = z
           .object({
             draftId: z.uuid(),
             title,
-            pageIds: z.array(z.uuid()).min(1).max(50),
+            pageIds: z.array(z.uuid()).min(1).max(MCP_IMPORT_MAX_PAGES),
           })
           .strict(),
       )
       .min(1)
-      .max(10),
+      .max(MCP_IMPORT_MAX_CHAPTERS),
   })
   .strict()
   .superRefine((value, context) => {
@@ -60,11 +64,11 @@ export const McpImportCreateSchema = z
     if (
       new Set(drafts).size !== drafts.length ||
       new Set(pages).size !== pages.length ||
-      pages.length > 50
+      pages.length > MCP_IMPORT_MAX_PAGES
     )
       context.addIssue({
         code: "custom",
-        message: "Choose distinct drafts and at most fifty distinct pages.",
+        message: "Choose distinct drafts and at most 500 distinct pages.",
       });
   });
 export type McpImportCreate = z.infer<typeof McpImportCreateSchema>;
@@ -90,8 +94,8 @@ export const McpImportPreviewReferenceSchema = z
     previewId: z.uuid(),
     snapshot: hash,
     source,
-    chapterCount: z.number().int().min(1).max(10),
-    pageCount: z.number().int().min(1).max(500),
+    chapterCount: z.number().int().min(1).max(MCP_IMPORT_MAX_CHAPTERS),
+    pageCount: z.number().int().min(1).max(MCP_IMPORT_MAX_PAGES),
     sourceBytes: count.max(256 * 1024 * 1024),
     expiresAt: count,
     retention: z.literal("session-only"),
@@ -103,8 +107,8 @@ export const McpImportReceiptSchema = z
     requestId: z.uuid(),
     status: z.literal("imported"),
     workId: id,
-    chapterIds: z.array(id).min(1).max(10),
-    pageCount: z.number().int().min(1).max(50),
+    chapterIds: z.array(id).min(1).max(MCP_IMPORT_MAX_CHAPTERS),
+    pageCount: z.number().int().min(1).max(MCP_IMPORT_MAX_PAGES),
     source,
     createdAt: count,
     expiresAt: count,
@@ -119,13 +123,13 @@ export const McpImportReceiptSchema = z
               .object({
                 itemId: z.uuid(),
                 previewId: z.uuid(),
-                chapterIds: z.array(id).min(1).max(10),
-                pageCount: z.number().int().min(1).max(50),
+                chapterIds: z.array(id).min(1).max(MCP_IMPORT_MAX_CHAPTERS),
+                pageCount: z.number().int().min(1).max(MCP_IMPORT_MAX_PAGES),
               })
               .strict(),
           )
           .min(1)
-          .max(10),
+          .max(MCP_IMPORT_MAX_CHAPTERS),
       })
       .strict()
       .optional(),
@@ -168,10 +172,10 @@ export const mcpLibraryImportOutputs = {
           .strict(),
       )
       .max(25),
-    warnings: z.array(z.string().max(1000)).max(10),
+    warnings: z.array(z.string().max(1000)).max(MCP_IMPORT_MAX_CHAPTERS),
   }).strict(),
   carrot_get_import_receipt: McpImportReceiptSchema.extend({
-    availableChapterIds: z.array(id).max(10),
+    availableChapterIds: z.array(id).max(MCP_IMPORT_MAX_CHAPTERS),
     note: z.literal(
       "Historical import receipt; current chapter existence is not content equality or permission to undo.",
     ),

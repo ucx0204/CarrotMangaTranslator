@@ -22,7 +22,7 @@ it("rejects an import caller without continuing job authorization before opening
         { principalId, assertAuthorized, assertScopes },
       ),
     ).rejects.toMatchObject({ code: "access_denied" });
-    expect(current.operations.list(principalId, 0, 25).total).toBe(0);
+    expect((await current.operations.list(principalId, 0, 25)).total).toBe(0);
     expect(f.choose).not.toHaveBeenCalled();
     expect(f.validate).not.toHaveBeenCalled();
     expect(await f.library.listLibrary()).toEqual(before);

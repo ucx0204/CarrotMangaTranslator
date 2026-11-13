@@ -195,24 +195,27 @@ async function completedImportBatch(
     view.items.every((item) => ["ready", "imported"].includes(item.status))
   );
 }
-function verifyOutputJob(
+async function verifyOutputJob(
   options: CompositeNativeOptions,
   binding: McpCompositeSavedBinding,
   outcome: McpCompositeOutcome,
   job: CompositeNativeJob,
 ) {
   if (binding.family === "images-export") {
-    const source = options.operations.exportSource(job.jobId, binding.owner);
+    const source = await options.operations.exportSource(
+      job.jobId,
+      binding.owner,
+    );
     const exported = source.data.pages.filter(
       (page) => page.status === "exported",
     );
     for (const page of exported)
       if (
-        !options.operations.outputMetadata(
+        !(await options.operations.outputMetadata(
           job.jobId,
           binding.owner,
           page.pageId,
-        )
+        ))
       )
         throw unavailableResult();
     return {
@@ -231,7 +234,7 @@ function verifyOutputJob(
       "context-export",
     ].includes(binding.family)
   ) {
-    if (!options.operations.outputMetadata(job.jobId, binding.owner))
+    if (!(await options.operations.outputMetadata(job.jobId, binding.owner)))
       throw unavailableResult();
     return outcome;
   }

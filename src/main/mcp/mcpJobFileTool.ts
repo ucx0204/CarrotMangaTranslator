@@ -75,7 +75,7 @@ async function retrieveFile(
 ) {
   const owner = assertFileAuthority(context, access.allowImages);
   await operations.ready();
-  const value = operations.file(input.jobId, owner, input.pageId);
+  const value = await operations.file(input.jobId, owner, input.pageId);
   const parsed = mcpJobFileOutput.safeParse({ jobId: input.jobId, ...value });
   if (!parsed.success || parsed.data.bytes <= 0)
     throw new McpEditError(
@@ -86,7 +86,8 @@ async function retrieveFile(
   assertFileAuthority(context, access.allowImages, artifact.mimeType);
   await access.available(artifact.url);
   assertFileAuthority(context, access.allowImages, artifact.mimeType);
-  operations.file(input.jobId, owner, input.pageId);
+  await operations.file(input.jobId, owner, input.pageId);
+  assertFileAuthority(context, access.allowImages, artifact.mimeType);
   return artifact;
 }
 

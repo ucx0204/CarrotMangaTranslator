@@ -617,7 +617,8 @@ describe("production cleanup coverage floor gate", () => {
     // Issue 167 adds sixteen updater domain, IPC and production UI owners.
     // UI focus continuity adds the shared focus-order owner (Modal trap, NumberField).
     // Includes startup cache, refresh coordination, font workspace cleanup and Codex schema owners.
-    expect(scope.added).toHaveLength(1622);
+    // Issue #176 adds nine per-job storage, cache and shared import policy owners.
+    expect(scope.added).toHaveLength(1631);
     expect(scope.deleted).toHaveLength(12);
   });
 });

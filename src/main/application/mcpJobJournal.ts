@@ -1,3 +1,4 @@
+import { expiredPlanResult } from "./mcpJobResultAvailability";
 import {
   McpWorkFileCreateSchema,
   McpWorkFileReceiptSchema,
@@ -81,8 +82,8 @@ const importPreparation = z.union([
   McpDiscoveredChapterScanSchema,
 ]);
 export const MCP_JOB_RETENTION_MS = 7 * 24 * 60 * 60_000;
-export const MCP_JOB_CAPACITY = 512;
-export const MCP_JOB_HISTORY_CAPACITY = 4096;
+const MCP_JOB_CAPACITY = 512;
+const MCP_JOB_HISTORY_CAPACITY = 4096;
 export const mcpJobTargetSchema = z
   .object({
     chapterId: id,
@@ -239,10 +240,13 @@ const jobSchema = z
   })
   .strict();
 export type McpStoredJob = z.infer<typeof jobSchema>;
-export type McpJobPersistence = {
-  load: () => Promise<unknown | null>;
-  save: (snapshot: unknown) => Promise<void>;
-};
+export const mcpJobIdentitySchema = jobSchema.omit({
+  compacted: true,
+  parameters: true,
+  result: true,
+  progress: true,
+  error: true,
+});
 const journalSchema = z
   .object({
     version: z.literal(1),
@@ -329,18 +333,28 @@ export function parseMcpJobJournal(value: unknown): McpStoredJob[] {
         : ++recent > MCP_JOB_CAPACITY) ||
       ids.has(record.id) ||
       requests.has(key) ||
-      record.fingerprint !==
-        hashStableValue([record.kind, record.parameters]) ||
-      !validJobTarget(record) ||
-      !validMcpJobReferences(record) ||
-      record.requestId !== record.parameters.requestId ||
-      (record.status === "running") !== (record.finishedAt === undefined)
+      !validStoredJob(record)
     )
       throw new Error("Invalid duplicate or inconsistent MCP job journal.");
     ids.add(record.id);
     requests.add(key);
   }
   return parsed.records;
+}
+export function parseMcpStoredJob(value: unknown): McpStoredJob {
+  const record = jobSchema.parse(value);
+  if (!validStoredJob(record))
+    throw new Error("Invalid or inconsistent MCP job record.");
+  return record;
+}
+function validStoredJob(record: McpStoredJob) {
+  return (
+    record.fingerprint === hashStableValue([record.kind, record.parameters]) &&
+    validJobTarget(record) &&
+    validMcpJobReferences(record) &&
+    record.requestId === record.parameters.requestId &&
+    (record.status === "running") === (record.finishedAt === undefined)
+  );
 }
 function validJobTarget(record: McpStoredJob): boolean {
   if (record.compacted && record.status === "running") return false;
@@ -379,25 +393,4 @@ function validPageTarget(record: McpStoredJob): boolean {
     (record.kind === "blockTranslation" || target.contextMode === undefined) &&
     validErasureJobTarget(record.kind, target)
   );
-}
-function expiredPlanResult(
-  result: z.infer<typeof mcpJobResultMetadataSchema>,
-  now: number,
-) {
-  if (result.importPreview && result.importPreview.expiresAt <= now) {
-    const { importPreview: _preview, ...metadata } = result;
-    return { ...metadata, importPreviewExpired: true };
-  }
-  const proposal = result.retainedContextProposal;
-  if (proposal && proposal.expiresAt <= now)
-    return { ...result, proposalExpired: true };
-  if (result.soundEffectPlan && result.soundEffectPlan.expiresAt <= now) {
-    const { soundEffectPlan: _sound, ...metadata } = result;
-    return { ...metadata, proposalExpired: true };
-  }
-  if (result.letteringPlan && result.letteringPlan.expiresAt <= now) {
-    const { letteringPlan: _lettering, ...metadata } = result;
-    return { ...metadata, proposalExpired: true };
-  }
-  return undefined;
 }

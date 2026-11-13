@@ -157,7 +157,7 @@ describe("native composite output binding and costs", () => {
       code: "revision_conflict",
     });
     page.filename = filename;
-    f.operations.outputMetadata.mockReturnValueOnce({
+    f.operations.outputMetadata.mockResolvedValueOnce({
       artifact: {
         mimeType: "image/png",
         bytes: page.bytes,
@@ -168,7 +168,7 @@ describe("native composite output binding and costs", () => {
     await expect(run(f, action)).rejects.toMatchObject({
       code: "revision_conflict",
     });
-    f.operations.outputMetadata.mockReturnValueOnce(undefined);
+    f.operations.outputMetadata.mockResolvedValueOnce(undefined);
     await expect(run(f, action)).rejects.toMatchObject({
       code: "revision_conflict",
     });

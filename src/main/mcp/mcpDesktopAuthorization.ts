@@ -49,10 +49,7 @@ export class McpDesktopAuthorization {
     return {
       identity: await this.store.identity(),
       retentionCodec: this.store.retentionCodec(),
-      jobPersistence: {
-        load: () => this.store.readJobJournal(),
-        save: (value: unknown) => this.store.writeJobJournal(value),
-      },
+      jobPersistence: this.store.jobPersistence(),
       provider,
       session,
       pairing,

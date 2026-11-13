@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import {
   validMcpExchangeResultMetadata,
   validMcpExchangeJobReferences,
@@ -276,7 +277,7 @@ it.each(["export", "import"] as const)(
       new McpOperationService(
         (error) => errors.push(error),
         () => 100,
-        persistence,
+        jobPersistenceFixture(persistence),
       );
     const first = open();
     let restored: McpOperationService | undefined;
@@ -296,33 +297,41 @@ it.each(["export", "import"] as const)(
         "owner",
         new AbortController().signal,
       );
-      expect(first.status(accepted.jobId, "owner").status).toBe("completed");
+      expect((await first.status(accepted.jobId, "owner")).status).toBe(
+        "completed",
+      );
       if (mode === "export")
-        expect(first.outputMetadata(accepted.jobId, "owner")?.url).toMatch(
-          /mcp-artifacts/,
-        );
+        expect(
+          (await first.outputMetadata(accepted.jobId, "owner"))?.url,
+        ).toMatch(/mcp-artifacts/);
       await first.close();
       restored = open();
       await restored.ready();
-      expect(restored.status(accepted.jobId, "owner")).toMatchObject({
+      expect(await restored.status(accepted.jobId, "owner")).toMatchObject({
         status: "completed",
         target: f.target,
         result: { kind: f.result.kind },
       });
       expect(JSON.stringify(stored)).not.toMatch(/mcp-artifacts|"url"/);
-      expect(() => restored?.status(accepted.jobId, "other-owner")).toThrow();
+      await expect(
+        async () => await restored?.status(accepted.jobId, "other-owner"),
+      ).rejects.toThrow();
       if (mode === "export") {
-        expect(restored.outputMetadata(accepted.jobId, "owner")).toMatchObject({
+        expect(
+          await restored.outputMetadata(accepted.jobId, "owner"),
+        ).toMatchObject({
           artifact: { bytes: 128 },
         });
         expect(
-          restored.outputMetadata(accepted.jobId, "owner"),
+          await restored.outputMetadata(accepted.jobId, "owner"),
         ).not.toHaveProperty("url");
-        expect(() => restored?.file(accepted.jobId, "owner")).toThrow();
+        await expect(
+          async () => await restored?.file(accepted.jobId, "owner"),
+        ).rejects.toThrow();
       } else
-        expect(() =>
-          restored?.outputMetadata(accepted.jobId, "owner"),
-        ).toThrow();
+        await expect(
+          async () => await restored?.outputMetadata(accepted.jobId, "owner"),
+        ).rejects.toThrow();
       expect((await restored.start(request)).jobId).toBe(accepted.jobId);
       expect(execute).toHaveBeenCalledOnce();
       expect(errors).toEqual([]);

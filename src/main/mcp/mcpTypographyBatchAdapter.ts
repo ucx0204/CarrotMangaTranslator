@@ -27,7 +27,7 @@ export function createMcpTypographyBatchAdapter(
       access.guard();
       await operations.ready();
       access.guard();
-      const job = operations.status(input.analysisJobId, access.owner);
+      const job = await operations.status(input.analysisJobId, access.owner);
       const target = McpTypographyAnalysisTargetSchema.safeParse(job.target);
       if (
         job.kind !== "typographyAnalysis" ||

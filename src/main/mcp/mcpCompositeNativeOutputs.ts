@@ -171,7 +171,10 @@ async function costZip(
 ) {
   await options.operations.ready();
   guard();
-  const source = options.operations.exportSource(input.sourceJobId, owner);
+  const source = await options.operations.exportSource(
+    input.sourceJobId,
+    owner,
+  );
   const { data } = source;
   const exported = data.pages.filter((page) => page.status === "exported");
   if (
@@ -202,7 +205,7 @@ async function costZip(
     )
   )
     throw scopeError();
-  assertZipReceipts(options.operations, source, input.sourceJobId, owner);
+  await assertZipReceipts(options.operations, source, input.sourceJobId, owner);
   guard();
   return nativeCompositeCost(exported.length);
 }
@@ -218,16 +221,20 @@ function validStoredRevision(value: string): value is PageRevision {
   ).success;
 }
 
-function assertZipReceipts(
+async function assertZipReceipts(
   operations: Options["operations"],
-  source: ReturnType<Options["operations"]["exportSource"]>,
+  source: Awaited<ReturnType<Options["operations"]["exportSource"]>>,
   sourceJobId: string,
   owner: string,
 ) {
   for (const page of source.data.pages.filter(
     (page) => page.status === "exported",
   )) {
-    const metadata = operations.outputMetadata(sourceJobId, owner, page.pageId);
+    const metadata = await operations.outputMetadata(
+      sourceJobId,
+      owner,
+      page.pageId,
+    );
     if (
       !metadata ||
       metadata.artifact.bytes !== page.bytes ||

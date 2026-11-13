@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -151,12 +152,12 @@ export async function researchBatchFixture(workCount = 3) {
     const operations = new McpOperationService(
       (error) => errors.push(error),
       Date.now,
-      {
+      jobPersistenceFixture({
         load: async () => structuredClone(journal),
         save: async (value) => {
           journal = JSON.parse(JSON.stringify(value));
         },
-      },
+      }),
     );
     const repository = new McpResearchProposalRepository(
       f.storage,

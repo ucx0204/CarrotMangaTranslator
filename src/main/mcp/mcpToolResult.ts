@@ -30,6 +30,8 @@ export function mcpToolError(error: unknown) {
       "Older undo history was automatically rotated; saved pages are intact. Read the current page. Do not repeat the original operation or claim that saving failed.",
     storage_full:
       "Free space on the storage device, then inspect the current saved state before retrying. Do not delete originals or outputs automatically.",
+    job_detail_unavailable:
+      "Saved details are damaged or missing, but this request remains protected. Repair storage and restart; do not resubmit the operation with a new request ID.",
     not_found: "List current targets or owned jobs before retrying.",
     invalid_edit: "Correct the arguments; do not retry unchanged.",
     invalid_arguments:

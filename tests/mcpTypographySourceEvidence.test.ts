@@ -12,7 +12,7 @@ async function fixture() {
     await import("../src/main/mcp/mcpTypographySourceEvidence");
   const saved = await f.library.readWorkContextForEdit("chapter");
   const observation = McpTypographyAnalysisObservationSchema.parse(
-    f.operations.status(input.analysisJobId, f.owner).result
+    (await f.operations.status(input.analysisJobId, f.owner)).result
       ?.typographyAnalysis,
   );
   const dependencies = observation.pages.map(({ pageId, revision }) => ({

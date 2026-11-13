@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -60,7 +61,7 @@ export async function selectionAppFixture(enableEditing = false) {
   const operations = new McpOperationService(
     (error) => errors.push(error),
     Date.now,
-    persistence,
+    jobPersistenceFixture(persistence),
   );
   const collect = vi.fn<NonNullable<Runtime["ocr"]>["collect"]>(
     async (options) => ({
@@ -194,13 +195,13 @@ export async function selectionAppFixture(enableEditing = false) {
     });
   const settle = async (id: string, principal = owner) => {
     await vi.waitFor(
-      () => {
-        if (operations.status(id, principal).status === "running")
+      async () => {
+        if ((await operations.status(id, principal)).status === "running")
           throw new Error("Still running");
       },
       { timeout: 10000 },
     );
-    return operations.status(id, principal);
+    return await operations.status(id, principal);
   };
   const run = async (name: string, args: object) => {
     const receipt = await invoke(name, args);

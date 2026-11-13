@@ -59,9 +59,13 @@ function createListJobsTool(operations: McpOperationService): McpTool {
         );
       await operations.ready();
       const window = readWindow(args);
-      return textContent(
-        operations.list(context.principalId, window.offset, window.limit),
+      const result = await operations.list(
+        context.principalId,
+        window.offset,
+        window.limit,
       );
+      context.assertAuthorized();
+      return textContent(result);
     },
   };
 }
@@ -102,7 +106,7 @@ function createRetryJobTool(
           "An approved OAuth connection is required for retries.",
         );
       await operations.ready();
-      const { kind, target } = operations.retryTarget(
+      const { kind, target } = await operations.retryTarget(
         parsed.data.jobId,
         context.principalId,
         parsed.data.revision,

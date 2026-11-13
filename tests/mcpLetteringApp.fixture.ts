@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { vi } from "vitest";
 import { typographyAnalysisAppFixture } from "./mcpTypographyAnalysisApp.fixture";
@@ -26,7 +27,7 @@ export async function letteringAppFixture() {
   const operations = new McpOperationService(
     (error) => errors.push(error),
     Date.now,
-    persistence,
+    jobPersistenceFixture(persistence),
   );
   const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(async (input) => ({
     patches: (input.targetBlockIds ?? []).map((id) => ({
@@ -105,12 +106,13 @@ export async function letteringAppFixture() {
   };
   const settleJob = async (jobId: string, principal = owner) => {
     await vi.waitFor(
-      () => expectTerminal(operations.status(jobId, principal).status),
+      async () =>
+        expectTerminal((await operations.status(jobId, principal)).status),
       // Real durable saves can exceed 10s on CI disks. The enclosing test
       // still enforces vitest.config.ts's 15s local / 45s CI deadline.
       { timeout: 45000 },
     );
-    return operations.status(jobId, principal);
+    return await operations.status(jobId, principal);
   };
   const prepare = async (command: unknown) => {
     const input = await request(command);

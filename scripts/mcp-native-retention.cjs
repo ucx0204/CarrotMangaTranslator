@@ -31,12 +31,14 @@ async function retainedClient(root, app, editing) {
     allowProcessing: true,
     autoStart: false,
   };
+  const secure = new McpSecureStore(app.appPaths.dataRoot);
   const session = createMcpPageOperationSession({
     origin: "https://retained.native.example",
     app,
     editing,
     preferences,
-    retentionCodec: new McpSecureStore(app.appPaths.dataRoot).retentionCodec(),
+    retentionCodec: secure.retentionCodec(),
+    jobPersistence: secure.jobPersistence(),
     reportError: (/** @type {unknown} */ error) => console.error(error),
   });
   await session.ready();

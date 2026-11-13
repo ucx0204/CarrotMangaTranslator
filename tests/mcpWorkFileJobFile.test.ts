@@ -70,7 +70,7 @@ it("projects a native file with its fixed MIME and name, attaching only on expli
     internal: { sourcePath: "C:/private/nested/page.png" },
   });
   try {
-    expect(f.operations.file(f.jobId, "owner")).toEqual(f.data.result);
+    expect(await f.operations.file(f.jobId, "owner")).toEqual(f.data.result);
     for (const includeAttachment of [undefined, false, true]) {
       const result = await f.call(
         includeAttachment === undefined ? {} : { includeAttachment },
@@ -97,9 +97,9 @@ it("projects a native file with its fixed MIME and name, attaching only on expli
     }
     expect(f.check).toHaveBeenCalledTimes(3);
     expect(f.check).toHaveBeenCalledWith(f.data.result.url);
-    expect(JSON.stringify(f.operations.status(f.jobId, "owner"))).not.toMatch(
-      /C:\/private|mcp-artifacts|"url"|password/,
-    );
+    expect(
+      JSON.stringify(await f.operations.status(f.jobId, "owner")),
+    ).not.toMatch(/C:\/private|mcp-artifacts|"url"|password/);
     expect(f.execute).toHaveBeenCalledOnce();
     expect(f.unusedRaster).not.toHaveBeenCalled();
     expect(f.errors).toEqual([]);
@@ -149,7 +149,9 @@ it("keeps source paths out of both the native metadata projection and its public
     workFileExport: { ...data.metadata, sourcePath: "C:/private/page.png" },
   });
   try {
-    expect(() => f.operations.file(f.jobId, "owner")).toThrow();
+    await expect(
+      async () => await f.operations.file(f.jobId, "owner"),
+    ).rejects.toThrow();
     for (const includeAttachment of [false, true])
       await expect(f.call({ includeAttachment })).rejects.toThrow();
     expect(f.check).not.toHaveBeenCalled();
@@ -165,7 +167,7 @@ it("requires a completed native export before disclosing a file", async () => {
       for (const includeAttachment of [false, true])
         await expect(f.call({ includeAttachment })).rejects.toThrow();
       expect(f.check).not.toHaveBeenCalled();
-      expect(f.operations.status(f.jobId, "owner").status).toBe(status);
+      expect((await f.operations.status(f.jobId, "owner")).status).toBe(status);
     } finally {
       await f.close();
     }

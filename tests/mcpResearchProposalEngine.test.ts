@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { expect, it, vi } from "vitest";
@@ -66,12 +67,16 @@ async function runtime(f: Fixture) {
   let journal: unknown = null;
   const errors: unknown[] = [];
   const open = () =>
-    new McpOperationService((error) => errors.push(error), Date.now, {
-      load: async () => structuredClone(journal),
-      save: async (value) => {
-        journal = JSON.parse(JSON.stringify(value));
-      },
-    });
+    new McpOperationService(
+      (error) => errors.push(error),
+      Date.now,
+      jobPersistenceFixture({
+        load: async () => structuredClone(journal),
+        save: async (value) => {
+          journal = JSON.parse(JSON.stringify(value));
+        },
+      }),
+    );
   const target = {
     chapterId: "chapter",
     revision: f.input.request.revision,
@@ -112,7 +117,7 @@ it("retains app-engine evidence and exposes it through reconstructed public tool
       request.owner,
       new AbortController().signal,
     );
-    const job = operations.status(accepted.jobId, request.owner);
+    const job = await operations.status(accepted.jobId, request.owner);
     expect(job, JSON.stringify(r.errors)).toMatchObject({
       status: "completed",
     });
@@ -136,8 +141,8 @@ it("retains app-engine evidence and exposes it through reconstructed public tool
     await f.restart();
     await next.ready();
     expect(
-      next.status(accepted.jobId, request.owner).result?.retainedContextProposal
-        ?.proposalId,
+      (await next.status(accepted.jobId, request.owner)).result
+        ?.retainedContextProposal?.proposalId,
     ).toBe(result.proposalId);
     expect((await next.start(request)).jobId).toBe(accepted.jobId);
     expect(

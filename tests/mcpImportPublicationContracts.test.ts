@@ -12,7 +12,9 @@ it("rejects malformed duplicate oversized or unreviewed selections without impor
     const before = await f.library.listLibrary();
     const tooMany = structuredClone(base);
     tooMany.items.forEach((item) => {
-      item.chapters[0].pageIds = Array.from({ length: 26 }, () => randomUUID());
+      item.chapters[0].pageIds = Array.from({ length: 251 }, () =>
+        randomUUID(),
+      );
     });
     for (const input of [
       { ...base, items: [] },

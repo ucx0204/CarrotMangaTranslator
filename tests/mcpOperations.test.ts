@@ -56,9 +56,9 @@ describe("MCP long-operation receipts", () => {
     await expect(service.start({ ...input, parameters: {} })).rejects.toThrow(
       /requestId/,
     );
-    expect(() => service.status(first.jobId, "connection-b")).toThrow(
-      /not found/,
-    );
+    await expect(
+      async () => await service.status(first.jobId, "connection-b"),
+    ).rejects.toThrow(/not found/);
     await expect(service.cancel(first.jobId, "connection-b")).rejects.toThrow(
       /not found/,
     );
@@ -66,7 +66,7 @@ describe("MCP long-operation receipts", () => {
     finish();
     await tick();
     expect(calls).toBe(1);
-    expect(service.status(first.jobId, input.owner).result).toEqual({
+    expect((await service.status(first.jobId, input.owner)).result).toEqual({
       status: "saved",
     });
     await service.close();
@@ -84,7 +84,7 @@ describe("MCP long-operation receipts", () => {
     await tick();
     await service.cancel(first.jobId, input.owner);
     await tick();
-    const result = service.status(first.jobId, input.owner);
+    const result = await service.status(first.jobId, input.owner);
     expect(result.status).toBe("cancelled");
     expect(JSON.stringify(result)).not.toContain("private");
     expect(errors).toHaveLength(1);
@@ -122,7 +122,9 @@ describe("MCP long-operation receipts", () => {
       }),
     );
     await next.close();
-    expect(next.status(running.jobId, "connection-a").status).toBe("completed");
+    expect((await next.status(running.jobId, "connection-a")).status).toBe(
+      "completed",
+    );
   });
 });
 
@@ -139,7 +141,7 @@ describe("MCP receipt retention", () => {
       const receipt = await service.start(input);
       await tick();
       now += MCP_JOB_RETENTION_MS - 1;
-      expect(service.status(receipt.jobId, input.owner).status).toBe(
+      expect((await service.status(receipt.jobId, input.owner)).status).toBe(
         "completed",
       );
       now += 1;
@@ -167,10 +169,14 @@ describe("MCP receipt retention", () => {
     const receipt = await service.start(input);
     await tick();
     now = 2 * MCP_JOB_RETENTION_MS;
-    expect(service.status(receipt.jobId, input.owner).status).toBe("running");
+    expect((await service.status(receipt.jobId, input.owner)).status).toBe(
+      "running",
+    );
     finish();
     await tick();
-    expect(service.status(receipt.jobId, input.owner).finishedAt).toBe(now);
+    expect((await service.status(receipt.jobId, input.owner)).finishedAt).toBe(
+      now,
+    );
     await service.close();
   });
   it("retains exact retry identity before expiry and starts a fresh request after expiry", async () => {

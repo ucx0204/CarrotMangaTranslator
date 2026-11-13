@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import {
@@ -17,7 +18,11 @@ function fixture() {
       disk = structuredClone(value);
     },
   };
-  const service = new McpOperationService(() => {}, Date.now, persistence);
+  const service = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(persistence),
+  );
   const check = vi.fn();
   const context = {
     principalId: "test-grant",
@@ -35,8 +40,8 @@ function fixture() {
   return { service, persistence, context, target, saved: () => disk };
 }
 async function waitSettled(service: McpOperationService, id: string) {
-  await vi.waitFor(() =>
-    expect(service.status(id, "test-grant").status).not.toBe("running"),
+  await vi.waitFor(async () =>
+    expect((await service.status(id, "test-grant")).status).not.toBe("running"),
   );
 }
 it("retains a failed selected-block request through persisted restart and explicit retry", async () => {
@@ -59,7 +64,11 @@ it("retains a failed selected-block request through persisted restart and explic
   expect(receipt.target.blockId).toBe("selected");
   await waitSettled(f.service, receipt.jobId);
   await f.service.close();
-  const restored = new McpOperationService(() => {}, Date.now, f.persistence);
+  const restored = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(f.persistence),
+  );
   const run = vi.fn<McpOperationExecutor>(async (target) => ({
     status: "completed",
     blockId: target.blockId,

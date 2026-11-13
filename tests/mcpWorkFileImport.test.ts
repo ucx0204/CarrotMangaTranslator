@@ -100,7 +100,9 @@ it("reconstructs receipt and historical publication after the original upload is
     expect(await f.createWorkFile(command)).toEqual(receipt);
     vi.spyOn(f.persistence, "load").mockResolvedValueOnce(null);
     await f.restart();
-    expect(f.current().operations.list("import-owner", 0, 25).total).toBe(0);
+    expect(
+      (await f.current().operations.list("import-owner", 0, 25)).total,
+    ).toBe(0);
     expect(await f.createWorkFile(command)).toEqual(receipt);
     expect(await f.library.listLibrary()).toEqual(before);
     await expect(f.review(command.uploadId)).rejects.toThrow();

@@ -2,6 +2,8 @@ import { randomBytes, createHmac } from "node:crypto";
 import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { safeStorage } from "electron";
+import { McpJobStore } from "./mcpJobStore";
+import { createMcpJobCodec } from "./mcpJobCodec";
 import { z } from "zod";
 import {
   DEFAULT_MCP_PREFERENCES,
@@ -91,6 +93,20 @@ export class McpSecureStore {
     if (value.profile !== (await this.identity()).dataProfileId)
       throw new Error("MCP job history belongs to a different data profile.");
     return value.journal;
+  }
+  jobPersistence(reportError: (error: unknown) => void = console.error) {
+    return new McpJobStore(
+      this.directory,
+      createMcpJobCodec(
+        this.encryption,
+        async () => (await this.identity()).dataProfileId,
+      ),
+      {
+        load: () => this.readJobJournal(),
+        save: (value) => this.writeJobJournal(value),
+      },
+      reportError,
+    );
   }
   async writeJobJournal(journal: unknown): Promise<void> {
     if (!this.encryption.available())

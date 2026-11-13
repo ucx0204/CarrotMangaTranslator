@@ -1,6 +1,6 @@
 import type { McpLibraryChangedEvent } from "../../shared/mcpEditingTypes";
 import type { McpPreferences } from "../../shared/mcpDesktopTypes";
-import type { McpJobPersistence } from "../application/mcpJobJournal";
+import type { McpJobPersistence } from "../application/mcpJobPersistence";
 import type { McpOperationService } from "../application/mcpOperationService";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import type { ReviewedLinkedOutputPort } from "../linkedWorkspace/linkedWorkspaceReviewedOutputTypes";

@@ -74,10 +74,7 @@ async function compositeNativeClient(root, app, editing, options = {}) {
       editing,
       preferences,
       retentionCodec: new McpSecureStore(root).retentionCodec(),
-      jobPersistence: {
-        load: () => journal.readJobJournal(),
-        save: (/** @type {unknown} */ value) => journal.writeJobJournal(value),
-      },
+      jobPersistence: journal.jobPersistence(),
       reportError: (/** @type {unknown} */ error) => errors.push(error),
     });
     session = activeSession;
@@ -165,7 +162,7 @@ async function compositeNativeClient(root, app, editing, options = {}) {
       errors,
       close,
       origin: new URL(activeServer.url).origin,
-      journal: () => journal.readJobJournal(),
+      journal: () => readJobRecords(journal),
       listTools: () => request("tools/list", {}),
       revoke: () => authorization.revoke(credentials.connectionId),
     };
@@ -265,3 +262,13 @@ module.exports = {
   waitComposite,
   downloadCompositeFile,
 };
+
+/** @param {{jobPersistence: () => {open: () => Promise<Array<{id:string}>>, read: (id:string) => Promise<unknown>}}} journal */
+async function readJobRecords(journal) {
+  const store = journal.jobPersistence();
+  const summaries = await store.open();
+  return {
+    version: 1,
+    records: await Promise.all(summaries.map((item) => store.read(item.id))),
+  };
+}

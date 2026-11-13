@@ -7,8 +7,11 @@ import {
 } from "../src/shared/mcpWorkFileImport";
 import { workFileFixture } from "./mcpWorkFileImport.fixture";
 
-export async function workFileAppendFixture() {
-  const f = await workFileFixture();
+export async function workFileAppendFixture(
+  pageCount = 2,
+  durableJobs = false,
+) {
+  const f = await workFileFixture(pageCount, durableJobs);
   const workPath = join(f.env.libraryDir, "works", "work", "work.json");
   const guidePath = join(f.env.libraryDir, "works", "work", "style-guide.json");
   const { readWorkStyleGuide } =

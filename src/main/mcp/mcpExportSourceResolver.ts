@@ -38,7 +38,7 @@ export function createMcpExportSourceResolver(options: Options) {
     guard();
     await options.operations.ready();
     const source = structuredClone(
-      options.operations.exportSource(sourceJobId, owner),
+      await options.operations.exportSource(sourceJobId, owner),
     );
     await assertCurrentSource(
       source,
@@ -48,7 +48,7 @@ export function createMcpExportSourceResolver(options: Options) {
     for (const page of source.data.pages) {
       guard();
       if (page.status !== "exported") continue;
-      const metadata = options.operations.outputMetadata(
+      const metadata = await options.operations.outputMetadata(
         sourceJobId,
         owner,
         page.pageId,

@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -14,7 +15,10 @@ import {
 import type { createMcpLibraryImportSession } from "../src/main/mcp/mcpLibraryImportSession";
 
 type Native = NonNullable<Parameters<typeof createMcpLibraryImportSession>[1]>;
-export async function libraryImportFixture(native: Native = {}) {
+export async function libraryImportFixture(
+  native: Native = {},
+  durableJobs = false,
+) {
   const f = await typographyAnalysisAppFixture();
   const { McpSecureStore } = await import("../src/main/mcp/mcpSecureStore");
   const { McpRetentionStorage } =
@@ -27,10 +31,8 @@ export async function libraryImportFixture(native: Native = {}) {
     await import("../src/main/library/libraryImportFacade");
   const { withLibraryMutation } = await import("../src/main/library/lock");
   const { mcpToolResult } = await import("../src/main/mcp/mcpToolResult");
-  const codec = new McpSecureStore(
-    f.env.root,
-    mcpTestEncryption(),
-  ).retentionCodec();
+  const secure = new McpSecureStore(f.env.root, mcpTestEncryption());
+  const codec = secure.retentionCodec();
   let now = Date.now();
   const storage = new McpRetentionStorage(codec, () => now);
   const inputDirectory = join(f.env.root, "authorized-input");
@@ -83,7 +85,9 @@ export async function libraryImportFixture(native: Native = {}) {
     const operations = new McpOperationService(
       (error) => errors.push(error),
       () => now,
-      persistence,
+      durableJobs
+        ? secure.jobPersistence((error) => errors.push(error))
+        : jobPersistenceFixture(persistence),
     );
     const session = createMcpLibraryImportSession(
       {

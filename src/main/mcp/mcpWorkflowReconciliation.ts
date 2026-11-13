@@ -29,9 +29,10 @@ export async function workflowErasureCompleted(
   if (step.stage !== "erase" || !step.jobId || !step.attemptId) return false;
   await operations.ready();
   guard();
-  let job: ReturnType<McpOperationService["status"]>;
+  let job: Awaited<ReturnType<McpOperationService["status"]>>;
   try {
-    job = operations.status(step.jobId, record.owner);
+    job = await operations.status(step.jobId, record.owner);
+    guard();
   } catch (error) {
     if (error instanceof McpEditError && error.code === "not_found")
       return false;
@@ -57,7 +58,9 @@ export async function workflowErasureCompleted(
     );
   return completeErasure(job);
 }
-function completeErasure(job: ReturnType<McpOperationService["status"]>) {
+function completeErasure(
+  job: Awaited<ReturnType<McpOperationService["status"]>>,
+) {
   const result = job.result;
   return (
     job.status === "completed" &&

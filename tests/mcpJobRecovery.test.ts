@@ -59,11 +59,14 @@ async function failedFixture() {
   const receipt = await f.call("carrot_run_page_ocr", f.parameters);
   for (
     let i = 0;
-    i < 100 && f.service.status(receipt.jobId, "grant-a").status === "running";
+    i < 100 &&
+    (await f.service.status(receipt.jobId, "grant-a")).status === "running";
     i++
   )
     await tick();
-  expect(f.service.status(receipt.jobId, "grant-a").status).toBe("failed");
+  expect((await f.service.status(receipt.jobId, "grant-a")).status).toBe(
+    "failed",
+  );
   return { ...f, receipt };
 }
 it("lists scoped jobs and performs only an explicitly requested same-target retry", async () => {
@@ -89,7 +92,9 @@ it("lists scoped jobs and performs only an explicitly requested same-target retr
       retried.jobId,
     );
     await tick();
-    expect(f.service.status(retried.jobId, "grant-a").status).toBe("completed");
+    expect((await f.service.status(retried.jobId, "grant-a")).status).toBe(
+      "completed",
+    );
     expect(f.executor).toHaveBeenCalledTimes(2);
   } finally {
     await f.service.close();

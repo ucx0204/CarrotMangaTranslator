@@ -26,7 +26,7 @@ export function createMcpSelectionEditAdapter(
       await operations.ready();
       access.guard();
       const id = input.command.analysisId;
-      const job = operations.status(id, access.owner);
+      const job = await operations.status(id, access.owner);
       if (
         !["selectionOcr", "selectionTranslation"].includes(job.kind) ||
         job.status !== "completed" ||

@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { exportFixture, readExportZip } from "./mcpExportBatch.fixture";
@@ -182,7 +183,7 @@ it("retains metadata-only durable receipts and prevents duplicate execution or o
   const operations = new McpOperationService(
     f.reportError,
     Date.now,
-    persistence,
+    jobPersistenceFixture(persistence),
   );
   try {
     const target = await f.target();
@@ -196,37 +197,48 @@ it("retains metadata-only durable receipts and prevents duplicate execution or o
         f.service.run(target, job, f.assertRetained),
     };
     const receipt = await operations.start(request);
-    await vi.waitFor(() =>
-      expect(operations.status(receipt.jobId, "owner").status).toBe(
+    await vi.waitFor(async () =>
+      expect((await operations.status(receipt.jobId, "owner")).status).toBe(
         "completed",
       ),
     );
     expect((await operations.start(request)).jobId).toBe(receipt.jobId);
-    const publicResult = operations.status(receipt.jobId, "owner");
+    const publicResult = await operations.status(receipt.jobId, "owner");
     expect(publicResult.result?.exportPages?.completed).toBe(3);
     expect(JSON.stringify(publicResult)).not.toMatch(
       /mcp-artifacts|"url"|private/,
     );
     expect(JSON.stringify(saved)).not.toMatch(/mcp-artifacts|"url"|private/);
-    expect(() => operations.file(receipt.jobId, "other", "p1")).toThrow();
-    expect(() => operations.file(receipt.jobId, "owner")).toThrow();
-    const file = operations.file(receipt.jobId, "owner", "p1");
+    await expect(
+      async () => await operations.file(receipt.jobId, "other", "p1"),
+    ).rejects.toThrow();
+    await expect(
+      async () => await operations.file(receipt.jobId, "owner"),
+    ).rejects.toThrow();
+    const file = await operations.file(receipt.jobId, "owner", "p1");
     expect(await f.read(file.url as string)).toEqual(
       Buffer.from("PNG fixture p1"),
     );
-    expect(() =>
-      operations.retryTarget(receipt.jobId, "owner", target.pages[0].revision),
-    ).toThrow();
+    await expect(
+      async () =>
+        await operations.retryTarget(
+          receipt.jobId,
+          "owner",
+          target.pages[0].revision,
+        ),
+    ).rejects.toThrow();
     const restored = new McpOperationService(
       f.reportError,
       Date.now,
-      persistence,
+      jobPersistenceFixture(persistence),
     );
     await restored.ready();
     expect(
-      restored.status(receipt.jobId, "owner").result?.artifactExpired,
+      (await restored.status(receipt.jobId, "owner")).result?.artifactExpired,
     ).toBe(true);
-    expect(() => restored.file(receipt.jobId, "owner", "p1")).toThrow();
+    await expect(
+      async () => await restored.file(receipt.jobId, "owner", "p1"),
+    ).rejects.toThrow();
     await restored.close();
     expect(f.render).toHaveBeenCalledTimes(3);
     await expect(
@@ -311,7 +323,7 @@ it.each(["own cancellation", "foreign AbortError", "cleanup failure"])(
     const operations = new McpOperationService(
       f.reportError,
       Date.now,
-      persistence,
+      jobPersistenceFixture(persistence),
     );
     const failures: unknown[] = [];
     try {
@@ -366,7 +378,7 @@ it.each(["own cancellation", "foreign AbortError", "cleanup failure"])(
       await cleaning.promise;
       expect(operationReason).toBeInstanceOf(DOMException);
       expect(operationReason).not.toBe(parentReason);
-      expect(operations.status(receipt.jobId, "owner")).toMatchObject({
+      expect(await operations.status(receipt.jobId, "owner")).toMatchObject({
         status: "running",
         cancellationRequested: true,
       });
@@ -394,11 +406,11 @@ it.each(["own cancellation", "foreign AbortError", "cleanup failure"])(
       const restored = new McpOperationService(
         f.reportError,
         Date.now,
-        persistence,
+        jobPersistenceFixture(persistence),
       );
       try {
         await restored.ready();
-        expect(restored.status(receipt.jobId, "owner")).toMatchObject({
+        expect(await restored.status(receipt.jobId, "owner")).toMatchObject({
           status: "cancelled",
           requestId: receipt.requestId,
           result: { exportPages: { completed: 1, total: 3 } },

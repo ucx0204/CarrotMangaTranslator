@@ -1,3 +1,7 @@
+import {
+  MCP_IMPORT_MAX_PAGES,
+  MCP_IMPORT_MAX_CHAPTERS,
+} from "./mcpImportLimits";
 import { z } from "zod/v4";
 
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
@@ -12,9 +16,9 @@ const digest = z
 export const McpImportMappingReviewSchema = z
   .object({
     selectionFingerprint: sha256,
-    itemKeys: z.array(sha256).min(1).max(50),
-    maxChapters: z.number().int().min(1).max(10),
-    maxPages: z.number().int().min(1).max(50),
+    itemKeys: z.array(sha256).min(1).max(MCP_IMPORT_MAX_PAGES),
+    maxChapters: z.number().int().min(1).max(MCP_IMPORT_MAX_CHAPTERS),
+    maxPages: z.number().int().min(1).max(MCP_IMPORT_MAX_PAGES),
   })
   .strict()
   .refine(
@@ -42,7 +46,7 @@ export const McpImportPublicationMetadataSchema = z
           .strict(),
       )
       .min(1)
-      .max(10),
+      .max(MCP_IMPORT_MAX_CHAPTERS),
   })
   .strict()
   .refine(
@@ -55,7 +59,10 @@ export const McpImportPageMappingSchema = z
   .object({
     version: z.literal(1),
     selectionFingerprint: sha256,
-    chapterPageCounts: z.array(z.number().int().min(0).max(50)).min(1).max(10),
+    chapterPageCounts: z
+      .array(z.number().int().min(0).max(MCP_IMPORT_MAX_PAGES))
+      .min(1)
+      .max(MCP_IMPORT_MAX_CHAPTERS),
     sourceArchiveSha256: sha256.optional(),
     /** Legacy mappings remain inspectable; new composite imports require this publication proof. */
     publication: McpImportPublicationMetadataSchema.optional(),
@@ -65,7 +72,11 @@ export const McpImportPageMappingSchema = z
           .object({
             itemKey: sha256,
             chapterIndex: z.number().int().min(0).max(9),
-            pageIndex: z.number().int().min(0).max(49),
+            pageIndex: z
+              .number()
+              .int()
+              .min(0)
+              .max(MCP_IMPORT_MAX_PAGES - 1),
             source: digest,
             original: digest,
             page: z
@@ -96,7 +107,7 @@ export const McpImportPageMappingSchema = z
           ),
       )
       .min(1)
-      .max(50),
+      .max(MCP_IMPORT_MAX_PAGES),
   })
   .strict()
   .refine((value) => {

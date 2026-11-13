@@ -70,10 +70,7 @@ async function outputSyncNativeClient(root, app, editing, native, credentials) {
       outputSync: native,
       preferences: outputSyncPreferences,
       retentionCodec: new McpSecureStore(root).retentionCodec(),
-      jobPersistence: {
-        load: () => journal.readJobJournal(),
-        save: (/** @type {unknown} */ value) => journal.writeJobJournal(value),
-      },
+      jobPersistence: journal.jobPersistence(),
       reportError: (/** @type {unknown} */ error) => errors.push(error),
     });
     assert.ok(session);
@@ -115,7 +112,18 @@ async function outputSyncNativeClient(root, app, editing, native, credentials) {
       errors,
       credentials: identity,
       close,
-      journal: () => journal.readJobJournal(),
+      journal: async () => {
+        const store = journal.jobPersistence();
+        const summaries = await store.open();
+        return {
+          version: 1,
+          records: await Promise.all(
+            summaries.map((/** @type {{id:string}} */ item) =>
+              store.read(item.id),
+            ),
+          ),
+        };
+      },
       revoke: () => authorization.revoke(identity.connectionId),
     };
   } catch (error) {

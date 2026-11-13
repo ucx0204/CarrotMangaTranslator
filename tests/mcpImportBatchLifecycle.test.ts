@@ -155,7 +155,7 @@ it("never advertises final completion before the encrypted final checkpoint fini
     );
     await entered.promise;
     // This getter may wait for a library read lock; observe the existing app job as well.
-    const jobs = f.current().operations.list("import-owner", 0, 25);
+    const jobs = await f.current().operations.list("import-owner", 0, 25);
     expect(jobs.jobs[0].status).toBe("running");
     await expect(
       f.invoke("carrot_discard_import_batch", { id: plan.id, confirm: true }),

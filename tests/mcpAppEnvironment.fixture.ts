@@ -19,7 +19,7 @@ export async function mcpAppEnvironment(nativeImage: unknown = {}) {
   vi.stubEnv("MANGA_TRANSLATOR_DATA_ROOT", root);
   vi.resetModules();
   vi.doMock("electron", () => ({
-    app: { isPackaged: true, getPath: () => root },
+    app: { isPackaged: true, getPath: () => root, getVersion: () => "test" },
     nativeImage,
   }));
   return {

@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { McpOperationService } from "../src/main/application/mcpOperationService";
@@ -30,7 +31,7 @@ const target = () => ({
 });
 async function settle(service: McpOperationService, id: string) {
   for (let i = 0; i < 200; i++) {
-    const job = service.status(id, "owner");
+    const job = await service.status(id, "owner");
     if (job.status !== "running") return job;
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
@@ -107,7 +108,11 @@ it("restores source-size receipts without restoring stale measurements", async (
       disk = structuredClone(value);
     },
   };
-  const service = new McpOperationService(vi.fn(), () => 1000, persistence);
+  const service = new McpOperationService(
+    vi.fn(),
+    () => 1000,
+    jobPersistenceFixture(persistence),
+  );
   const request = target();
   const input = {
     owner: "owner",
@@ -122,16 +127,24 @@ it("restores source-size receipts without restoring stale measurements", async (
   await service.close();
   expect(JSON.stringify(disk)).not.toContain(observation.sourceImageSha256);
   expect(parseMcpJobJournal(disk)[0].kind).toBe("sourceSize");
-  const restored = new McpOperationService(vi.fn(), () => 1000, persistence);
+  const restored = new McpOperationService(
+    vi.fn(),
+    () => 1000,
+    jobPersistenceFixture(persistence),
+  );
   try {
     await restored.ready();
-    expect(restored.status(receipt.jobId, "owner").result).toMatchObject({
+    expect(
+      (await restored.status(receipt.jobId, "owner")).result,
+    ).toMatchObject({
       observationExpired: true,
       pagesChanged: 0,
     });
     expect((await restored.start(input)).jobId).toBe(receipt.jobId);
     expect(input.execute).toHaveBeenCalledOnce();
-    expect(() => restored.status(receipt.jobId, "different-owner")).toThrow();
+    await expect(
+      async () => await restored.status(receipt.jobId, "different-owner"),
+    ).rejects.toThrow();
   } finally {
     await restored.close();
   }

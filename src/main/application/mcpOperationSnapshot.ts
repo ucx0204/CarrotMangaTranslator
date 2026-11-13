@@ -1,5 +1,5 @@
 import {
-  parseMcpJobJournal,
+  parseMcpStoredJob,
   persistedMcpJobResult,
   type McpStoredJob,
 } from "./mcpJobJournal";
@@ -10,8 +10,8 @@ type SnapshotEntry = Omit<McpStoredJob, "parameters" | "kind" | "result"> & {
   controller: AbortController;
 };
 
-export function snapshotMcpEntries(entries: Iterable<SnapshotEntry>) {
-  const records = [...entries].map((entry) => ({
+export function snapshotMcpEntry(entry: SnapshotEntry): McpStoredJob {
+  return parseMcpStoredJob({
     ...(entry.compacted ? { compacted: entry.compacted } : {}),
     id: entry.id,
     owner: entry.owner,
@@ -27,6 +27,5 @@ export function snapshotMcpEntries(entries: Iterable<SnapshotEntry>) {
     finishedAt: entry.finishedAt,
     cancellationRequested:
       entry.cancellationRequested || entry.controller.signal.aborted,
-  }));
-  return { version: 1, records: parseMcpJobJournal({ version: 1, records }) };
+  });
 }

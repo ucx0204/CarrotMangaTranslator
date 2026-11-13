@@ -1,3 +1,4 @@
+import { MCP_IMPORT_MAX_PAGES } from "../../shared/mcpImportLimits";
 import type { McpUploadedImport } from "../../shared/mcpFileUploads";
 import type { McpFileUploadStore } from "./mcpFileUploadStore";
 import { verifyUploadFile } from "./mcpImageUploadFiles";
@@ -198,7 +199,10 @@ export class McpLibraryImportSources {
     try {
       try {
         context.assertAuthorized();
-        if (!result.candidates.length || result.candidates.length > 500)
+        if (
+          !result.candidates.length ||
+          result.candidates.length > MCP_IMPORT_MAX_PAGES
+        )
           throw new McpEditError(
             "invalid_edit",
             "Web preview requires one to five hundred candidates. It was not silently truncated.",
@@ -276,7 +280,10 @@ async function chooseNativeFiles(input: McpChooseImport): Promise<string[]> {
   return result.canceled ? [] : result.filePaths;
 }
 function validateLocalSelection(input: McpChooseImport, paths: string[]) {
-  if (paths.length > 500 || (input.kind !== "images" && paths.length !== 1))
+  if (
+    paths.length > MCP_IMPORT_MAX_PAGES ||
+    (input.kind !== "images" && paths.length !== 1)
+  )
     throw new McpEditError(
       "invalid_edit",
       "Choose one container/folder or at most five hundred image files.",

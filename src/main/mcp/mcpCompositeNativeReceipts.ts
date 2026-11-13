@@ -8,7 +8,9 @@ import type {
 import type { McpCompositeChildReference } from "../../shared/mcpCompositeWorkflow";
 import type { McpOperationService } from "../application/mcpOperationService";
 
-export type CompositeNativeJob = ReturnType<McpOperationService["status"]>;
+export type CompositeNativeJob = Awaited<
+  ReturnType<McpOperationService["status"]>
+>;
 export const compositeNativeJobId = z.object({ jobId: z.uuid() });
 
 export function compositeChildReference(

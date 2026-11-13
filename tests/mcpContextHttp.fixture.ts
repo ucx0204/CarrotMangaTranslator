@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { vi } from "vitest";
 import { recoveryLibrary } from "./mcpErasureRecovery.fixture";
@@ -55,7 +56,7 @@ export async function contextHttpFixture() {
   const operations = new McpOperationService(
     (error) => errors.push(error),
     Date.now,
-    persistence,
+    jobPersistenceFixture(persistence),
   );
   // Only the internet/model boundary is substituted; storage, leases, result
   // conversion, authorization, JSON-RPC and transaction publication are real.
@@ -188,7 +189,7 @@ export async function contextHttpFixture() {
       const next = new McpOperationService(
         (error) => errors.push(error),
         Date.now,
-        persistence,
+        jobPersistenceFixture(persistence),
       );
       await next.ready();
       return next;

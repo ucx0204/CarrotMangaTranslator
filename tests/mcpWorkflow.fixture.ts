@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { vi } from "vitest";
@@ -55,12 +56,16 @@ export async function workflowFixture() {
   };
   let journal: unknown = null;
   const open = async () => {
-    const operations = new McpOperationService(reportError, Date.now, {
-      load: async () => structuredClone(journal),
-      save: async (value) => {
-        journal = structuredClone(value);
-      },
-    });
+    const operations = new McpOperationService(
+      reportError,
+      Date.now,
+      jobPersistenceFixture({
+        load: async () => structuredClone(journal),
+        save: async (value) => {
+          journal = structuredClone(value);
+        },
+      }),
+    );
     await operations.ready();
     const selection = createMcpSelectionAnalysisSession(
       f.app,

@@ -31,7 +31,7 @@ it.each(["txt", "csv", "tsv"] as const)(
       const accepted = await f.apply(preview.batchId);
       await pause.reached;
       expect(f.handoffPages).toEqual(["page"]);
-      expect(f.operations.status(accepted.jobId, f.owner).status).toBe(
+      expect((await f.operations.status(accepted.jobId, f.owner)).status).toBe(
         "running",
       );
       expect(() =>

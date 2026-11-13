@@ -14,7 +14,9 @@ it("replays the retained run even after the separate job journal is lost", async
     await f.current().operations.close();
     await f.persistence.save({ version: 1, records: [] });
     await f.restart();
-    expect(f.current().operations.list("import-owner", 0, 25).total).toBe(0);
+    expect(
+      (await f.current().operations.list("import-owner", 0, 25)).total,
+    ).toBe(0);
     const replayed = await f.settle(
       await f.invoke("carrot_run_import_batch", result.request),
     );

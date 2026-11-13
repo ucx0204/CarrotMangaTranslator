@@ -197,7 +197,7 @@ it("retains selected-page leases until cancellation cleanup settles and publishe
     const id = String(receipt.jobId);
     await vi.waitFor(() => expect(f.release).toHaveBeenCalledOnce());
     await f.operations.cancel(id, f.owner);
-    expect(f.operations.status(id, f.owner).status).toBe("running");
+    expect((await f.operations.status(id, f.owner)).status).toBe("running");
     expect(f.app.jobs.pageHandoffs.activities).toHaveLength(2);
     expect(f.app.jobs.all).toHaveLength(1);
     finish();

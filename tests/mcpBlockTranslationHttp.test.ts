@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { createMcpTestGrant } from "./mcpOAuthGrant.fixture";
@@ -44,7 +45,11 @@ async function fixture() {
       journal = structuredClone(value);
     },
   };
-  const operations = new McpOperationService(() => {}, Date.now, persistence);
+  const operations = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(persistence),
+  );
   const tools = createMcpOperationTools(operations, {
     blockTranslation: createMcpBlockTranslationExecutor(app, f.runtime),
   });
@@ -119,7 +124,11 @@ async function fixture() {
     },
     stored: () => journal,
     restart: async () => {
-      const next = new McpOperationService(() => {}, Date.now, persistence);
+      const next = new McpOperationService(
+        () => {},
+        Date.now,
+        jobPersistenceFixture(persistence),
+      );
       await next.ready();
       return next;
     },
@@ -192,10 +201,12 @@ it("composes the real executor, polls metadata, applies only translated text, an
     const next = await f.restart();
     const owner = f.provider.connectionIdFor(`Bearer ${f.full}`);
     if (!owner) throw new Error("Expected owner");
-    expect(next.status(jobId, owner).result).toMatchObject({
+    expect((await next.status(jobId, owner)).result).toMatchObject({
       proposalExpired: true,
     });
-    expect(next.status(jobId, owner).result?.blockTranslation).toBeUndefined();
+    expect(
+      (await next.status(jobId, owner)).result?.blockTranslation,
+    ).toBeUndefined();
     await next.close();
     expect(f.jobs.gate.activities).toEqual([]);
   } finally {

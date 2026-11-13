@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import {
@@ -17,7 +18,11 @@ it.each(["flux-klein", "lama-manga", "aot-inpainting"] as const)(
     const { createMcpOperationTools } =
       await import("../src/main/mcp/mcpOperationTools");
     const store = storage();
-    const service = new McpOperationService(() => {}, Date.now, store);
+    const service = new McpOperationService(
+      () => {},
+      Date.now,
+      jobPersistenceFixture(store),
+    );
     const execute = vi.fn<McpOperationExecutor>(async () => ({
       pagesChanged: 1,
       blocksErased: 1,
@@ -36,7 +41,11 @@ it.each(["flux-klein", "lama-manga", "aot-inpainting"] as const)(
     expect((await settled(service, receipt.jobId)).status).toBe("completed");
     expect(execute.mock.calls[0]?.[0]).toEqual(parameters);
     await service.close();
-    const restarted = new McpOperationService(() => {}, Date.now, store);
+    const restarted = new McpOperationService(
+      () => {},
+      Date.now,
+      jobPersistenceFixture(store),
+    );
     try {
       const replay = await restarted.start({
         ...input(),
@@ -63,7 +72,11 @@ it("preserves the selected local model when recovering a failed job after restar
     ...request.parameters,
     localModel: "aot-inpainting" as const,
   };
-  const service = new McpOperationService(() => {}, Date.now, store);
+  const service = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   const receipt = await service.start({
     ...request,
     kind: "erase",
@@ -74,11 +87,19 @@ it("preserves the selected local model when recovering a failed job after restar
   });
   expect((await settled(service, receipt.jobId)).status).toBe("failed");
   await service.close();
-  const restarted = new McpOperationService(() => {}, Date.now, store);
+  const restarted = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   try {
     await restarted.ready();
     expect(
-      restarted.retryTarget(receipt.jobId, "grant-a", parameters.revision),
+      await restarted.retryTarget(
+        receipt.jobId,
+        "grant-a",
+        parameters.revision,
+      ),
     ).toEqual({
       kind: "erase",
       target: parameters,
@@ -118,7 +139,7 @@ function storage(initial: unknown = null) {
 }
 async function settled(service: McpOperationService, id: string) {
   for (let i = 0; i < 200; i++) {
-    const result = service.status(id, "grant-a");
+    const result = await service.status(id, "grant-a");
     if (result.status !== "running") return result;
     await tick();
   }
@@ -128,30 +149,39 @@ async function settled(service: McpOperationService, id: string) {
 it("persists completion and exact request identity across new service instances", async () => {
   const store = storage();
   const request = input();
-  const first = new McpOperationService(() => {}, Date.now, store);
+  const first = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   const receipt = await first.start(request);
   expect((await settled(first, receipt.jobId)).persistence).toBe("durable");
   await first.close();
-  const restarted = new McpOperationService(() => {}, Date.now, store);
+  const restarted = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   await restarted.ready();
   expect((await restarted.start(request)).jobId).toBe(receipt.jobId);
   expect(request.execute).toHaveBeenCalledOnce();
-  expect(restarted.list("grant-b", 0, 10).jobs).toEqual([]);
-  expect(() =>
-    restarted.retryTarget(
-      receipt.jobId,
-      "grant-a",
-      request.parameters.revision,
-    ),
-  ).toThrow(/Only failed/);
-  const listed = restarted.list("grant-a", 0, 10);
+  expect((await restarted.list("grant-b", 0, 10)).jobs).toEqual([]);
+  await expect(
+    async () =>
+      await restarted.retryTarget(
+        receipt.jobId,
+        "grant-a",
+        request.parameters.revision,
+      ),
+  ).rejects.toThrow(/Only failed/);
+  const listed = await restarted.list("grant-a", 0, 10);
   expect(listed.total).toBe(1);
   const listedResult = listed.jobs[0].result;
   if (!listedResult) throw new Error("Missing saved result");
   listedResult.blockIds = [];
-  expect(restarted.status(receipt.jobId, "grant-a").result?.blockIds).toEqual([
-    "block",
-  ]);
+  expect(
+    (await restarted.status(receipt.jobId, "grant-a")).result?.blockIds,
+  ).toEqual(["block"]);
   await expect(
     restarted.start({
       ...request,
@@ -181,7 +211,11 @@ it("does not execute or acknowledge a new job until its durable receipt has comm
     }
     await originalSave(value);
   });
-  const service = new McpOperationService(() => {}, Date.now, store);
+  const service = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   const request = input();
   const start = service.start(request);
   await writing;
@@ -207,38 +241,48 @@ it("marks crash-time running records interrupted without automatically rerunning
       return { status: "saved", blockIds: ["block"] };
     }),
   );
-  const original = new McpOperationService(() => {}, Date.now, store);
+  const original = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   const receipt = await original.start(request);
   const recoveredStore = storage(store.snapshot());
-  const recovered = new McpOperationService(() => {}, Date.now, recoveredStore);
+  const recovered = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(recoveredStore),
+  );
   try {
     await recovered.ready();
-    const job = recovered.status(receipt.jobId, "grant-a");
+    const job = await recovered.status(receipt.jobId, "grant-a");
     expect(job.status).toBe("interrupted");
     expect(job.error?.message).toMatch(/Inspect the saved page/);
     expect((await recovered.start(request)).jobId).toBe(receipt.jobId);
     expect(request.execute).toHaveBeenCalledOnce();
     expect(
-      recovered.retryTarget(
+      await recovered.retryTarget(
         receipt.jobId,
         "grant-a",
         request.parameters.revision,
       ),
     ).toEqual({ kind: "ocr", target: request.parameters });
-    expect(() =>
-      recovered.retryTarget(
-        receipt.jobId,
-        "grant-b",
-        request.parameters.revision,
-      ),
-    ).toThrow(/not found/);
-    expect(() =>
-      recovered.retryTarget(
-        receipt.jobId,
-        "grant-a",
-        "page-v1:1111111111111111",
-      ),
-    ).toThrow(/original target revision/);
+    await expect(
+      async () =>
+        await recovered.retryTarget(
+          receipt.jobId,
+          "grant-b",
+          request.parameters.revision,
+        ),
+    ).rejects.toThrow(/not found/);
+    await expect(
+      async () =>
+        await recovered.retryTarget(
+          receipt.jobId,
+          "grant-a",
+          "page-v1:1111111111111111",
+        ),
+    ).rejects.toThrow(/original target revision/);
   } finally {
     release();
     await original.close();
@@ -259,7 +303,11 @@ it("does not persist temporary output links, raw image contents or private paths
       bytes: 42,
     }),
   };
-  const first = new McpOperationService(() => {}, Date.now, store);
+  const first = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   const receipt = await first.start(request);
   expect((await settled(first, receipt.jobId)).result).toEqual({
     kind: "rendered-page-png",
@@ -269,9 +317,13 @@ it("does not persist temporary output links, raw image contents or private paths
   const text = JSON.stringify(store.snapshot());
   for (const secret of ["secret.png", "C:/private", "sensitive"])
     expect(text).not.toContain(secret);
-  const restored = new McpOperationService(() => {}, Date.now, store);
+  const restored = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   await restored.ready();
-  expect(restored.status(receipt.jobId, "grant-a").result).toEqual({
+  expect((await restored.status(receipt.jobId, "grant-a")).result).toEqual({
     kind: "rendered-page-png",
     bytes: 42,
     artifactExpired: true,
@@ -282,11 +334,15 @@ it("does not persist temporary output links, raw image contents or private paths
 it("rejects initial journal write failure before any executor side effect", async () => {
   const store = storage();
   store.save.mockRejectedValue(new Error("disk unavailable"));
-  const service = new McpOperationService(() => {}, Date.now, store);
+  const service = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   const request = input();
   await expect(service.start(request)).rejects.toThrow(/disk unavailable/);
   expect(request.execute).not.toHaveBeenCalled();
-  expect(service.list("grant-a", 0, 10).total).toBe(0);
+  expect((await service.list("grant-a", 0, 10)).total).toBe(0);
   await expect(service.start(input())).rejects.toThrow(
     /storage is unavailable/,
   );
@@ -300,7 +356,7 @@ it("reports uncertain final persistence without pretending committed page work w
   const service = new McpOperationService(
     (e) => errors.push(e),
     Date.now,
-    store,
+    jobPersistenceFixture(store),
   );
   const receipt = await service.start({
     ...input(),
@@ -327,7 +383,11 @@ it("reports uncertain final persistence without pretending committed page work w
 it("does not erase or replace corrupt journals during failed startup", async () => {
   const original = { version: 1, records: [{ id: "bad" }] };
   const store = storage(original);
-  const service = new McpOperationService(() => {}, Date.now, store);
+  const service = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   await expect(service.ready()).rejects.toThrow();
   await expect(service.start(input())).rejects.toThrow();
   expect(store.save).not.toHaveBeenCalled();
@@ -341,7 +401,7 @@ it("validates record identity and removes only expired settled receipts on resta
   const first = new McpOperationService(
     () => {},
     () => now,
-    store,
+    jobPersistenceFixture(store),
   );
   const request = input();
   const receipt = await first.start(request);
@@ -361,16 +421,20 @@ it("validates record identity and removes only expired settled receipts on resta
   const restored = new McpOperationService(
     () => {},
     () => now,
-    store,
+    jobPersistenceFixture(store),
   );
   await restored.ready();
-  expect(restored.list("grant-a", 0, 10).total).toBe(0);
+  expect((await restored.list("grant-a", 0, 10)).total).toBe(0);
   await restored.close();
 });
 
 it("blocks future admission when malformed final receipt data cannot be serialized", async () => {
   const store = storage();
-  const service = new McpOperationService(() => {}, Date.now, store);
+  const service = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   const receipt = await service.start({
     ...input(),
     execute: async () => ({ blocksErased: -1 }),
@@ -385,7 +449,11 @@ it("blocks future admission when malformed final receipt data cannot be serializ
 });
 it("does not label an explicitly failed app result completed", async () => {
   const store = storage();
-  const service = new McpOperationService(() => {}, Date.now, store);
+  const service = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(store),
+  );
   const receipt = await service.start({
     ...input(),
     execute: async () => ({ status: "failed" }),

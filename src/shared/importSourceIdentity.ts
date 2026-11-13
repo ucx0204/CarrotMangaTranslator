@@ -1,3 +1,4 @@
+import { MCP_IMPORT_MAX_PAGES } from "./mcpImportLimits";
 import { z } from "zod";
 
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
@@ -7,7 +8,7 @@ export const ImportSourceIdentitySchema = z
     version: z.literal(1),
     basis: z.literal("selected-input-bytes"),
     selectionSha256: sha256,
-    pageCount: z.number().int().min(1).max(50),
+    pageCount: z.number().int().min(1).max(MCP_IMPORT_MAX_PAGES),
     urlSha256: sha256.optional(),
   })
   .strict();

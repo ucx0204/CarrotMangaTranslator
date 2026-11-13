@@ -1,3 +1,7 @@
+import {
+  MCP_IMPORT_MAX_PAGES,
+  MCP_IMPORT_MAX_CHAPTERS,
+} from "../../shared/mcpImportLimits";
 import { extname } from "node:path";
 import { hashStableValue } from "../../shared/blockFingerprint";
 import type { LibraryChapter } from "../../shared/libraryTypes";
@@ -107,10 +111,10 @@ export function selectWorkFileChapters(
       );
     pageCount += chapter.pageCount;
   }
-  if (!pageCount || pageCount > 50)
+  if (!pageCount || pageCount > MCP_IMPORT_MAX_PAGES)
     throw new McpEditError(
       "invalid_edit",
-      "Select complete chapters totaling one to fifty pages.",
+      "Select complete chapters totaling one to 500 pages.",
     );
   return pageCount;
 }
@@ -135,7 +139,10 @@ async function summarizePackage(
   signal?: AbortSignal,
 ) {
   guard();
-  if (session.manifest.chapterOrder.length > 10 || session.entries.size > 2000)
+  if (
+    session.manifest.chapterOrder.length > MCP_IMPORT_MAX_CHAPTERS ||
+    session.entries.size > 2000
+  )
     throw new McpEditError(
       "invalid_edit",
       "Work-file review supports at most ten chapters and 2,000 file entries; nothing was truncated.",
@@ -157,10 +164,10 @@ async function summarizePackage(
     const chapter = await session.readChapter(id, signal);
     guard();
     pageCount += chapter.pages.length;
-    if (pageCount > 50)
+    if (pageCount > MCP_IMPORT_MAX_PAGES)
       throw new McpEditError(
         "invalid_edit",
-        "Work-file review supports at most fifty pages; no pages were discarded.",
+        "Work-file review supports at most 500 pages; no pages were discarded.",
       );
     records.push(chapter);
     chapters.push({

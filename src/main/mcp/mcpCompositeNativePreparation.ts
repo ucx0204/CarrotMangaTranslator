@@ -93,7 +93,8 @@ export async function costCompositeTypographyPreparation(
   );
   await operations.ready();
   guard();
-  const job = operations.status(input.analysisJobId, record.owner);
+  const job = await operations.status(input.analysisJobId, record.owner);
+  guard();
   const observation = McpTypographyAnalysisObservationSchema.safeParse(
     job.result?.typographyAnalysis,
   );

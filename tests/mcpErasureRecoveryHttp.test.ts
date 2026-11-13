@@ -94,8 +94,10 @@ async function fixture() {
     execute: async () => ({ pagesChanged: 1, blocksErased: 1 }),
   });
   recovery.remember(started.jobId, f.transactionId);
-  await vi.waitFor(() =>
-    expect(operations.status(started.jobId, owner).status).toBe("completed"),
+  await vi.waitFor(async () =>
+    expect((await operations.status(started.jobId, owner)).status).toBe(
+      "completed",
+    ),
   );
   const errors: unknown[] = [];
   const server = await startMcpHttpServer({

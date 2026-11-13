@@ -1,3 +1,7 @@
+import {
+  MCP_IMPORT_MAX_PAGES,
+  MCP_IMPORT_MAX_CHAPTERS,
+} from "./mcpImportLimits";
 import { z } from "zod/v4";
 import {
   McpImportPageMappingSchema,
@@ -17,7 +21,7 @@ const id = McpImportTargetSchema.shape.workId;
 const chapters = z
   .array(z.object({ packageChapterId: packageId, title }).strict())
   .min(1)
-  .max(10)
+  .max(MCP_IMPORT_MAX_CHAPTERS)
   .refine(
     (items) =>
       new Set(items.map((item) => item.packageChapterId)).size === items.length,
@@ -75,22 +79,22 @@ export const McpWorkFileReviewOutputSchema = z
     sourceBytes: count.max(128 * 1024 * 1024),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     workTitle: z.string().max(240),
-    chapterCount: count.min(1).max(10),
-    pageCount: count.min(1).max(50),
+    chapterCount: count.min(1).max(MCP_IMPORT_MAX_CHAPTERS),
+    pageCount: count.min(1).max(MCP_IMPORT_MAX_PAGES),
     chapters: z
       .array(
         z
           .object({
             packageChapterId: packageId,
             title: z.string().max(240),
-            pageCount: count.max(50),
+            pageCount: count.max(MCP_IMPORT_MAX_PAGES),
             blockCount: count,
-            processedPageCount: count.max(50),
+            processedPageCount: count.max(MCP_IMPORT_MAX_PAGES),
           })
           .strict(),
       )
       .min(1)
-      .max(10),
+      .max(MCP_IMPORT_MAX_CHAPTERS),
     hasStyleGuide: z.boolean(),
     uncompressedBytes: count.max(256 * 1024 * 1024),
     entryCount: count.max(2000),
@@ -109,9 +113,9 @@ export const McpWorkFileReceiptSchema = z
     snapshot,
     status: z.literal("imported"),
     workId: id,
-    chapterIds: z.array(z.uuid()).min(1).max(10),
-    packageChapterIds: z.array(packageId).min(1).max(10),
-    pageCount: count.min(1).max(50),
+    chapterIds: z.array(z.uuid()).min(1).max(MCP_IMPORT_MAX_CHAPTERS),
+    packageChapterIds: z.array(packageId).min(1).max(MCP_IMPORT_MAX_CHAPTERS),
+    pageCount: count.min(1).max(MCP_IMPORT_MAX_PAGES),
     createdAt: z.number().int().positive(),
     expiresAt: z.number().int().positive(),
     retention: z.literal("seven-days"),
@@ -161,12 +165,12 @@ export const mcpWorkFileOutputs = {
             .object({
               packageChapterId: packageId,
               title: z.string().max(4096),
-              pageCount: count.max(50),
+              pageCount: count.max(MCP_IMPORT_MAX_PAGES),
             })
             .strict(),
         )
         .min(1)
-        .max(10),
+        .max(MCP_IMPORT_MAX_CHAPTERS),
       referenceIssues:
         mcpChapterMoveOutputs.carrot_preview_chapter_move.shape.referenceIssues,
       mappedReferences: count,

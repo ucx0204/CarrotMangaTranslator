@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { hashStableValue } from "../src/shared/blockFingerprint";
@@ -137,7 +138,7 @@ it("restores an expired working-file receipt without reviving its URL or executi
     new McpOperationService(
       (error) => errors.push(error),
       () => 100,
-      persistence,
+      jobPersistenceFixture(persistence),
     );
   const first = open();
   let restored: McpOperationService | undefined;
@@ -161,14 +162,14 @@ it("restores an expired working-file receipt without reviving its URL or executi
       new AbortController().signal,
     );
     expect(completed.status).toBe("completed");
-    expect(first.file(accepted.jobId, "owner").url).toBe(f.result.url);
+    expect((await first.file(accepted.jobId, "owner")).url).toBe(f.result.url);
     expect(JSON.stringify(stored)).not.toMatch(
       /C:\/private|mcp-artifacts|"url"/,
     );
     await first.close();
     restored = open();
     await restored.ready();
-    const receipt = restored.status(accepted.jobId, "owner");
+    const receipt = await restored.status(accepted.jobId, "owner");
     expect(receipt).toMatchObject({
       kind: "workFileExport",
       status: "completed",
@@ -184,8 +185,12 @@ it("restores an expired working-file receipt without reviving its URL or executi
     expect(JSON.stringify(receipt)).not.toMatch(
       /C:\/private|mcp-artifacts|"url"/,
     );
-    expect(() => restored?.file(accepted.jobId, "owner")).toThrow();
-    expect(() => restored?.status(accepted.jobId, "other-owner")).toThrow();
+    await expect(
+      async () => await restored?.file(accepted.jobId, "owner"),
+    ).rejects.toThrow();
+    await expect(
+      async () => await restored?.status(accepted.jobId, "other-owner"),
+    ).rejects.toThrow();
     expect((await restored.start(request)).jobId).toBe(accepted.jobId);
     expect(execute).toHaveBeenCalledOnce();
     expect(errors).toEqual([]);

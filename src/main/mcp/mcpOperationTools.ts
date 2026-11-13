@@ -95,7 +95,8 @@ function createJobControlTool(
       const owner = principal(context);
       const result = cancel
         ? await operations.cancel(parsed.data.jobId, owner)
-        : operations.status(parsed.data.jobId, owner);
+        : await operations.status(parsed.data.jobId, owner);
+      context?.assertAuthorized();
       return textContent(result);
     },
   };

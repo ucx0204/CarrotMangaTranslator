@@ -17,31 +17,34 @@ type Boundary = {
   beforeImage?: () => Promise<void>;
   sourcePath?: string;
 };
-export async function workFileFixture() {
+export async function workFileFixture(pageCount = 2, durableJobs = false) {
   const boundary: Boundary = {};
   const validate = vi.fn(async (path: string) => {
     await boundary.beforeImage?.();
     PNG.sync.read(await readFile(path));
   });
-  const f = await libraryImportFixture({
-    shareImporter: async (request, signal, publication) => {
-      boundary.sourcePath = request.packagePath;
-      const { importWorkShare } =
-        await import("../src/main/library/libraryShareFacade");
-      const { openSharePackageSession } =
-        await import("../src/main/libraryStore/sharePackage");
-      return importWorkShare(request, signal, publication, {
-        openPackage: openSharePackageSession,
-        image: {
-          validateImageFile: validate,
-          convertWebpToPngFile: async () => {
-            throw new Error("PNG-only fixture");
+  const f = await libraryImportFixture(
+    {
+      shareImporter: async (request, signal, publication) => {
+        boundary.sourcePath = request.packagePath;
+        const { importWorkShare } =
+          await import("../src/main/library/libraryShareFacade");
+        const { openSharePackageSession } =
+          await import("../src/main/libraryStore/sharePackage");
+        return importWorkShare(request, signal, publication, {
+          openPackage: openSharePackageSession,
+          image: {
+            validateImageFile: validate,
+            convertWebpToPngFile: async () => {
+              throw new Error("PNG-only fixture");
+            },
           },
-        },
-      });
+        });
+      },
     },
-  });
-  const seeded = await seedWorkFile(f);
+    durableJobs,
+  );
+  const seeded = await seedWorkFile(f, pageCount);
   return {
     ...f,
     ...seeded,
@@ -52,10 +55,17 @@ export async function workFileFixture() {
 }
 async function seedWorkFile(
   f: Awaited<ReturnType<typeof libraryImportFixture>>,
+  pageCount: number,
 ) {
   const source: LibraryChapter = JSON.parse(
     await readFile(f.chapterPath, "utf8"),
   );
+  if (pageCount !== 2)
+    source.pages = Array.from({ length: pageCount }, (_, index) => ({
+      ...structuredClone(source.pages[index % 2]),
+      id: `page-${index}`,
+    }));
+  if (pageCount !== 2) source.pageOrder = source.pages.map((page) => page.id);
   source.pages[0].blockOrder = source.pages[0].blocks
     .map((block) => block.id)
     .reverse();

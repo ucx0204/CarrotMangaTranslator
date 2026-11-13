@@ -105,7 +105,7 @@ it("serves versioned sound-effect metadata to read-only OAuth and rejects malfor
     const job = await call("carrot_prepare_sound_effect_batch", input, editor);
     expect(job.result.isError).toBe(false);
     const jobId = job.result.structuredContent.jobId;
-    const owner = f.operations.list("unused", 0, 1);
+    const owner = await f.operations.list("unused", 0, 1);
     expect(owner.total).toBe(0);
     let planId = "";
     await vi.waitFor(

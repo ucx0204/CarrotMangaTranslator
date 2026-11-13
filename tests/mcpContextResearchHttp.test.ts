@@ -89,12 +89,14 @@ it("returns only research metadata until explicit review and applies selected co
     const next = await f.restart();
     const owner = f.provider.connectionIdFor(`Bearer ${f.full}`);
     if (!owner) throw new Error("Missing fixture owner");
-    expect(next.status(jobId, owner).result).toMatchObject({
+    expect((await next.status(jobId, owner)).result).toMatchObject({
       proposalExpired: true,
       queryCount: 1,
       sourceCount: 1,
     });
-    expect(next.status(jobId, owner).result?.contextResearch).toBeUndefined();
+    expect(
+      (await next.status(jobId, owner)).result?.contextResearch,
+    ).toBeUndefined();
     await next.close();
     expect(f.jobs.gate.activities).toEqual([]);
   } finally {

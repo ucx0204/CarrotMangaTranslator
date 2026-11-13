@@ -326,7 +326,7 @@ it.each([false, true])(
         expect(saved).toBe(true);
       } else {
         await new Promise<void>((resolve) => setTimeout(resolve, 30));
-        expect(f.operations.status(jobId, owner).status).toBe("failed");
+        expect((await f.operations.status(jobId, owner)).status).toBe("failed");
         expect(saved).toBe(false);
         expect(
           (await f.call(renewed.access_token, "carrot_get_job", { jobId }))

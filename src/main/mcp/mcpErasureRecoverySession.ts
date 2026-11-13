@@ -17,7 +17,7 @@ export function createMcpErasureRecoverySession(
   const service = new McpErasureRecoveryService({
     readJob: async (id, owner) => {
       await operations.ready();
-      const job = operations.status(id, owner);
+      const job = await operations.status(id, owner);
       return {
         ...job,
         target: job.target && "pageId" in job.target ? job.target : undefined,

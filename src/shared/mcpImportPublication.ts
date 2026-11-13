@@ -1,3 +1,7 @@
+import {
+  MCP_IMPORT_MAX_PAGES,
+  MCP_IMPORT_MAX_CHAPTERS,
+} from "./mcpImportLimits";
 import { z } from "zod/v4";
 import {
   McpImportCreateSchema,
@@ -23,7 +27,7 @@ export const McpImportBatchPublishSchema = z
     allowNativePreparation: McpImportCreateSchema.shape.allowNativePreparation,
     target: McpImportCreateSchema.shape.target,
     duplicatePolicy: McpImportCreateSchema.shape.duplicatePolicy,
-    items: z.array(selection).min(1).max(10),
+    items: z.array(selection).min(1).max(MCP_IMPORT_MAX_CHAPTERS),
   })
   .strict()
   .superRefine((value, context) => {
@@ -36,14 +40,14 @@ export const McpImportBatchPublishSchema = z
       pages,
     ];
     if (
-      chapters.length > 10 ||
-      pages.length > 50 ||
+      chapters.length > MCP_IMPORT_MAX_CHAPTERS ||
+      pages.length > MCP_IMPORT_MAX_PAGES ||
       groups.some((ids) => new Set(ids).size !== ids.length)
     )
       context.addIssue({
         code: "custom",
         message:
-          "Choose distinct batch items, previews, drafts and pages; at most ten chapters and fifty pages total.",
+          "Choose distinct batch items, previews, drafts and pages; at most ten chapters and 500 pages total.",
       });
   });
 export type McpImportBatchPublish = z.infer<typeof McpImportBatchPublishSchema>;

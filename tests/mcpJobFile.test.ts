@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { McpOperationService } from "../src/main/application/mcpOperationService";
@@ -21,7 +22,7 @@ async function fixture() {
   const operations = new McpOperationService(
     () => {},
     () => now,
-    persistence,
+    jobPersistenceFixture(persistence),
   );
   const store = new McpArtifactStore("https://carrot.test", () => now);
   const chapter = editingChapter();
@@ -70,8 +71,8 @@ async function fixture() {
   const started = await call("carrot_export_page_png", target);
   const jobId = JSON.parse((started.content[0] as { text: string }).text)
     .jobId as string;
-  await vi.waitFor(() =>
-    expect(operations.status(jobId, "owner").status).toBe("completed"),
+  await vi.waitFor(async () =>
+    expect((await operations.status(jobId, "owner")).status).toBe("completed"),
   );
   return {
     operations,
@@ -171,9 +172,9 @@ it.each([
           f.call("carrot_get_job_file", { jobId: f.jobId, includeAttachment }),
         ).rejects.toThrow();
       expect(f.render).toHaveBeenCalledOnce();
-      expect(JSON.stringify(f.operations.status(f.jobId, "owner"))).not.toMatch(
-        /mcp-artifacts|"url"/,
-      );
+      expect(
+        JSON.stringify(await f.operations.status(f.jobId, "owner")),
+      ).not.toMatch(/mcp-artifacts|"url"/);
     } finally {
       await f.close();
     }
@@ -199,15 +200,19 @@ it("requires both scopes and ownership and expires files across restart", async 
           { ...f.context, principalId: "other" },
         ),
       ).rejects.toThrow(/not found/);
-    const restored = new McpOperationService(() => {}, Date.now, f.persistence);
+    const restored = new McpOperationService(
+      () => {},
+      Date.now,
+      jobPersistenceFixture(f.persistence),
+    );
     await restored.ready();
     try {
-      expect(restored.status(f.jobId, "owner").result).toMatchObject({
+      expect((await restored.status(f.jobId, "owner")).result).toMatchObject({
         artifactExpired: true,
       });
-      expect(() => restored.file(f.jobId, "owner")).toThrow(
-        /export the current page/i,
-      );
+      await expect(
+        async () => await restored.file(f.jobId, "owner"),
+      ).rejects.toThrow(/export the current page/i);
     } finally {
       await restored.close();
     }
@@ -235,10 +240,12 @@ it.each(["partial", "failed", "cancelled"])(
     });
     await tick();
     try {
-      expect(() => service.file(job.jobId, "owner")).toThrow();
-      expect(JSON.stringify(service.status(job.jobId, "owner"))).not.toContain(
-        "private.test",
-      );
+      await expect(
+        async () => await service.file(job.jobId, "owner"),
+      ).rejects.toThrow();
+      expect(
+        JSON.stringify(await service.status(job.jobId, "owner")),
+      ).not.toContain("private.test");
     } finally {
       await service.close();
     }
@@ -248,15 +255,19 @@ it.each(["partial", "failed", "cancelled"])(
 it("withholds files until the final receipt is durably saved", async () => {
   let release!: () => void;
   let saves = 0;
-  const service = new McpOperationService(() => {}, Date.now, {
-    load: async () => null,
-    save: async () => {
-      if (++saves === 2)
-        await new Promise<void>((resolve) => {
-          release = resolve;
-        });
-    },
-  });
+  const service = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture({
+      load: async () => null,
+      save: async () => {
+        if (++saves === 2)
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+      },
+    }),
+  );
   const target = {
     chapterId: "chapter",
     pageId: "page",
@@ -276,8 +287,10 @@ it("withholds files until the final receipt is durably saved", async () => {
     }),
   });
   await tick();
-  expect(service.status(job.jobId, "owner").status).toBe("running");
-  expect(() => service.file(job.jobId, "owner")).toThrow();
+  expect((await service.status(job.jobId, "owner")).status).toBe("running");
+  await expect(
+    async () => await service.file(job.jobId, "owner"),
+  ).rejects.toThrow();
   release();
   await service.close();
 });
@@ -335,8 +348,10 @@ it("does not turn malformed internal output metadata into a file attachment", as
       assertAuthorized: () => {},
       execute,
     });
-    await vi.waitFor(() =>
-      expect(operations.status(job.jobId, "owner").status).toBe("completed"),
+    await vi.waitFor(async () =>
+      expect((await operations.status(job.jobId, "owner")).status).toBe(
+        "completed",
+      ),
     );
     const file = createMcpOperationTools(
       operations,

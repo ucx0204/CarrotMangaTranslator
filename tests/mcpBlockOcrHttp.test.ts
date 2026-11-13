@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { createMcpTestGrant } from "./mcpOAuthGrant.fixture";
@@ -72,7 +73,11 @@ async function fixture() {
       journal = structuredClone(value);
     },
   };
-  const operations = new McpOperationService(() => {}, Date.now, persistence);
+  const operations = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(persistence),
+  );
   const tools = createMcpOperationTools(operations, {
     blockOcr: (target, context) =>
       runMcpAppJob(
@@ -154,7 +159,11 @@ async function fixture() {
     },
     stored: () => journal,
     restart: async () => {
-      const restored = new McpOperationService(() => {}, Date.now, persistence);
+      const restored = new McpOperationService(
+        () => {},
+        Date.now,
+        jobPersistenceFixture(persistence),
+      );
       await restored.ready();
       return restored;
     },
@@ -252,10 +261,12 @@ it("observes without saving, applies only the chosen source text, and expires te
     const restored = await f.restart();
     const owner = f.provider.connectionIdFor(`Bearer ${f.full}`);
     if (!owner) throw new Error("Expected owner");
-    expect(restored.status(jobId, owner).result).toMatchObject({
+    expect((await restored.status(jobId, owner)).result).toMatchObject({
       observationExpired: true,
     });
-    expect(restored.status(jobId, owner).result?.blockOcr).toBeUndefined();
+    expect(
+      (await restored.status(jobId, owner)).result?.blockOcr,
+    ).toBeUndefined();
     await restored.close();
     expect(f.jobs.gate.activities).toEqual([]);
   } finally {

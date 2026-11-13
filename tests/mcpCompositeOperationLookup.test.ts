@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { hashStableValue } from "../src/shared/blockFingerprint";
@@ -41,7 +42,11 @@ describe("exact owned native receipt lookup", () => {
       },
     };
     const f = nativeInput();
-    const first = new McpOperationService(() => {}, Date.now, persistence);
+    const first = new McpOperationService(
+      () => {},
+      Date.now,
+      jobPersistenceFixture(persistence),
+    );
     const admitted = await first.start(f.input);
     await first.waitForCompletion(
       admitted.jobId,
@@ -49,7 +54,11 @@ describe("exact owned native receipt lookup", () => {
       new AbortController().signal,
     );
     await first.close();
-    const restored = new McpOperationService(() => {}, Date.now, persistence);
+    const restored = new McpOperationService(
+      () => {},
+      Date.now,
+      jobPersistenceFixture(persistence),
+    );
     try {
       const receipt = await restored.findOwnedOperation("owner", f.reference);
       expect(receipt).toMatchObject({

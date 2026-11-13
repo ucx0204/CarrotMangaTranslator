@@ -1,3 +1,4 @@
+import { McpEditError } from "../application/mcpEditPolicy";
 import {
   mcpContextOutputSchemas,
   mcpContextRevision,
@@ -34,6 +35,11 @@ export async function preflightCompositeImport(
   const { phaseId, action } = McpCompositeImportPreflightSchema.parse(input);
   const review = await reviewImport(options, owner, action, guard);
   guard();
+  if (review.maxPages > 50)
+    throw new McpEditError(
+      "invalid_edit",
+      "Standalone imports support 500 pages; a composite processing scope supports at most 50 pages. Nothing was imported.",
+    );
   return McpCompositeImportPreflightOutputSchema.parse({
     kind: "reviewed-import",
     phaseId,

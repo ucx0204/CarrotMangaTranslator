@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { McpOperationService } from "../src/main/application/mcpOperationService";
@@ -11,7 +12,11 @@ it("restores sound-effect receipts without a usable plan, payload images or impl
       snapshot = structuredClone(value);
     },
   };
-  const service = new McpOperationService(() => {}, Date.now, persistence);
+  const service = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(persistence),
+  );
   const input = McpSoundEffectPrepareSchema.parse({
     chapterId: "chapter",
     pageId: "page",
@@ -45,17 +50,23 @@ it("restores sound-effect receipts without a usable plan, payload images or impl
     assertAuthorized: () => {},
     execute,
   });
-  await vi.waitFor(() =>
-    expect(service.status(receipt.jobId, "owner").status).toBe("completed"),
+  await vi.waitFor(async () =>
+    expect((await service.status(receipt.jobId, "owner")).status).toBe(
+      "completed",
+    ),
   );
   expect(
-    service.status(receipt.jobId, "owner").result?.soundEffectPlan,
+    (await service.status(receipt.jobId, "owner")).result?.soundEffectPlan,
   ).toBeDefined();
   await service.close();
-  const restored = new McpOperationService(() => {}, Date.now, persistence);
+  const restored = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(persistence),
+  );
   try {
     await restored.ready();
-    const result = restored.status(receipt.jobId, "owner");
+    const result = await restored.status(receipt.jobId, "owner");
     expect(result.result?.proposalExpired).toBe(true);
     expect(result.result).not.toHaveProperty("soundEffectPlan");
     expect(result.target).toEqual(input);
@@ -63,7 +74,9 @@ it("restores sound-effect receipts without a usable plan, payload images or impl
     expect(JSON.stringify(snapshot)).not.toMatch(
       /dataUrl|data:image|imagePath/,
     );
-    expect(() => restored.status(receipt.jobId, "other")).toThrow("connection");
+    await expect(
+      async () => await restored.status(receipt.jobId, "other"),
+    ).rejects.toThrow("connection");
   } finally {
     await restored.close();
   }
@@ -95,12 +108,15 @@ it("requires a new explicit sound-effect request rather than generic retry after
         throw new Error("deliberate provider failure");
       },
     });
-    await vi.waitFor(() =>
-      expect(service.status(receipt.jobId, "owner").status).toBe("failed"),
+    await vi.waitFor(async () =>
+      expect((await service.status(receipt.jobId, "owner")).status).toBe(
+        "failed",
+      ),
     );
-    expect(() =>
-      service.retryTarget(receipt.jobId, "owner", parameters.revision),
-    ).toThrow("new explicit request");
+    await expect(
+      async () =>
+        await service.retryTarget(receipt.jobId, "owner", parameters.revision),
+    ).rejects.toThrow("new explicit request");
   } finally {
     await service.close();
   }

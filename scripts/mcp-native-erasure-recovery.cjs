@@ -104,12 +104,13 @@ async function checkNativeErasureRecovery(root, app, editing, target, runtime) {
     });
     const deadline = Date.now() + 30_000;
     while (
-      operations.status(started.jobId, context.principalId).status === "running"
+      (await operations.status(started.jobId, context.principalId)).status ===
+      "running"
     ) {
       assert.ok(Date.now() < deadline, "Erasure must settle");
       await delay(10);
     }
-    const result = operations.status(started.jobId, context.principalId);
+    const result = await operations.status(started.jobId, context.principalId);
     assert.equal(result.status, "completed", JSON.stringify(result));
     assert.ok(historyId);
     const after = await readPage();

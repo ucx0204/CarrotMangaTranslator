@@ -39,7 +39,7 @@ for (const status of ["partial", "failed", "cancelled", "completed"] as const) {
         ),
       ).rejects.toThrow("incomplete");
       expect(execute).toHaveBeenCalledTimes(1);
-      expect(manager.status(id, "owner").result).toMatchObject({
+      expect((await manager.status(id, "owner")).result).toMatchObject({
         status,
         pagesChanged: 1,
       });

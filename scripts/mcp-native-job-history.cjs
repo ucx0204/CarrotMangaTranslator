@@ -9,10 +9,7 @@ function jobPersistence(root) {
     join(root, "out/main/mcp/mcpSecureStore.js"),
   );
   const store = new McpSecureStore(root);
-  return {
-    load: () => store.readJobJournal(),
-    save: (/** @type {unknown} */ snapshot) => store.writeJobJournal(snapshot),
-  };
+  return store.jobPersistence();
 }
 
 /** @param {string} root @param {string} jobId @param {string} expiredUrl */
@@ -55,14 +52,22 @@ async function checkNativeJobHistory(root, jobId, expiredUrl) {
     assert.equal(receipt.result.artifactExpired, true);
     assert.equal(receipt.result.url, undefined);
     assert.equal(receipt.result.kind, "rendered-page-png");
-    assert.deepEqual(service.list("other-client", 0, 100).jobs, []);
-    assert.throws(() => service.status(jobId, "other-client"));
+    assert.deepEqual((await service.list("other-client", 0, 100)).jobs, []);
+    await assert.rejects(service.status(jobId, "other-client"));
     const encrypted = await readFile(
       join(root, "mcp-private/jobs.enc"),
       "utf8",
     );
     assert.equal(encrypted.includes(jobId), false);
-    const plaintext = JSON.stringify(await jobPersistence(root).load());
+    const history = jobPersistence(root);
+    const summaries = await history.open();
+    const plaintext = JSON.stringify(
+      await Promise.all(
+        summaries.map((/** @type {{id:string}} */ item) =>
+          history.read(item.id),
+        ),
+      ),
+    );
     assert.equal(plaintext.includes(expiredUrl), false);
     assert.equal(plaintext.includes(root), false);
     console.log(

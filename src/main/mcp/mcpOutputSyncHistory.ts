@@ -19,7 +19,7 @@ export async function outputSyncHistoricalJob(
   await operations.ready();
   guard();
   try {
-    const job = operations.status(receipt.jobId, owner);
+    const job = await operations.status(receipt.jobId, owner);
     if (
       job.kind !== "outputSync" ||
       job.requestId !== input.requestId ||

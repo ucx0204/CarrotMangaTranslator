@@ -90,8 +90,8 @@ async function inspectJob(
 ) {
   await options.operations.ready();
   guard();
-  const status = options.operations.status(target.jobId, owner);
-  const output = options.operations.outputMetadata(
+  const status = await options.operations.status(target.jobId, owner);
+  const output = await options.operations.outputMetadata(
     target.jobId,
     owner,
     target.pageId,
@@ -106,6 +106,7 @@ async function inspectJob(
     },
     retention: { state: "not_retained", ...unchecked },
   };
+  guard();
   if (!output) return { metadata };
   metadata.artifact = output.artifact;
   const retainedOutputId = output.artifact.retainedOutputId;
@@ -160,7 +161,9 @@ async function inspectRetention(
 
 async function inspectSession(
   artifacts: McpArtifactStore,
-  output: NonNullable<ReturnType<McpOperationService["outputMetadata"]>>,
+  output: NonNullable<
+    Awaited<ReturnType<McpOperationService["outputMetadata"]>>
+  >,
   guard: () => void,
   format: (mime: McpArtifactMime) => void,
 ) {

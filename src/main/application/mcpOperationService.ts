@@ -1,12 +1,17 @@
+import { isDeepStrictEqual } from "node:util";
+import { McpOperationHistory } from "./mcpOperationHistory";
+import type { McpJobPersistence } from "./mcpJobPersistence";
 import {
   findOwnedMcpOperation,
   type McpOwnedOperationRequest,
 } from "./mcpOperationLookup";
 import {
-  restoreMcpOperationEntry,
+  memoryMcpOperationRecord,
+  projectMcpOperation,
+  mcpRetryTarget,
   type McpOperationEntry,
 } from "./mcpOperationState";
-import { snapshotMcpEntries } from "./mcpOperationSnapshot";
+import { snapshotMcpEntry } from "./mcpOperationSnapshot";
 import { randomUUID } from "node:crypto";
 import {
   mcpOperationFile,
@@ -15,17 +20,7 @@ import {
 } from "./mcpOperationOutputs";
 import { hashStableValue } from "../../shared/blockFingerprint";
 import { McpEditError, mcpStorageFailure } from "./mcpEditPolicy";
-import {
-  MCP_JOB_CAPACITY,
-  MCP_JOB_HISTORY_CAPACITY,
-  MCP_JOB_RETENTION_MS,
-  parseMcpJobJournal,
-  publicMcpJobResult,
-  mcpJobTargetSchema,
-  mcpPersistedTargetSchema,
-  type McpJobPersistence,
-  type McpStoredJobTarget,
-} from "./mcpJobJournal";
+import type { McpStoredJobTarget } from "./mcpJobJournal";
 
 type Progress = { phase: string; completed?: number; total?: number };
 type Result = Record<string, unknown>;
@@ -51,7 +46,10 @@ type Start = {
 
 /** Durable transport receipts only. Execution still acquires the application's real activity/job lease. */
 export class McpOperationService {
-  private readonly entries = new Map<string, McpOperationEntry>();
+  private readonly history: McpOperationHistory;
+  private readonly entries: Map<string, McpOperationEntry>;
+  private cleanupTimer?: ReturnType<typeof setInterval>;
+  private cleanup?: Promise<void>;
   private stopped = false;
   private fault?: Error;
   private initialization?: Promise<void>;
@@ -61,7 +59,10 @@ export class McpOperationService {
     private readonly reportError: (error: unknown) => void,
     private readonly now: () => number = Date.now,
     private readonly persistence?: McpJobPersistence,
-  ) {}
+  ) {
+    this.history = new McpOperationHistory(persistence, now);
+    this.entries = this.history.live;
+  }
   ready(): Promise<void> {
     this.initialization ??= this.restore();
     return this.initialization;
@@ -78,7 +79,7 @@ export class McpOperationService {
   }
   /** Internal owned completion lease. Cancellation waits for native cleanup; no new work is admitted here. */
   async waitForCompletion(id: string, owner: string, signal: AbortSignal) {
-    const entry = this.get(id, owner);
+    const entry = await this.get(id, owner);
     const cancel = () => {
       if (!entry.settled) {
         entry.cancellationRequested = true;
@@ -97,84 +98,66 @@ export class McpOperationService {
   /** Reads the exact owned receipt without admitting or re-executing work. */
   async findOwnedOperation(owner: string, input: McpOwnedOperationRequest) {
     await this.ready();
-    this.prune();
-    const entry = findOwnedMcpOperation(this.entries.values(), owner, input);
+    const summary = this.history.previous(owner, input.requestId);
+    const entry = summary
+      ? findOwnedMcpOperation([await this.get(summary.id, owner)], owner, input)
+      : undefined;
     return entry ? this.project(entry) : undefined;
   }
-  status(id: string, owner: string) {
-    return this.project(this.get(id, owner));
+  async status(id: string, owner: string) {
+    return this.project(await this.get(id, owner));
   }
-  file(id: string, owner: string, pageId?: string) {
+  async file(id: string, owner: string, pageId?: string) {
     this.assertAvailable();
-    return mcpOperationFile(this.get(id, owner), pageId);
-  }
-  outputMetadata(id: string, owner: string, pageId?: string) {
+    const entry = await this.get(id, owner);
     this.assertAvailable();
-    return mcpOperationOutputMetadata(this.get(id, owner), pageId);
+    return mcpOperationFile(entry, pageId);
   }
-  exportSource(id: string, owner: string) {
+  async outputMetadata(id: string, owner: string, pageId?: string) {
     this.assertAvailable();
-    return mcpExportSource(this.get(id, owner));
+    const entry = await this.get(id, owner);
+    this.assertAvailable();
+    return mcpOperationOutputMetadata(entry, pageId);
   }
-  list(owner: string, offset: number, limit: number) {
-    this.prune();
-    const records = [...this.entries.values()]
-      .filter((entry) => entry.owner === owner)
-      .sort((a, b) => b.startedAt - a.startedAt || b.id.localeCompare(a.id));
+  async exportSource(id: string, owner: string) {
+    this.assertAvailable();
+    const entry = await this.get(id, owner);
+    this.assertAvailable();
+    return mcpExportSource(entry);
+  }
+  async list(owner: string, offset: number, limit: number) {
+    await this.ready();
+    const records = this.history.list(owner);
     return {
       total: records.length,
       offset,
       limit,
       nextOffset: offset + limit < records.length ? offset + limit : null,
-      jobs: records
-        .slice(offset, offset + limit)
-        .map((entry) => this.project(entry)),
+      jobs: await Promise.all(
+        records
+          .slice(offset, offset + limit)
+          .map((entry) => this.status(entry.id, owner)),
+      ),
     };
   }
-  retryTarget(id: string, owner: string, revision: string) {
-    const entry = this.get(id, owner);
-    if (
-      !entry.settled ||
-      !["failed", "cancelled", "interrupted"].includes(entry.status)
-    )
-      throw new McpEditError(
-        "invalid_edit",
-        "Only failed, cancelled or interrupted jobs can be retried.",
-      );
-    if (
-      ![
-        "ocr",
-        "blockOcr",
-        "sourceSize",
-        "blockTranslation",
-        "erase",
-        "exportPng",
-      ].includes(entry.kind)
-    )
-      throw new McpEditError(
-        "invalid_edit",
-        "Read current context, typography preflight, import receipts, discovery or export outcomes and issue a new explicit request; single-page retry does not apply to these jobs.",
-      );
-    const target = mcpJobTargetSchema.parse(entry.parameters);
-    if (target.revision !== revision)
-      throw new McpEditError(
-        "revision_conflict",
-        "The original target revision is required. Inspect the current page; changed pages need a new explicit operation.",
-      );
-    return { kind: entry.kind, target: { ...target } };
+  async retryTarget(id: string, owner: string, revision: string) {
+    const entry = await this.get(id, owner);
+    return mcpRetryTarget(entry, revision);
   }
+
   async cancel(id: string, owner: string) {
     await this.ready();
-    const entry = this.get(id, owner);
+    const entry = await this.get(id, owner);
     if (!entry.settled) {
       entry.controller.abort();
       entry.cancellationRequested = true;
     }
-    await this.commit();
+    await this.commitCancellation(entry);
     return this.project(entry);
   }
   stop(): void {
     this.stopped = true;
+    clearInterval(this.cleanupTimer);
     for (const entry of this.entries.values()) {
       if (!entry.settled) {
         entry.controller.abort();
@@ -188,46 +171,35 @@ export class McpOperationService {
     await this.admissions;
     await Promise.all([...this.entries.values()].map((entry) => entry.done));
     await this.writes;
+    await this.cleanup;
   }
 
   private async admit(input: Start) {
     this.assertAvailable();
     input.assertAuthorized();
-    this.prune();
+    await this.prune();
     const fingerprint = hashStableValue([input.kind, input.parameters]);
-    const previous = [...this.entries.values()].find(
-      (entry) =>
-        entry.owner === input.owner && entry.requestId === input.requestId,
-    );
-    if (previous) {
-      if (previous.fingerprint !== fingerprint)
+    const summary = this.history.previous(input.owner, input.requestId);
+    if (summary) {
+      const previous = await this.get(summary.id, input.owner);
+      if (
+        previous.fingerprint !== fingerprint ||
+        previous.kind !== input.kind ||
+        !isDeepStrictEqual(previous.parameters, input.parameters)
+      )
         throw new McpEditError(
           "invalid_edit",
           "requestId was already used for another operation.",
         );
+      input.assertAuthorized();
       return this.project(previous);
     }
-    if (
-      this.entries.size >= MCP_JOB_CAPACITY + MCP_JOB_HISTORY_CAPACITY ||
-      [...this.entries.values()].some((entry) => !entry.settled)
-    )
+    if ([...this.entries.values()].some((entry) => !entry.settled))
       throw new McpEditError(
         "editor_busy",
-        "An MCP operation is active or compact receipt history is full. Inspect existing jobs first; request identities remain protected for seven days.",
+        "An MCP operation is active. Inspect existing jobs first.",
       );
-    const recent = [...this.entries.values()].filter(
-      (entry) => !entry.compacted,
-    );
-    if (recent.length >= MCP_JOB_CAPACITY) {
-      const oldest = recent.sort(
-        (a, b) => (a.finishedAt ?? a.startedAt) - (b.finishedAt ?? b.startedAt),
-      )[0];
-      const record = snapshotMcpEntries([oldest]).records[0];
-      this.entries.set(
-        oldest.id,
-        restoreMcpOperationEntry({ ...record, compacted: true }, this.now()),
-      );
-    }
+    input.assertAuthorized();
     const entry: McpOperationEntry = {
       id: randomUUID(),
       owner: input.owner,
@@ -245,7 +217,7 @@ export class McpOperationService {
     };
     this.entries.set(entry.id, entry);
     try {
-      await this.commit();
+      await this.commit(entry);
     } catch (error) {
       this.entries.delete(entry.id);
       throw error;
@@ -304,7 +276,7 @@ export class McpOperationService {
   }
   private async finish(entry: McpOperationEntry): Promise<void> {
     try {
-      await this.commit();
+      await this.commit(entry);
     } catch (error) {
       entry.status = "interrupted";
       entry.error = {
@@ -315,48 +287,40 @@ export class McpOperationService {
       this.reportError(error);
     } finally {
       entry.settled = true;
+      if (!this.fault) this.history.settle(entry, this.snapshot(entry));
     }
   }
-  private get(id: string, owner: string) {
-    this.prune();
-    const entry = this.entries.get(id);
-    if (!entry || entry.owner !== owner)
-      throw new McpEditError(
-        "not_found",
-        "Operation not found for this connection. Job history is retained for seven days.",
-      );
-    return entry;
+  private async get(id: string, owner: string) {
+    await this.ready();
+    return this.history.get(id, owner);
   }
   private project(entry: McpOperationEntry) {
-    return structuredClone({
-      jobId: entry.id,
-      requestId: entry.requestId,
-      kind: entry.kind,
-      status: entry.settled ? entry.status : "running",
-      cancellationRequested:
-        entry.cancellationRequested || entry.controller.signal.aborted,
-      progress:
-        !entry.settled && entry.status !== "running"
-          ? { phase: "saving_receipt" }
-          : entry.progress,
-      result: entry.settled
-        ? publicMcpJobResult(entry.result, this.now())
-        : undefined,
-      error: entry.settled ? entry.error : undefined,
-      startedAt: entry.startedAt,
-      finishedAt: entry.settled ? entry.finishedAt : undefined,
-      target: mcpPersistedTargetSchema.safeParse(entry.parameters).data,
-      persistence: this.persistence ? "durable" : "memory",
-    });
+    return projectMcpOperation(entry, this.now(), Boolean(this.persistence));
   }
-  private prune(): void {
-    for (const [id, entry] of this.entries) {
-      if (
-        entry.settled &&
-        entry.finishedAt !== undefined &&
-        entry.finishedAt + MCP_JOB_RETENTION_MS <= this.now()
-      )
-        this.entries.delete(id);
+  private prune(): Promise<void> {
+    this.cleanup ??= this.pruneBatch().finally(() => {
+      this.cleanup = undefined;
+    });
+    return this.cleanup;
+  }
+  private async pruneBatch() {
+    for (;;) {
+      const expired = this.history.expiredBatch();
+      for (const entry of expired) {
+        try {
+          await this.history.remove(entry);
+        } catch (error) {
+          this.reportError(error);
+          return;
+        }
+      }
+      if (expired.length < 128) break;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    try {
+      await this.persistence?.cleanup(this.now());
+    } catch (error) {
+      this.reportError(error);
     }
   }
   private assertAvailable(): void {
@@ -372,24 +336,50 @@ export class McpOperationService {
       );
   }
   private async restore(): Promise<void> {
-    const value = await this.persistence?.load();
-    if (value === undefined || value === null) return;
-    for (const record of parseMcpJobJournal(value))
-      this.entries.set(record.id, restoreMcpOperationEntry(record, this.now()));
-    this.prune();
-    await this.commit();
+    const running = await this.history.open();
+    for (const summary of running) {
+      try {
+        const entry = await this.history.get(summary.id, summary.owner);
+        await this.commit(entry);
+      } catch (error) {
+        if (
+          !(error instanceof McpEditError) ||
+          error.code !== "job_detail_unavailable"
+        )
+          throw error;
+        this.reportError(error);
+        await this.history.update(summary.id, true);
+      }
+    }
+    await this.prune();
+    if (!this.stopped) {
+      this.cleanupTimer = setInterval(() => {
+        void this.prune();
+      }, 10 * 60_000);
+      this.cleanupTimer.unref();
+    }
   }
-  private async commit(): Promise<void> {
-    const persistence = this.persistence;
-    if (!persistence) return;
+  private snapshot(entry: McpOperationEntry) {
+    return this.persistence
+      ? snapshotMcpEntry(entry)
+      : memoryMcpOperationRecord(entry);
+  }
+  private async commitCancellation(entry: McpOperationEntry) {
+    if (entry.settled || !this.persistence) return this.commit(entry);
+    const writing = this.writes.then(() => {
+      if (this.fault) throw this.fault;
+      return this.history.update(entry.id);
+    });
+    this.writes = writing.catch((error) => this.storageFailed(error));
+    return writing;
+  }
+  private async commit(entry: McpOperationEntry): Promise<void> {
     try {
-      const snapshot = snapshotMcpEntries(this.entries.values());
-      const writing = this.writes.then(() => {
+      const record = this.snapshot(entry);
+      const writing = this.writes.then(async () => {
         if (this.fault) throw this.fault;
-        return persistence.save(snapshot);
+        await this.history.save(record);
       });
-      // A failed queue tail remains awaitable for shutdown. The original writer
-      // still rejects, while all future writes and executor commits fail closed.
       this.writes = writing.catch((error) => this.storageFailed(error));
       await writing;
     } catch (error) {

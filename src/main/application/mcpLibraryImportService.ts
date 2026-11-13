@@ -1,3 +1,7 @@
+import {
+  MCP_IMPORT_MAX_PAGES,
+  MCP_IMPORT_MAX_CHAPTERS,
+} from "../../shared/mcpImportLimits";
 import type { McpUploadedImport } from "../../shared/mcpFileUploads";
 import { randomUUID } from "node:crypto";
 import { hashStableValue } from "../../shared/blockFingerprint";
@@ -62,8 +66,8 @@ export class McpLibraryImportService {
         );
         if (
           !pages.length ||
-          pages.length > 500 ||
-          prepared.preview.chapters.length > 10
+          pages.length > MCP_IMPORT_MAX_PAGES ||
+          prepared.preview.chapters.length > MCP_IMPORT_MAX_CHAPTERS
         )
           throw new McpEditError(
             "invalid_edit",

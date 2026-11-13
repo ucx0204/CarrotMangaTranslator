@@ -1,3 +1,4 @@
+import { MCP_IMPORT_MAX_PAGES } from "../../shared/mcpImportLimits";
 import {
   MCP_ARTIFACT_MIME_TYPES,
   mcpArtifactRequiresImages,
@@ -351,10 +352,12 @@ function validatePageEntry(
     ].includes(entry.kind)
   )
     return;
-  if (entry.pageCount < 1 || entry.pageCount > 50)
+  const maximum = ["import", "work-file-import"].includes(entry.kind)
+    ? MCP_IMPORT_MAX_PAGES
+    : 50;
+  if (entry.pageCount < 1 || entry.pageCount > maximum)
     context.addIssue({
       code: "custom",
-      message:
-        "Existing page, output and workflow records require one to fifty pages.",
+      message: `This retained record requires one to ${maximum} pages.`,
     });
 }

@@ -11,6 +11,7 @@ export class McpEditError extends Error {
       | "history_reclaimed"
       | "editor_open"
       | "not_found"
+      | "job_detail_unavailable"
       | "invalid_edit"
       | "access_denied",
     message: string,

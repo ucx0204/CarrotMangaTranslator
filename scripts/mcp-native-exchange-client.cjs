@@ -56,10 +56,7 @@ async function exchangeNativeClient(root, app, editing, options = {}) {
     editing,
     preferences,
     retentionCodec: new McpSecureStore(root).retentionCodec(),
-    jobPersistence: {
-      load: () => journal.readJobJournal(),
-      save: (/** @type {unknown} */ value) => journal.writeJobJournal(value),
-    },
+    jobPersistence: journal.jobPersistence(),
     reportError: (/** @type {unknown} */ error) => errors.push(error),
   });
   await session.ready();
@@ -140,7 +137,18 @@ async function exchangeNativeClient(root, app, editing, options = {}) {
     revoke: () => {
       authorized = false;
     },
-    journal: () => journal.readJobJournal(),
+    journal: async () => {
+      const store = journal.jobPersistence();
+      const summaries = await store.open();
+      return {
+        version: 1,
+        records: await Promise.all(
+          summaries.map((/** @type {{id:string}} */ item) =>
+            store.read(item.id),
+          ),
+        ),
+      };
+    },
     close: () => {
       closing ??= session.close();
       return closing;

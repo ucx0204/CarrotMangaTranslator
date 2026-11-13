@@ -48,10 +48,7 @@ export async function retentionFixture(
       preferences,
       retentionCodec: sessionSecure.retentionCodec(),
       jobPersistence: options.durableJobs
-        ? {
-            load: () => sessionSecure.readJobJournal(),
-            save: (value) => sessionSecure.writeJobJournal(value),
-          }
+        ? sessionSecure.jobPersistence()
         : undefined,
       reportError: (error) => errors.push(error),
     });

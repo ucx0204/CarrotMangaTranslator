@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { selectionAppFixture } from "./mcpSelectionApp.fixture";
@@ -43,10 +44,14 @@ it("restores completed receipts without a model rerun or a resurrected analysis"
     await f.operations.close();
     const { McpOperationService } =
       await import("../src/main/application/mcpOperationService");
-    const restored = new McpOperationService(vi.fn(), Date.now, f.persistence);
+    const restored = new McpOperationService(
+      vi.fn(),
+      Date.now,
+      jobPersistenceFixture(f.persistence),
+    );
     try {
       await restored.ready();
-      const receipt = restored.status(job.jobId, f.owner);
+      const receipt = await restored.status(job.jobId, f.owner);
       expect(receipt.status).toBe("completed");
       expect(receipt.result?.selectionAnalysis).toBeUndefined();
       expect(receipt.result?.observationExpired).toBe(true);
@@ -68,9 +73,14 @@ it("keeps incomplete selection retries explicit and does not use the single-page
       allowAssetDownloads: false,
     });
     expect(job.status).toBe("failed");
-    expect(() =>
-      f.operations.retryTarget(job.jobId, f.owner, input.pages[0].revision),
-    ).toThrow("single-page retry");
+    await expect(
+      async () =>
+        await f.operations.retryTarget(
+          job.jobId,
+          f.owner,
+          input.pages[0].revision,
+        ),
+    ).rejects.toThrow("single-page retry");
     expect(f.collect).not.toHaveBeenCalled();
     expect(() =>
       McpSelectionOcrSchema.parse({ ...input, pages: [] }),

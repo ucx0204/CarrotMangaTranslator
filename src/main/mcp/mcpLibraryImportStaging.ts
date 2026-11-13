@@ -1,3 +1,7 @@
+import {
+  MCP_IMPORT_MAX_PAGES,
+  MCP_IMPORT_MAX_CHAPTERS,
+} from "../../shared/mcpImportLimits";
 import { createHash, randomUUID } from "node:crypto";
 import {
   lstat,
@@ -92,7 +96,11 @@ async function capturePreviewSources(
   context: McpOperationContext,
 ) {
   const pages = preview.chapters.flatMap((chapter) => chapter.pages);
-  if (!pages.length || pages.length > 500 || preview.chapters.length > 10)
+  if (
+    !pages.length ||
+    pages.length > MCP_IMPORT_MAX_PAGES ||
+    preview.chapters.length > MCP_IMPORT_MAX_CHAPTERS
+  )
     throw new McpEditError(
       "invalid_edit",
       "Input exceeds ten chapters/five hundred candidates or has no usable pages. Nothing was truncated or imported.",

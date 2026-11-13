@@ -121,10 +121,7 @@ export class McpLocalHost {
         editing: editor,
         reportError: this.reportError,
         retentionCodec: this.store.retentionCodec(),
-        jobPersistence: {
-          load: () => this.store.readJobJournal(),
-          save: (value) => this.store.writeJobJournal(value),
-        },
+        jobPersistence: this.store.jobPersistence(),
       });
       state.operations = pageOperations;
       await pageOperations.ready();

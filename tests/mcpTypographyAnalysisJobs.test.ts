@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { McpOperationService } from "../src/main/application/mcpOperationService";
@@ -20,7 +21,7 @@ const caller = () => ({
 });
 async function settle(service: McpOperationService, id: string) {
   for (let i = 0; i < 200; i++) {
-    const job = service.status(id, "owner");
+    const job = await service.status(id, "owner");
     if (job.status !== "running") return job;
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
@@ -75,8 +76,12 @@ it("registers explicit processing scopes, strict input and output without preten
     await expect(
       tool.invoke(request, { ...auth, assertScopes: undefined }),
     ).rejects.toMatchObject({ code: "access_denied" });
-    expect(() => jobs.status(receipt.jobId, "other")).toThrow();
-    expect(() => jobs.file(receipt.jobId, "owner")).toThrow();
+    await expect(
+      async () => await jobs.status(receipt.jobId, "other"),
+    ).rejects.toThrow();
+    await expect(
+      async () => await jobs.file(receipt.jobId, "owner"),
+    ).rejects.toThrow();
   } finally {
     await jobs.close();
   }
@@ -104,7 +109,11 @@ it("retains durable requests without original hashes or stale font choices after
       disk = structuredClone(value);
     },
   };
-  const jobs = new McpOperationService(vi.fn(), () => 1000, persistence);
+  const jobs = new McpOperationService(
+    vi.fn(),
+    () => 1000,
+    jobPersistenceFixture(persistence),
+  );
   const request = await f.target();
   const execute = vi.fn(() => f.service.run(request, f.context));
   const input = {
@@ -122,15 +131,22 @@ it("retains durable requests without original hashes or stale font choices after
   expect(JSON.stringify(disk)).not.toMatch(
     /sourceImageSha256|synthetic-group|PRIVATE/,
   );
-  const restored = new McpOperationService(vi.fn(), () => 1000, persistence);
+  const restored = new McpOperationService(
+    vi.fn(),
+    () => 1000,
+    jobPersistenceFixture(persistence),
+  );
   try {
     await restored.ready();
-    expect(restored.status(receipt.jobId, "owner").result).toMatchObject({
+    expect(
+      (await restored.status(receipt.jobId, "owner")).result,
+    ).toMatchObject({
       pagesChanged: 0,
       observationExpired: true,
     });
     expect(
-      restored.status(receipt.jobId, "owner").result?.typographyAnalysis,
+      (await restored.status(receipt.jobId, "owner")).result
+        ?.typographyAnalysis,
     ).toBeUndefined();
     expect((await restored.start(input)).jobId).toBe(receipt.jobId);
     expect(execute).toHaveBeenCalledOnce();
@@ -149,9 +165,14 @@ it("requires a new preflight instead of applying single-page retry to failed ana
     const request = await f.target();
     const receipt = decode(await tool.invoke(request, caller()));
     expect((await settle(jobs, receipt.jobId)).status).toBe("failed");
-    expect(() =>
-      jobs.retryTarget(receipt.jobId, "owner", request.pages[0].revision),
-    ).toThrow("single-page retry");
+    await expect(
+      async () =>
+        await jobs.retryTarget(
+          receipt.jobId,
+          "owner",
+          request.pages[0].revision,
+        ),
+    ).rejects.toThrow("single-page retry");
   } finally {
     await jobs.close();
   }

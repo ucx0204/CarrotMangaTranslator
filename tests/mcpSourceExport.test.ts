@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { sourceExportFixture, sourcePolicy } from "./mcpSourceExport.fixture";
@@ -307,12 +308,16 @@ it("preserves old explicit-format and default PNG fingerprints on name-only chan
 it("persists reviewed policy and concrete page metadata while excluding private evidence and capabilities", async () => {
   const f = sourceExportFixture();
   let saved: unknown;
-  const operations = new McpOperationService(vi.fn(), Date.now, {
-    load: async () => saved,
-    save: async (value) => {
-      saved = structuredClone(value);
-    },
-  });
+  const operations = new McpOperationService(
+    vi.fn(),
+    Date.now,
+    jobPersistenceFixture({
+      load: async () => saved,
+      save: async (value) => {
+        saved = structuredClone(value);
+      },
+    }),
+  );
   try {
     const target = await f.target();
     const request = {
@@ -330,9 +335,11 @@ it("persists reviewed policy and concrete page metadata while excluding private 
       "owner",
       f.controller.signal,
     );
-    expect(operations.status(receipt.jobId, "owner").status).toBe("completed");
+    expect((await operations.status(receipt.jobId, "owner")).status).toBe(
+      "completed",
+    );
     expect((await operations.start(request)).jobId).toBe(receipt.jobId);
-    const file = operations.file(receipt.jobId, "owner", "p2");
+    const file = await operations.file(receipt.jobId, "owner", "p2");
     expect(file.imageExport).toEqual({
       format: "jpeg",
       omitText: false,
@@ -342,8 +349,10 @@ it("persists reviewed policy and concrete page metadata while excluding private 
     expect(JSON.stringify(saved)).not.toMatch(
       /private|sourceNameFingerprint|mcp-artifacts|"url"/,
     );
-    expect(() => operations.file(receipt.jobId, "foreign", "p2")).toThrow();
-    const pages = operations.exportSource(receipt.jobId, "owner").data;
+    await expect(
+      async () => await operations.file(receipt.jobId, "foreign", "p2"),
+    ).rejects.toThrow();
+    const pages = (await operations.exportSource(receipt.jobId, "owner")).data;
     expect(
       McpExportPagesMetadataSchema.parse(pages).pages[1].imageExport?.format,
     ).toBe("jpeg");

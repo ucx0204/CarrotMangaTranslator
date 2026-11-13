@@ -1,3 +1,7 @@
+import {
+  MCP_IMPORT_MAX_PAGES,
+  MCP_IMPORT_MAX_CHAPTERS,
+} from "./mcpImportLimits";
 import { z } from "zod/v4";
 import { McpImportCreateSchema } from "./mcpLibraryImport";
 
@@ -13,11 +17,11 @@ export const McpImportDuplicatesSchema = z
     const drafts = value.chapters.map((chapter) => chapter.draftId);
     const pages = value.chapters.flatMap((chapter) => chapter.pageIds);
     return (
-      pages.length <= 50 &&
+      pages.length <= MCP_IMPORT_MAX_PAGES &&
       new Set(pages).size === pages.length &&
       new Set(drafts).size === drafts.length
     );
-  }, "Select distinct drafts and at most fifty distinct reviewed pages.");
+  }, "Select distinct drafts and at most 500 distinct reviewed pages.");
 export type McpImportDuplicates = z.infer<typeof McpImportDuplicatesSchema>;
 const match = z.enum(["content-and-url", "content", "url"]);
 export const mcpImportDuplicateOutputs = {
@@ -42,7 +46,7 @@ export const mcpImportDuplicateOutputs = {
             .strict(),
         )
         .min(1)
-        .max(10),
+        .max(MCP_IMPORT_MAX_CHAPTERS),
       warnings: z.array(z.string().max(1000)).max(5),
     })
     .strict(),

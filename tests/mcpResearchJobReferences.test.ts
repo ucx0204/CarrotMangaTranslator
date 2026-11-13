@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it } from "vitest";
 import { McpOperationService } from "../src/main/application/mcpOperationService";
@@ -128,7 +129,7 @@ it("reconstructs a completed native job reference without rerunning its executor
     new McpOperationService(
       (error) => errors.push(error),
       () => now,
-      persistence,
+      jobPersistenceFixture(persistence),
     );
   const first = open();
   let next: McpOperationService | undefined;
@@ -161,7 +162,7 @@ it("reconstructs a completed native job reference without rerunning its executor
     await first.close();
     next = open();
     await next.ready();
-    const restored = next.status(accepted.jobId, "owner");
+    const restored = await next.status(accepted.jobId, "owner");
     expect(restored).toMatchObject({
       status: "completed",
       persistence: "durable",
@@ -172,15 +173,17 @@ it("reconstructs a completed native job reference without rerunning its executor
     expect(restored.result?.contextResearch).toBeUndefined();
     expect((await next.start(request)).jobId).toBe(accepted.jobId);
     expect(executions).toBe(1);
-    expect(() => next?.status(accepted.jobId, "other")).toThrow();
+    await expect(
+      async () => await next?.status(accepted.jobId, "other"),
+    ).rejects.toThrow();
     const invalid = JSON.parse(JSON.stringify(stored));
     invalid.records[0].result.retainedContextProposal.chapterId =
       "another-chapter";
     expect(() => parseMcpJobJournal(invalid)).toThrow("inconsistent");
     now = 1000;
-    expect(next.status(accepted.jobId, "owner").result?.proposalExpired).toBe(
-      true,
-    );
+    expect(
+      (await next.status(accepted.jobId, "owner")).result?.proposalExpired,
+    ).toBe(true);
     expect(errors).toEqual([]);
   } finally {
     await first.close();

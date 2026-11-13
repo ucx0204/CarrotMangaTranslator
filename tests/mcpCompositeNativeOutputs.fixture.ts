@@ -164,14 +164,16 @@ function outputOperations(
   };
   const operations = {
     ready: vi.fn(async () => {}),
-    exportSource: vi.fn((id: string, owner: string) => {
+    exportSource: vi.fn(async (id: string, owner: string) => {
       assertOwner(id, owner);
       return mcpExportSource(entry);
     }),
-    outputMetadata: vi.fn((id: string, owner: string, pageId?: string) => {
-      assertOwner(id, owner);
-      return mcpOperationOutputMetadata(entry, pageId);
-    }),
+    outputMetadata: vi.fn(
+      async (id: string, owner: string, pageId?: string) => {
+        assertOwner(id, owner);
+        return mcpOperationOutputMetadata(entry, pageId);
+      },
+    ),
   };
   return { entry, sourceJobId, operations };
 }

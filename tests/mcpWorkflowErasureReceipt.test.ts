@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { expect, it, vi } from "vitest";
@@ -46,7 +47,11 @@ it("requires a conclusive matching erasure receipt after journal reconstruction 
       saved = structuredClone(value);
     },
   };
-  let manager = new McpOperationService(() => {}, Date.now, persistence);
+  let manager = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(persistence),
+  );
   const execute = vi.fn(async (target: { revision: string }) => ({
     revision: target.revision,
     status: "completed",
@@ -90,7 +95,11 @@ it("requires a conclusive matching erasure receipt after journal reconstruction 
       await workflowErasureCompleted(manager, record, step, () => {}),
     ).toBe(true);
     await manager.close();
-    manager = new McpOperationService(() => {}, Date.now, persistence);
+    manager = new McpOperationService(
+      () => {},
+      Date.now,
+      jobPersistenceFixture(persistence),
+    );
     expect(
       await workflowErasureCompleted(manager, record, step, () => {}),
     ).toBe(true);

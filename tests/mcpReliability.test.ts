@@ -1,3 +1,4 @@
+import { jobPersistenceFixture } from "./mcpJobPersistence.fixture";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { McpOAuthProvider } from "../src/main/mcp/mcpOAuthProvider";
@@ -6,7 +7,7 @@ import { McpPageBatchService } from "../src/main/application/mcpPageBatchService
 import { translationBatchPolicy } from "../src/main/application/mcpTranslationBatchPolicy";
 import { translationBatchFixture } from "./mcpTranslationBatch.fixture";
 import { McpOperationService } from "../src/main/application/mcpOperationService";
-import { parseMcpJobJournal } from "../src/main/application/mcpJobJournal";
+import { parseMcpStoredJob } from "../src/main/application/mcpJobJournal";
 import { hashStableValue } from "../src/shared/blockFingerprint";
 import { mcpToolError } from "../src/main/mcp/mcpToolResult";
 import { handleMcpMessage } from "../src/main/mcp/mcpProtocol";
@@ -107,7 +108,11 @@ it("admits beyond 512 completed jobs while preserving durable replay and workflo
       journal = structuredClone(value);
     },
   };
-  const service = new McpOperationService(() => {}, Date.now, storage);
+  const service = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(storage),
+  );
   const requestId = randomUUID();
   const first = {
     owner: "a",
@@ -151,10 +156,16 @@ it("admits beyond 512 completed jobs while preserving durable replay and workflo
   });
   expect(found?.jobId).toBe(receipt.jobId);
   await service.close();
-  expect(
-    parseMcpJobJournal(journal).filter((record) => record.compacted),
-  ).toHaveLength(2);
-  const restarted = new McpOperationService(() => {}, Date.now, storage);
+  const saved = (journal as { records: unknown[] }).records.map(
+    parseMcpStoredJob,
+  );
+  expect(saved).toHaveLength(514);
+  expect(saved.filter((record) => record.compacted)).toHaveLength(0);
+  const restarted = new McpOperationService(
+    () => {},
+    Date.now,
+    jobPersistenceFixture(storage),
+  );
   try {
     expect((await restarted.start(first)).jobId).toBe(receipt.jobId);
     expect(execute).toHaveBeenCalledTimes(514);
