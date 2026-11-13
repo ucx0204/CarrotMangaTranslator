@@ -1,11 +1,4 @@
-import {
-  readFile,
-  writeFile,
-  symlink,
-  unlink,
-  rmdir,
-  mkdir,
-} from "node:fs/promises";
+import { readFile, writeFile, symlink, unlink, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { expect, it, vi } from "vitest";
 import { jobStoreFixture, jobRecord, jobFiles } from "./mcpJobStoreV2.fixture";
@@ -112,8 +105,8 @@ it("refuses a junction in detail cleanup without touching its external target", 
     await f.store.cleanup(Date.now());
     expect(await readFile(source, "utf8")).toBe("original");
   } finally {
-    // Detach only the junction before either test-owned directory is removed.
-    await rmdir(link);
+    // Unlink only the junction/symlink before removing either test directory.
+    await unlink(link);
     expect(await readFile(source, "utf8")).toBe("original");
   }
 });
