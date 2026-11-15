@@ -2243,6 +2243,10 @@
         "rocm": {
           "label": "AMD ROCm",
           "description": "AMD GPUでROCm 10ネイティブエンジンを実行します。必要なランタイムはアプリが自動で準備します。"
+        },
+        "vulkan": {
+          "label": "Vulkan",
+          "description": "AMD GPUでROCmの代わりにVulkanを使用します。最新のグラフィックスドライバーが必要です。"
         }
       },
       "inpaintingModels": {
@@ -2548,7 +2552,8 @@
         "cuda-sm75-experimental": "RTX 20 / GTX 16 (SM75) 専用",
         "cpu-native": "GPU 不要 · 低速",
         "metal-native": "Apple Silicon が必要",
-        "rocm-native": "AMD GPU が必要"
+        "rocm-native": "AMD GPU が必要",
+        "vulkan-native": "Vulkan対応のWindows GPUと最新のグラフィックスドライバーが必要です。"
       },
       "ocrRequirements": {
         "cuda": "NVIDIA GPU が必要",

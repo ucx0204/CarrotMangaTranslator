@@ -20,6 +20,16 @@ const request = {
 };
 
 describe("Flux native failure diagnostics", () => {
+  it("reports Vulkan failures without CUDA advice or CPU substitution", () => {
+    const error = buildFluxRuntimeExitError(
+      3,
+      "requested FLUX device Vulkan0 is unavailable; CPU fallback is disabled",
+      "vulkan-native",
+    );
+    expect(error.message).toContain("Vulkan");
+    expect(error.message).toContain("exitCode=3");
+    expect(error.message).not.toContain("CUDA");
+  });
   it.each(["rocm-native", "python-rocm"] as const)(
     "does not infer driver failure from ordinary %s initialization output",
     (backend) => {

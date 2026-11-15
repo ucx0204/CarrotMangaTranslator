@@ -2243,6 +2243,10 @@
         "rocm": {
           "label": "AMD ROCm",
           "description": "AMD GPU에서 ROCm 10 네이티브 엔진으로 실행합니다. 필요한 런타임은 앱이 자동으로 준비합니다."
+        },
+        "vulkan": {
+          "label": "Vulkan",
+          "description": "AMD GPU에서 ROCm 대신 Vulkan으로 실행합니다. 최신 그래픽 드라이버가 필요합니다."
         }
       },
       "inpaintingModels": {
@@ -2548,7 +2552,8 @@
         "cuda-sm75-experimental": "RTX 20 / GTX 16 (SM75) 전용",
         "cpu-native": "GPU 없이 실행 · 느림",
         "metal-native": "Apple Silicon 필요",
-        "rocm-native": "AMD GPU 필요"
+        "rocm-native": "AMD GPU 필요",
+        "vulkan-native": "Vulkan을 지원하는 Windows GPU와 최신 그래픽 드라이버가 필요합니다."
       },
       "ocrRequirements": {
         "cuda": "NVIDIA GPU 필요",

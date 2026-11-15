@@ -108,8 +108,15 @@ fn validate_specification(spec: &NativeRuntime, expected_engine: &str) -> Result
         "native runtime engine mismatch"
     );
     ensure!(
-        matches!(spec.backend.as_str(), "cpu" | "cuda" | "rocm" | "metal"),
+        matches!(
+            spec.backend.as_str(),
+            "cpu" | "cuda" | "rocm" | "metal" | "vulkan"
+        ),
         "unsupported native runtime backend"
+    );
+    ensure!(
+        spec.backend != "vulkan" || spec.engine == "diffusion",
+        "Vulkan is supported only for diffusion"
     );
     ensure!(
         !spec.libraries.is_empty() && spec.libraries.len() <= 128,
@@ -368,5 +375,18 @@ mod tests {
         assert!(validate_specification(&spec, "torch").is_err());
         spec.libraries.clear();
         assert!(validate_specification(&spec, "torch").is_err());
+    }
+
+    #[test]
+    fn vulkan_is_diffusion_only_and_existing_backends_remain_valid() {
+        let mut spec = specification();
+        for backend in ["cpu", "cuda", "rocm", "metal"] {
+            spec.backend = backend.into();
+            assert!(validate_specification(&spec, "torch").is_ok());
+        }
+        spec.backend = "vulkan".into();
+        assert!(validate_specification(&spec, "torch").is_err());
+        spec.engine = "diffusion".into();
+        assert!(validate_specification(&spec, "diffusion").is_ok());
     }
 }

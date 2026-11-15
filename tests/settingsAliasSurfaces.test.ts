@@ -76,6 +76,7 @@ describe("settings alias surfaces", () => {
           "rocm-native",
           ["zluda-native", "zluda", "python-rocm", "rocm", "hip", "amd"],
         ],
+        ["vulkan-native", ["vulkan-native", "vulkan", "vk"]],
         ["metal-native", ["metal-native", "metal", "apple"]],
         ["cpu-native", ["cpu-native", "python-cpu", "cpu"]],
       ],

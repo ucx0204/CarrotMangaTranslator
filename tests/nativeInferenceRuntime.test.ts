@@ -79,6 +79,48 @@ afterEach(async () => {
 });
 
 describe("native runtime installation", () => {
+  it.runIf(process.platform === "win32")(
+    "verifies and repairs the packaged Vulkan executable as well as its libraries",
+    async () => {
+      const vulkan = {
+        runtimeDir: root,
+        engine: "diffusion" as const,
+        backend: "vulkan" as const,
+      };
+      const spec = nativeInferencePlan({
+        ...vulkan,
+        platform: "win32",
+        arch: "x64",
+      });
+      if (!spec.executable) throw new Error("Missing Vulkan executable");
+      const zip = new AdmZip();
+      for (const name of [...spec.libraries, spec.executable])
+        zip.addFile(name, Buffer.from("verified Vulkan bytes"));
+      zip.writeZip(archive);
+      const installed = await ensureNativeInferenceRuntime(vulkan);
+      if (!installed.executable)
+        throw new Error("Missing installed executable");
+      expect(installed.executable).toBe(
+        join(installed.directory, spec.executable),
+      );
+      await writeFile(installed.executable, "tampered");
+      await ensureNativeInferenceRuntime(vulkan);
+      expect(await readFile(installed.executable, "utf8")).toBe(
+        "verified Vulkan bytes",
+      );
+      const receiptPath = join(installed.directory, ".native-runtime.json");
+      const receipt = JSON.parse(await readFile(receiptPath, "utf8"));
+      receipt.files = receipt.files.filter(
+        (file: { path: string }) => file.path !== spec.executable,
+      );
+      await writeFile(receiptPath, JSON.stringify(receipt));
+      await writeFile(installed.executable, "unverified");
+      await ensureNativeInferenceRuntime(vulkan);
+      expect(await readFile(installed.executable, "utf8")).toBe(
+        "verified Vulkan bytes",
+      );
+    },
+  );
   it("installs a real archive, binds absolute library paths, and reuses verified bytes", async () => {
     const installed = await ensureNativeInferenceRuntime(options());
     const spec = JSON.parse(await readFile(installed.manifest, "utf8"));

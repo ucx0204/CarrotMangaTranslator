@@ -22,6 +22,7 @@ const NATIVE_BACKENDS: Partial<
   },
   "cuda-native": { backend: "cuda", label: "Flux Klein CUDA" },
   "rocm-native": { backend: "rocm", label: "Flux Klein ROCm" },
+  "vulkan-native": { backend: "vulkan", label: "Flux Klein Vulkan" },
   "metal-native": { backend: "metal", label: "Flux Klein Metal" },
 };
 
@@ -60,10 +61,7 @@ export async function ensureFluxWorkerLaunch(
       "Flux Metal 런타임은 Apple Silicon(macOS arm64)에서만 사용할 수 있습니다.",
     );
   }
-  const executable =
-    backend === "cpu-native" && process.platform === "win32"
-      ? await ensureManagedFluxCpuRunner(options)
-      : await ensureManagedFluxRunner(options);
+  const executable = await ensureFluxExecutable(options, backend);
   const selection = NATIVE_BACKENDS[backend];
   if (!selection) throw new Error(`Unsupported native backend: ${backend}`);
   const native = await prepareNativeInferenceLaunch({
@@ -104,7 +102,8 @@ export function resolveFluxWorkerBackend(
   if (
     backend === "python-cpu" ||
     backend === "cpu-native" ||
-    backend === "metal-native"
+    backend === "metal-native" ||
+    backend === "vulkan-native"
   )
     return backend;
   if (
@@ -122,4 +121,14 @@ export function shouldUseLegacyFluxDiffusersCpu(
   return /^(1|true|yes|on)$/i.test(
     String(env.MGT_FLUX_LEGACY_DIFFUSERS_CPU ?? "").trim(),
   );
+}
+
+async function ensureFluxExecutable(
+  options: EnsureFluxWorkerLaunchOptions,
+  backend: FluxWorkerBackend,
+): Promise<string | undefined> {
+  if (backend === "vulkan-native") return undefined;
+  if (backend === "cpu-native" && process.platform === "win32")
+    return ensureManagedFluxCpuRunner(options);
+  return ensureManagedFluxRunner(options);
 }

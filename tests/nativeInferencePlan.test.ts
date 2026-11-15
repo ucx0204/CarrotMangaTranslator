@@ -3,6 +3,42 @@ import catalog from "../src/main/runtime/native-inference-manifest.json";
 import { nativeInferencePlan } from "../src/main/runtimeSupport/nativeInferencePlan";
 
 describe("Koharu native runtime plans", () => {
+  it("installs an isolated Vulkan diffusion runner without CUDA or ROCm packages", () => {
+    const plan = nativeInferencePlan({
+      engine: "diffusion",
+      backend: "vulkan",
+      platform: "win32",
+      arch: "x64",
+    });
+    expect(plan.packages.map((asset) => asset.id)).toEqual([
+      "msvc-win32",
+      "diffusion-win32-vulkan",
+    ]);
+    expect(plan.executable).toBe("mgt-flux-klein-vulkan.exe");
+    expect(plan.packages[1].only).toEqual([
+      "stable-diffusion.dll",
+      plan.executable,
+    ]);
+    expect(plan.libraries).not.toContain(plan.executable);
+    for (const engine of ["torch", "rocm-probe"] as const) {
+      expect(() =>
+        nativeInferencePlan({
+          engine,
+          backend: "vulkan",
+          platform: "win32",
+          arch: "x64",
+        }),
+      ).toThrow();
+    }
+    expect(() =>
+      nativeInferencePlan({
+        engine: "diffusion",
+        backend: "vulkan",
+        platform: "darwin",
+        arch: "arm64",
+      }),
+    ).toThrow();
+  });
   it("pins every downloadable package to a digest and exact length", () => {
     for (const asset of Object.values(catalog.packages)) {
       expect(asset.url).toMatch(/^https:\/\//);

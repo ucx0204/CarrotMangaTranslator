@@ -1,7 +1,8 @@
 import catalog from "../runtime/native-inference-manifest.json";
 
 export type NativeInferenceEngine = "torch" | "diffusion" | "rocm-probe";
-export type NativeInferenceBackend = "cpu" | "cuda" | "rocm" | "metal";
+export type NativeInferenceBackend =
+  "cpu" | "cuda" | "rocm" | "metal" | "vulkan";
 type NativeInferencePackage = {
   id: string;
   url: string;
@@ -72,6 +73,7 @@ type Plan = {
   packages: NativeInferencePackage[];
   libraries: string[];
   pathDirectories: string[];
+  executable?: string;
 };
 
 function addPackage(plan: Plan, id: string, only?: string[]): void {
@@ -125,6 +127,8 @@ export function nativeInferencePlan(options: PlanOptions): Plan {
 
 function addWindowsRuntime(plan: Plan, options: PlanOptions): void {
   const { engine, backend } = options;
+  if (backend === "vulkan" && engine !== "diffusion")
+    throw new Error("Vulkan is supported only for diffusion");
   addPackage(plan, "msvc-win32");
   plan.libraries.push(
     "vcruntime140.dll",
@@ -153,8 +157,18 @@ function addWindowsRuntime(plan: Plan, options: PlanOptions): void {
     plan.libraries.push("libiomp5md.dll");
   }
   addWindowsAccelerator(plan, options);
+  if (backend === "vulkan") {
+    plan.executable = "mgt-flux-klein-vulkan.exe";
+    plan.version += "-vulkan-r1";
+  }
   if (!(engine === "torch" && backend === "cpu"))
-    addPackage(plan, `${engine}-win32-${backend}`);
+    addPackage(
+      plan,
+      `${engine}-win32-${backend}`,
+      backend === "vulkan"
+        ? ["stable-diffusion.dll", "mgt-flux-klein-vulkan.exe"]
+        : undefined,
+    );
   if (engine === "diffusion") plan.libraries.push("stable-diffusion.dll");
   else addTorchLibraries(plan, backend);
 }

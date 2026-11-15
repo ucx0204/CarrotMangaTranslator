@@ -20,6 +20,42 @@ const baseRuntime = {
 };
 
 describe("Flux settings runtime guards", () => {
+  it("preserves explicit Vulkan on AMD and NVIDIA while keeping Metal exclusive", () => {
+    for (const amd of [true, false]) {
+      const runtime = {
+        ...baseRuntime,
+        usesAmdHardware: amd,
+        usesNvidiaHardware: !amd,
+      };
+      expect(isFluxBackendIncompatible("vulkan-native", runtime)).toBe(false);
+      expect(
+        resolveCompatibleFluxBackend(
+          "vulkan-native",
+          "rocm-native",
+          amd,
+          false,
+          !amd,
+          false,
+        ),
+      ).toBe("vulkan-native");
+    }
+    expect(
+      isFluxBackendIncompatible("vulkan-native", {
+        ...baseRuntime,
+        usesAppleHardware: true,
+      }),
+    ).toBe(true);
+    expect(
+      resolveCompatibleFluxBackend(
+        "vulkan-native",
+        undefined,
+        false,
+        true,
+        false,
+        false,
+      ),
+    ).toBe("metal-native");
+  });
   it("keeps NVIDIA-only feature flags off on other hardware", () => {
     expect(resolveNvidiaFeatureFlags(false, undefined)).toEqual({
       usesRtx50Hardware: false,

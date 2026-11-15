@@ -47,6 +47,7 @@ const FLUX_BACKEND_ALIASES = createAliasMap<FluxBackend>([
       "amd",
     ],
   ],
+  ["vulkan-native", ["vulkan-native", "vulkan", "vk"]],
   ["metal-native", ["metal-native", "metal", "apple"]],
   ["cpu-native", ["cpu-native", "python-cpu", "cpu"]],
 ]);

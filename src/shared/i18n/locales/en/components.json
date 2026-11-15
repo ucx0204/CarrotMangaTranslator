@@ -2243,6 +2243,10 @@
         "rocm": {
           "label": "AMD ROCm",
           "description": "Runs the native ROCm 10 engine on AMD GPUs. The app prepares the required runtime automatically."
+        },
+        "vulkan": {
+          "label": "Vulkan",
+          "description": "Run on an AMD GPU with Vulkan instead of ROCm. Requires an up-to-date graphics driver."
         }
       },
       "inpaintingModels": {
@@ -2548,7 +2552,8 @@
         "cuda-sm75-experimental": "RTX 20 / GTX 16 (SM75) only",
         "cpu-native": "No GPU needed · Slow",
         "metal-native": "Requires Apple Silicon",
-        "rocm-native": "Requires AMD GPU"
+        "rocm-native": "Requires AMD GPU",
+        "vulkan-native": "Requires a Vulkan-capable Windows GPU and an up-to-date graphics driver."
       },
       "ocrRequirements": {
         "cuda": "Requires NVIDIA GPU",

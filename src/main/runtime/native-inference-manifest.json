@@ -298,6 +298,13 @@
       "bytes": 631189,
       "format": "zip",
       "preservePaths": false
+    },
+    "diffusion-win32-vulkan": {
+      "url": "https://github.com/ucx0204/CarrotMangaTranslator/releases/download/diffusion-master-929-vulkan-win-x64-r1/mgt-flux-klein-vulkan-master-929-win-x64-r1.zip",
+      "sha256": "c5f3134c1cd7214ec9b2e7611332c1c0acddce6472a2d18bf92614ab0471fa3f",
+      "bytes": 31730530,
+      "format": "zip",
+      "preservePaths": true
     }
   },
   "msvcVersion": "14.51.36247.0"

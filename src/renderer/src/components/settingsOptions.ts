@@ -339,6 +339,11 @@ export const FLUX_BACKEND_OPTIONS: FluxBackendOption[] = [
     descriptionKey: "settings.options.fluxBackends.rocm.description",
   },
   {
+    id: "vulkan-native",
+    labelKey: "settings.options.fluxBackends.vulkan.label",
+    descriptionKey: "settings.options.fluxBackends.vulkan.description",
+  },
+  {
     id: "cpu-native",
     labelKey: "settings.options.fluxBackends.cpu.label",
     descriptionKey: "settings.options.fluxBackends.cpu.description",

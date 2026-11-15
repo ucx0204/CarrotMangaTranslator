@@ -45,6 +45,30 @@ const {
 };
 
 describe("compute GPU runtime routing", () => {
+  it("isolates Vulkan's selected adapter and removes inherited HIP/CUDA visibility", () => {
+    for (const [selection, expected] of [
+      [undefined, "0"],
+      [2, "2"],
+    ] as const) {
+      const env: NodeJS.ProcessEnv = {
+        HIP_VISIBLE_DEVICES: "4",
+        CUDA_VISIBLE_DEVICES: "3",
+        ROCR_VISIBLE_DEVICES: "1",
+        GGML_VK_VISIBLE_DEVICES: "7",
+      };
+      applyComputeGpuVisibilityEnv(env, selection, "vulkan-native", "win32");
+      expect(env).toEqual({ GGML_VK_VISIBLE_DEVICES: expected });
+    }
+    const launch = buildFluxWorkerEnv({
+      backend: "vulkan-native",
+      computeGpuIndex: 1,
+      executable: "runner.exe",
+      args: ["--native-runtime", "manifest.json"],
+      runtimePath: "runner.exe",
+      label: "Vulkan",
+    });
+    expect(launch.GGML_VK_VISIBLE_DEVICES).toBe("1");
+  });
   it("rejects malformed boolean GPU indices in the JS runtime boundary", () => {
     expect(resolveRuntimeComputeGpuIndex(false)).toBeNull();
     expect(resolveRuntimeComputeGpuIndex(true)).toBeNull();

@@ -2243,6 +2243,10 @@
         "rocm": {
           "label": "AMD ROCm",
           "description": "在 AMD GPU 上运行 ROCm 10 原生引擎。应用会自动准备所需运行时。"
+        },
+        "vulkan": {
+          "label": "Vulkan",
+          "description": "在 AMD GPU 上使用 Vulkan 代替 ROCm。需要最新的显卡驱动。"
         }
       },
       "inpaintingModels": {
@@ -2548,7 +2552,8 @@
         "cuda-sm75-experimental": "仅限 RTX 20 / GTX 16 (SM75)",
         "cpu-native": "无需 GPU · 较慢",
         "metal-native": "需要 Apple Silicon",
-        "rocm-native": "需要 AMD GPU"
+        "rocm-native": "需要 AMD GPU",
+        "vulkan-native": "需要支持 Vulkan 的 Windows GPU 和最新的显卡驱动。"
       },
       "ocrRequirements": {
         "cuda": "需要 NVIDIA GPU",

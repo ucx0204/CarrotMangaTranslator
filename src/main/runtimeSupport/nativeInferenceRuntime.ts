@@ -51,9 +51,12 @@ type Extractor = (
 ) => Promise<void>;
 const pending = new Map<string, Promise<void>>();
 
-export async function ensureNativeInferenceRuntime(
-  options: Options,
-): Promise<{ directory: string; manifest: string; pathDirectories: string[] }> {
+export async function ensureNativeInferenceRuntime(options: Options): Promise<{
+  directory: string;
+  manifest: string;
+  pathDirectories: string[];
+  executable?: string;
+}> {
   options.signal?.throwIfAborted();
   const plan = nativeInferencePlan({
     ...options,
@@ -99,6 +102,9 @@ export async function ensureNativeInferenceRuntime(
   return {
     directory,
     manifest,
+    ...(plan.executable
+      ? { executable: join(directory, plan.executable) }
+      : {}),
     pathDirectories: plan.pathDirectories.map((part) => join(directory, part)),
   };
 }
@@ -127,7 +133,11 @@ async function installRuntime(
   directory: string,
   fingerprint: string,
 ): Promise<void> {
-  if (await validReceipt(directory, fingerprint, plan.libraries)) return;
+  const requiredFiles = [
+    ...plan.libraries,
+    ...(plan.executable ? [plan.executable] : []),
+  ];
+  if (await validReceipt(directory, fingerprint, requiredFiles)) return;
   const stage = createRuntimeStagingDirectory(directory);
   await mkdir(stage, { recursive: true });
   try {
@@ -179,7 +189,7 @@ async function installRuntime(
         },
       );
     }
-    for (const name of plan.libraries) {
+    for (const name of requiredFiles) {
       if (!(await lstat(join(stage, name))).isFile())
         throw new Error("네이티브 런타임 파일이 없습니다: " + name);
     }

@@ -30,6 +30,8 @@ import { RuntimeHardwareNote } from "../src/renderer/src/components/settingsModa
 import { FluxHardwareContextNote } from "../src/renderer/src/components/settingsModal/HardwareContextNotes";
 import { resolveHardwareRecommendation } from "../src/renderer/src/components/settingsModal/hardwareRecommendation";
 import { OCR_FULL_RECOMMENDED_GPU_MEMORY_MB } from "../src/shared/ocrMemoryPolicy";
+import { FluxBackendSettings } from "../src/renderer/src/components/settingsModal/FluxBackendSettings";
+import type { FluxBackend } from "../src/shared/inpaintingSettingsTypes";
 
 afterEach(() => {
   cleanup();
@@ -37,6 +39,40 @@ afterEach(() => {
 });
 
 describe("HardwareSettingsPanel", () => {
+  it("lets AMD users select Vulkan and return to ROCm without an unrelated compatibility alert", () => {
+    function Fixture() {
+      const [backend, setBackend] = React.useState<FluxBackend>("rocm-native");
+      return (
+        <FluxBackendSettings
+          clearTestState={() => {}}
+          controlsBusy={false}
+          fluxBackend={backend}
+          inpaintingModel="flux-klein"
+          isFluxBackendOptionDisabled={() => false}
+          setFluxBackend={setBackend}
+          supportsFluxZluda={false}
+          usesAmdHardware
+          usesAppleHardware={false}
+        />
+      );
+    }
+    render(<Fixture />);
+    expect(screen.getByRole("alert")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Vulkan" }));
+    expect(
+      screen
+        .getByRole("button", { name: "Vulkan" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "AMD ROCm" }));
+    expect(
+      screen
+        .getByRole("button", { name: "AMD ROCm" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(screen.getByRole("alert")).toBeTruthy();
+  });
   it("separates the auto-detected GPU from a manually selected runtime device", () => {
     render(
       <HardwareSettingsPanel

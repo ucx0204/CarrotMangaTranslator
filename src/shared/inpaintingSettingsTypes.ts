@@ -2,6 +2,7 @@ export type FluxBackend =
   | "cuda-native"
   | "cuda-sm75-experimental"
   | "rocm-native"
+  | "vulkan-native"
   | "zluda-native"
   | "metal-native"
   | "cpu-native";

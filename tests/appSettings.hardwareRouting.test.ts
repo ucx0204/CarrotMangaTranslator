@@ -18,6 +18,36 @@ import {
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
 describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
+  it("retains Vulkan through AMD settings persistence without changing the ROCm default", () => {
+    const defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon RX 7800 XT",
+        memoryMb: 16384,
+        vendor: "amd",
+        rtxGeneration: null,
+        computeCapability: null,
+        rocmTarget: "gfx110X",
+        supportsRocm: true,
+        supportsVulkan: true,
+      },
+    );
+    expect(defaults.inpainting?.fluxBackend).toBe("rocm-native");
+    for (const backend of ["vulkan-native", "vulkan", "vk"]) {
+      const stored = parseStoredAppSettings(
+        JSON.stringify({
+          ...defaults,
+          inpainting: { ...defaults.inpainting, fluxBackend: backend },
+        }),
+        defaults,
+      );
+      expect(stored.inpainting?.fluxBackend).toBe("vulkan-native");
+      expect(
+        parseStoredAppSettings(JSON.stringify(stored), defaults).inpainting
+          ?.fluxBackend,
+      ).toBe("vulkan-native");
+    }
+  });
   it("preserves stored OCR routing without a hardware rewrite policy", () => {
     const defaults = resolveDefaultAppSettings();
 

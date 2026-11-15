@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "tag": "diffusion-master-929-vulkan-win-x64-r1",
+  "sourceCommit": "8d373ec5c4a2b3e80c53786ce723bb5c867b2d8f",
+  "provenance": {
+    "diffusionCommit": "3f8527a46c54ecf4cb4ed6003da8e8982283c73c",
+    "ggmlCommit": "89c4413f5da6fb20cc796f16033d37f129be81fd",
+    "vulkanSdk": "1.4.363.0",
+    "backend": "vulkan",
+    "runnerFeatures": ["vulkan"],
+    "defaultFeatures": false,
+    "hardware": "NVIDIA RTX 4090 / Vulkan 1.4.341, driver 610.88",
+    "amdHardwareValidated": false
+  },
+  "assets": [
+    {
+      "name": "mgt-flux-klein-vulkan-master-929-win-x64-r1.zip",
+      "bytes": 31730530,
+      "sha256": "c5f3134c1cd7214ec9b2e7611332c1c0acddce6472a2d18bf92614ab0471fa3f",
+      "files": [
+        {
+          "name": "mgt-flux-klein-vulkan.exe",
+          "bytes": 8442368,
+          "sha256": "479b2bd3640b42d5938476bf65700878c4a9c9b999569066d2a9036b1fd3cb65"
+        },
+        {
+          "name": "stable-diffusion.dll",
+          "bytes": 80991232,
+          "sha256": "3101c3e1b5225810c2c47bdb95e448e3dfea161c1837533b9766e76c345875f9"
+        }
+      ]
+    }
+  ]
+}

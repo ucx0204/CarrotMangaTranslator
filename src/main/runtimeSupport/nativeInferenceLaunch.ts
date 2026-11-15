@@ -11,7 +11,7 @@ const execute = promisify(execFile);
 
 type LaunchOptions = {
   runtimeDir: string;
-  executable: string;
+  executable?: string;
   engine: "torch" | "diffusion";
   backend: NativeInferenceBackend;
   computeGpuIndex?: number;
@@ -28,11 +28,13 @@ export async function prepareNativeInferenceLaunch(
     ...options,
     rocmTarget,
   });
-  let executable = options.executable;
+  let executable = options.executable ?? runtime.executable;
+  if (!executable) throw new Error("Native runtime has no executable");
   if (process.platform === "darwin") {
     // Koharu's macOS bindings resolve dylibs relative to the worker executable.
-    executable = join(runtime.directory, basename(options.executable));
-    await copyFile(options.executable, executable);
+    const sourceExecutable = executable;
+    executable = join(runtime.directory, basename(sourceExecutable));
+    await copyFile(sourceExecutable, executable);
     await chmod(executable, 0o755);
   }
   return {
@@ -70,6 +72,7 @@ function runtimeEnvironmentPath(path: string): string {
 }
 
 async function probeRocmTarget(options: LaunchOptions): Promise<string> {
+  if (!options.executable) throw new Error("ROCm probe requires an executable");
   const core = await ensureNativeInferenceRuntime({
     ...options,
     engine: "rocm-probe",

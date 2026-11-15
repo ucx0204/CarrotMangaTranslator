@@ -335,11 +335,16 @@ export function resolveCompatibleFluxBackend(
 ): FluxBackend {
   if (usesAppleHardware) return "metal-native";
   if (usesNvidiaHardware) {
-    if (backend === "cpu-native") return backend;
+    if (backend === "cpu-native" || backend === "vulkan-native") return backend;
     return usesSm75Hardware ? "cuda-sm75-experimental" : "cuda-native";
   }
   if (!usesAmdHardware) return backend;
-  if (backend === "cpu-native" || backend === "rocm-native") return backend;
+  if (
+    backend === "cpu-native" ||
+    backend === "rocm-native" ||
+    backend === "vulkan-native"
+  )
+    return backend;
   return initialBackend === "cpu-native" ? "cpu-native" : "rocm-native";
 }
 

@@ -44,6 +44,41 @@ const options = () => ({
 });
 
 describe("native inference launch", () => {
+  it("launches the verified Vulkan package executable without a ROCm probe", async () => {
+    mock.install.mockResolvedValue({
+      directory: root,
+      executable,
+      manifest: join(root, "diffusion.json"),
+      pathDirectories: [root],
+    });
+    const result = await prepareNativeInferenceLaunch({
+      runtimeDir: root,
+      engine: "diffusion",
+      backend: "vulkan",
+    });
+    expect(result.executable).toBe(executable);
+    expect(mock.exec).not.toHaveBeenCalled();
+    expect(result.env.HIP_PATH).toBeUndefined();
+    mock.install.mockResolvedValue({
+      directory: root,
+      manifest: "missing",
+      pathDirectories: [],
+    });
+    await expect(
+      prepareNativeInferenceLaunch({
+        runtimeDir: root,
+        engine: "diffusion",
+        backend: "vulkan",
+      }),
+    ).rejects.toThrow("no executable");
+    await expect(
+      prepareNativeInferenceLaunch({
+        runtimeDir: root,
+        engine: "diffusion",
+        backend: "rocm",
+      }),
+    ).rejects.toThrow("probe requires");
+  });
   it.each(windowsRuntimePaths)(
     "keeps native SDK environment paths joinable: $input",
     async ({ input, expected }) => {

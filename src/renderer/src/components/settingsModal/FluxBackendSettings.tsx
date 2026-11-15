@@ -138,7 +138,8 @@ function UnsupportedAmdFluxWarning({
   if (
     inpaintingModel !== "flux-klein" ||
     !usesAmdHardware ||
-    supportsFluxZluda !== false
+    supportsFluxZluda !== false ||
+    fluxBackend === "vulkan-native"
   ) {
     return null;
   }
