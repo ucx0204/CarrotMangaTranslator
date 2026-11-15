@@ -196,7 +196,8 @@ function resolveDefaultGemmaVramSettings({
     typeof gpuMemoryMb === "number" &&
     Number.isFinite(gpuMemoryMb) &&
     gpuMemoryMb > 0 &&
-    gpuMemoryMb <= 8 * 1024
+    gpuMemoryMb <= 8 * 1024 &&
+    vramMode !== "lowVram26b"
   ) {
     return { fitTargetMb, mmprojOffload: false };
   }

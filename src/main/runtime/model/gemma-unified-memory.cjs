@@ -2,6 +2,7 @@
 const { totalmem } = require("node:os");
 
 const GEMMA_UNIFIED_MEMORY_REQUIREMENTS_MB = Object.freeze({
+  lowVram26b: 24 * 1024,
   minimum12b: 16 * 1024,
   economy26b: 24 * 1024,
   full31b: 32 * 1024,
@@ -81,6 +82,7 @@ function normalizeGemmaVramMode(value) {
   const normalized = String(value || "")
     .trim()
     .toLowerCase();
+  if (normalized === "lowvram26b") return "lowVram26b";
   if (["full31b", "full", "31b"].includes(normalized)) return "full31b";
   if (["economy26b", "economy", "26b"].includes(normalized))
     return "economy26b";

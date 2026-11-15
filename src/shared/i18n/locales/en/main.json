@@ -206,6 +206,7 @@
     "incompleteWithFailures": "Translation incomplete — {{count}} page(s) did not finish.",
     "completed": "Translation complete",
     "vram": {
+      "lowVram26b": "26B 8GB · RAM offload",
       "minimum12b": "12B minimum mode",
       "economy26b": "26B economy mode",
       "full31b": "31B full-load mode"

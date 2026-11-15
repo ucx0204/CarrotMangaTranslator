@@ -2081,6 +2081,10 @@
     },
     "options": {
       "modelPresets": {
+        "lowVram26b": {
+          "label": "26B (8GB)",
+          "description": "RAMに余裕がある場合に選択してください。24GB以上（空き約16GB）を推奨します。12Bより遅い場合があります。"
+        },
         "minimum12b": {
           "label": "12B (8GB)",
           "description": "8GB VRAM向けの従来版12Bモデルです。以前のバージョンと同じ構成が必要な場合に選択してください。"

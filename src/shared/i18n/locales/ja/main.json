@@ -206,6 +206,7 @@
     "incompleteWithFailures": "翻訳未完了（{{count}}ページを完了できませんでした）",
     "completed": "翻訳が完了しました",
     "vram": {
+      "lowVram26b": "26B 8GB · RAM併用",
       "minimum12b": "12B最小モード",
       "economy26b": "26B省メモリモード",
       "full31b": "31Bフルロードモード"

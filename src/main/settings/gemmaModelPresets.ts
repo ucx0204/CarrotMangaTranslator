@@ -34,6 +34,9 @@ type GemmaModelPreset = Pick<
 export function getLegacyGemmaPresetForVramMode(
   vramMode: GemmaVramMode,
 ): GemmaModelPreset {
+  if (vramMode === "lowVram26b") {
+    return getDefaultGemmaPresetForVramMode(vramMode);
+  }
   if (vramMode === "minimum12b") {
     return {
       modelRepo: GEMMA_12B_MODEL_REPO,
@@ -69,7 +72,7 @@ export function getDefaultGemmaPresetForVramMode(
       mmprojFile: GEMMA_12B_QAT_MMPROJ_FILE,
     };
   }
-  if (vramMode === "economy26b") {
+  if (vramMode === "economy26b" || vramMode === "lowVram26b") {
     return {
       modelRepo: GEMMA_26B_QAT_MODEL_REPO,
       modelFile: GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,

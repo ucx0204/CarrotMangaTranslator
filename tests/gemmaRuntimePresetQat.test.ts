@@ -128,7 +128,7 @@ describe("QAT Gemma runtime preset routing", () => {
   it("uses model-sized free-VRAM targets and 1536 MiB for 31B", () => {
     expect(
       Object.values(GEMMA_RUNTIME_PRESETS).map((preset) => preset.fitTargetMb),
-    ).toEqual([512, 1024, 1536]);
+    ).toEqual([1024, 512, 1024, 1536]);
   });
 
   it.each([

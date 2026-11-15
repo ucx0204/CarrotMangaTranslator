@@ -12,7 +12,7 @@ import {
 
 export const GemmaVramModeSchema = z.preprocess(
   (value) => canonicalizeGemmaVramMode(value) ?? value,
-  z.enum(["minimum12b", "economy26b", "full31b"]),
+  z.enum(["lowVram26b", "minimum12b", "economy26b", "full31b"]),
 );
 
 export const LlamaRuntimeProfileSchema = z.preprocess(

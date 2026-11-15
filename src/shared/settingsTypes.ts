@@ -32,7 +32,8 @@ export type { UiLocale } from "./uiLocales";
 export type ModelProvider =
   "gemma" | "openai-codex" | "openai-api" | "claude-code";
 export type ModelSource = "huggingface" | "local";
-export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
+export type GemmaVramMode =
+  "lowVram26b" | "minimum12b" | "economy26b" | "full31b";
 export type ApiReasoningEffort =
   "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 export type OcrDevice = "cpu" | "gpu";

@@ -2081,6 +2081,10 @@
     },
     "options": {
       "modelPresets": {
+        "lowVram26b": {
+          "label": "26B (8GB)",
+          "description": "RAM充足時可選擇。建議24GB以上，空閒約16GB。速度可能慢於12B。"
+        },
         "minimum12b": {
           "label": "12B (8GB)",
           "description": "適合 8GB GPU 記憶體的舊版 12B 模型。需要與早期版本保持相同設定時可選擇它。"

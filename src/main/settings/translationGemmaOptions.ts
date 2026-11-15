@@ -71,7 +71,7 @@ type GemmaModelOptions = Pick<
 
 type GemmaTranslationOptions = GemmaFieldOptions &
   GemmaModelOptions &
-  Pick<TranslationOptions, "gemmaVramMode">;
+  Pick<TranslationOptions, "gemmaVramMode" | "cpuMoe">;
 
 export function resolveTranslationRuntimeState(
   runtimeEnv: NodeJS.ProcessEnv,
@@ -103,7 +103,7 @@ export function resolveTranslationRuntimeState(
       mmprojOffload:
         settings.gemma.mmprojOffload ?? platformRuntimePreset.mmprojOffload,
     },
-    runtimeGemma,
+    { ...runtimeGemma, vramMode: gemmaVramMode },
     llamaRuntimeProfile,
   );
   const configuredCtx = resolveContextTokens(
@@ -154,6 +154,7 @@ export function resolveGemmaTranslationOptions({
       state.gemmaRuntimePreset,
     ),
     gemmaVramMode: state.gemmaVramMode,
+    cpuMoe: state.gemmaRuntimePreset.cpuMoe,
     ...gpuOptions,
     ...resolveGemmaThreadOptions(runtimeEnv, state.gemmaRuntimePreset),
     ...cacheOptions,

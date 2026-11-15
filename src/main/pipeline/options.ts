@@ -81,6 +81,9 @@ export function applyOutputOptions(
 export function formatGemmaVramMode(
   mode: TranslationOptions["gemmaVramMode"],
 ): string {
+  if (mode === "lowVram26b") {
+    return tMain("translation.vram.lowVram26b");
+  }
   if (mode === "minimum12b") {
     return tMain("translation.vram.minimum12b");
   }
@@ -123,6 +126,7 @@ export function summarizeTranslationOptions(
     gpuMemoryMb: options.gpuMemoryMb,
     computeGpuIndex: options.computeGpuIndex,
     gpuLayers: options.gpuLayers,
+    cpuMoe: options.cpuMoe,
     cacheTypeK: options.cacheTypeK,
     cacheTypeV: options.cacheTypeV,
     ctxCheckpoints: options.ctxCheckpoints,

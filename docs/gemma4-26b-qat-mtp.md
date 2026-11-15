@@ -1,5 +1,163 @@
 # Gemma 4 26B QAT + MTP production handoff
 
+## Issue #177: dedicated 8 GiB profile (2026-11-14)
+
+`lowVram26b`, shown as `26B (8GB)`, reuses the exact QAT 26B model and
+projector pinned below. It is a separate execution profile, not a new model
+asset or release. The existing 12B remains the first option and the default
+for 8 GiB GPUs, including recommendation resets. The CPU-expert 26B is the
+second option for users with ample system RAM. Its short RAM recommendation
+appears only in the existing tooltip. Selecting it enables GPU vision;
+explicitly saved model selections remain authoritative.
+
+The profile keeps all MoE expert weights in system RAM with llama.cpp
+`--cpu-moe`, retaining automatic GPU fitting for the remaining tensors. It
+uses 32,768 context tokens, 1,024/1,024 batch/micro-batch, Q4_0 KV, no mmap, a
+1,024 MiB requested free-VRAM margin, and no MTP draft model. This 26B profile keeps the vision projector on GPU; the user's explicit
+projector setting remains authoritative. The older 12B 8 GiB default still
+uses CPU vision. The normal `26B (16GB)` preset
+continues using its previous automatic fitting and CUDA MTP configuration.
+Switching between the two 26B profiles shares the same verified model cache.
+
+The tooltip recommends at least 24 GB system RAM with about 16 GB available and
+explains that CPU/memory bandwidth can make this slower than 12B. This is an
+operational recommendation, not a hard admission check or a physical-8GB
+hardware certification. Native validation on this workstation uses an
+RTX 4090 24 GB with CPU experts forced by the production profile.
+
+The preset ID and VRAM mode round-trip through stored settings, IPC, model
+selection, recommended settings and internet research. Model-file identity
+alone intentionally continues to identify the ordinary `qat26b` preset;
+the saved mode distinguishes the 8 GiB profile. Diagnostics and result
+settings record `cpuMoe`. No library input or output is modified by QA.
+
+Regression tests: `gemmaLowVram26b`, `settingsModalSafety`, existing Gemma
+runtime/launch, settings migration, hardware routing, IPC and Metal suites.
+UI captures use the real settings modal and styles with the repository QA
+bridge at 1440×1000 and 900×760:
+`C:/tmp/issue177-secondary-wide.png` and
+`C:/tmp/issue177-secondary-narrow.png`, with the focused tooltip captured at
+`C:/tmp/issue177-secondary-tooltip.png`. The temporary renderer entry was removed.
+
+Rollback: select `12B (8GB)` under the speed family (or the legacy family
+for the older non-QAT 12B), then save. Existing model files remain usable;
+no cache migration or asset replacement is required.
+
+### Native verification and rejected settings
+
+Downloaded the two pinned assets into isolated staging, checked their full
+byte sizes and SHA-256 values, then moved those exact files into the normal
+managed Hugging Face cache. The app's downloader/validator and native server
+startup reused them successfully. Inventory: `.tmp/issue177-downloads/verified-assets.json`
+(its staging paths predate the move). The native options came from `resolveDefaultAppSettings` for an 8 GiB GPU
+and `buildBaseTranslationOptions` before the follow-up restored 12B as the
+default. Explicitly choosing the 26B profile retains that tested runtime.
+
+llama.cpp b11146 on RTX 4090 completed a 900×300 Japanese-text image request:
+“明日の朝、駅で待ってる。忘れないでね。” became “내일 아침, 역에서 기다릴게. 잊지 마.”
+Startup was 11.37 seconds, request wall time 2.85 seconds, prompt throughput
+491.65 tokens/s and decode throughput 29.24 tokens/s (17 generated tokens).
+Board-wide VRAM sampled once per second rose from 2,496 MiB to 7,240 MiB
+(4,744 MiB above idle). Process peak working set was 16,832,270,336 bytes
+(15.68 GiB); private committed memory after the request was 22,319,452,160
+bytes (20.79 GiB). This is a small image smoke, not a chapter quality benchmark,
+a guaranteed VRAM ceiling, or validation on physical 8 GiB hardware.
+Evidence: `.tmp/issue177-native-report.json`, `.tmp/issue177-native-final.log`,
+`.tmp/issue177-native-request-stderr.log`, `C:/tmp/issue177-japanese-input.png`.
+
+The first experimental 512/256 batch profile was rejected: the native
+multimodal request asserted that non-causal attention requires a micro-batch
+at least as large as the image-token batch. CPU vision also exceeded the
+180-second diagnostic deadline. The final profile retains the established
+1,024/1,024 batch and disables mmap, as the native loader recommends for CPU
+tensor overrides. Those failures are not presented as successful validation.
+
+The first full suite found seven failures: five new download-inventory tests
+needed isolated caches after real assets were installed; one settings-restore
+expectation still required 12B; one coverage inventory lacked the newly touched
+`gemma-unified-memory.cjs`. Its original Node 22 baseline floor was restored
+without lowering any existing floor (lines 15/24, statements 16/26, functions
+2/3, branches 16/28). The changed behavior and inventory are rechecked by the
+focused suites (304 passed, one platform skip across 16 files, including the
+12B-default and tooltip-only follow-up); the remaining
+full-suite tests passed.
+
+Final `npm run check -- --phase=build` passed all 25 gates, including the build,
+renderer parity and image-protocol smoke. Focused V8 coverage for the touched
+native unified-memory owner exceeded its original floor in all four metrics
+(76% lines, 78.57% statements, 100% functions, 76.66% branches), recorded in
+`.tmp/issue177-coverage/coverage-summary.json`.
+
+### Issue #177 real-manga follow-up (2026-11-14)
+
+The synthetic-image smoke above was followed by a fresh production-pipeline
+run on six actual library pages: pages 1–3 of `1×∞` chapter 22 and pages 1–3
+of `최강의 검성, 미소녀 메이드로 전생해 빗자루로 무쌍하다` chapter 11.1.
+The existing full-pipeline QA runner used isolated source copies and the
+production `withExecutionSettings` contract. Settings came from the 8 GiB
+12B defaults followed by selecting `lowVram26b` and GPU vision, retaining
+the existing 512 MiB reserve exactly as the UI does. OCR, translation, font
+selection/size, Flux inpainting and renderer export were all executed fresh.
+
+Evidence root: `artifacts/issue177-real-manga-v1/`.
+`run/run-report.json` records six completed pages, zero incomplete inpainting
+blocks and six rendered PNGs. `translation-audit.json` records all 70 supplied
+ordinary-text slots returned with matching IDs, nonempty translations and
+normal stop reasons. Two pages needed one built-in block-repair request each.
+After the existing punctuation-preservation policy, 63 blocks were typeset.
+The model started once in 11.62 seconds; translation requests including repair
+took 27.49, 29.96, 34.70, 41.86, 14.75 and 25.91 seconds. The entire OCR,
+typography, inpainting and export run took 508.40 seconds (8 minutes 28 seconds).
+`native-launch.json` confirms b11146, `--cpu-moe`, GPU projector, Q4 KV and no
+draft. All nine protected original/settings/chapter hashes were unchanged in
+`source-integrity-after.json`. Test processes exited successfully.
+
+Every original and rendered image was inspected directly. Runtime completion
+is **not** a clean translation/layout-quality verdict: page 4 translates
+`月日は流れ` as `달은 흐르고` and invents `메쿠츠카사` for `介錯`; the page-4
+title also drops the broom phrase. Some narrow blocks wrap awkwardly, and
+Flux changes parts of white balloon/caption interiors on pages 1, 3 and 4.
+Some margin credits/copy remain outside the detected translation slots.
+These observations are retained in the unedited outputs and `run/review.html`;
+they were not manually repaired or hidden by selectively choosing outputs.
+This run does not isolate whether those downstream quality issues differ from
+the existing 12B or normal 26B profiles.
+
+The workstation is still an RTX 4090 24 GiB, not a physical 8 GiB GPU.
+Two-second board-wide samples peaked at 9,878 MiB while llama was alive
+(including other app/OCR/font work) and 12,557 MiB during Flux finishing.
+Those are whole-board measurements, not the model-only allocation or an
+8 GiB guarantee. Sampled llama peak working set was 15.80 GiB and private
+commit 20.80 GiB. `memory-samples.csv` preserves the measurements; sampling
+started during OCR and does not establish an idle baseline for this run.
+
+### Paired 12B / CPU-expert 26B comparison, stopped by user (2026-11-14)
+
+The planned 20-work, 100-page comparison was stopped at the user's request.
+Both profiles translated the same 50 pages from 10 works, with identical OCR
+payloads for all 50 pairs. All 386 supplied text slots were returned by each
+profile, with no final ID mismatch or empty translation. Nine work pairs
+completed the full pipeline; the tenth 26B run was interrupted during finishing.
+There are 50 12B and 46 26B completed renders. All 50 paired translation texts
+and the first 45 paired final images were reviewed; the extra render from the
+interrupted run is retained but is not counted as visually reviewed.
+
+Excluding speed, assistant qualitative review suggests a modest 26B advantage
+in context, causative relations and recovery from OCR mistakes. This is not a
+human-gold accuracy score or a clean-quality verdict: 26B also omitted gratitude
+and a self-repair ability phrase, and reversed leaving versus returning in one
+line. Both models mistranslated receding smoke as rising smoke and missed some
+decorative source text outside the OCR slots. The existing 12B default and
+optional 26B selection remain unchanged.
+
+Evidence: `artifacts/issue177-compare100-v1/summary.html`, `comparison.html`,
+`qualitative-notes.json`, and `final-audit.json`. The scope is explicitly stopped,
+not 100-page complete. Test workers and the memory sampler exited; all protected
+source/settings and bound runtime hashes remained unchanged. Measurements use
+RTX 4090 24 GiB hardware, not a physical 8 GiB GPU. The two actual UI profiles
+also differ in CPU versus GPU vision, so this is a preset comparison rather
+than an isolated parameter-count experiment.
+
 ## Production selection
 
 The Gemma settings UI exposes `26B speed` (Korean: `26B 속도`) as a built-in

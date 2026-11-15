@@ -2081,6 +2081,10 @@
     },
     "options": {
       "modelPresets": {
+        "lowVram26b": {
+          "label": "26B (8GB)",
+          "description": "Choose this if you have plenty of RAM. Recommended: 24GB or more, with about 16GB free. May be slower than 12B."
+        },
         "minimum12b": {
           "label": "12B (8GB)",
           "description": "The legacy 12B model for 8 GB VRAM. Choose it when you need the same setup as earlier versions."

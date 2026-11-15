@@ -5980,6 +5980,28 @@
         "pct": 67.85
       }
     },
+    "src/main/runtime/model/gemma-unified-memory.cjs": {
+      "lines": {
+        "covered": 15,
+        "total": 24,
+        "pct": 62.5
+      },
+      "functions": {
+        "covered": 2,
+        "total": 3,
+        "pct": 66.66
+      },
+      "statements": {
+        "covered": 16,
+        "total": 26,
+        "pct": 61.53
+      },
+      "branches": {
+        "covered": 16,
+        "total": 28,
+        "pct": 57.14
+      }
+    },
     "src/main/runtime/model/gemma4-official-chat-template.cjs": {
       "lines": {
         "covered": 23,

@@ -122,6 +122,7 @@ function buildGenerationOptionSummary(options) {
     batch: options.batch,
     ubatch: options.ubatch,
     gemmaVramMode: options.gemmaVramMode,
+    cpuMoe: options.cpuMoe,
     fitTargetMb: options.fitTargetMb,
     fitEnabled: options.fitEnabled,
     gpuMemoryMb: options.gpuMemoryMb,

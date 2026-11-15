@@ -492,6 +492,8 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     );
 
     expect(lowMemoryDefaults.gemma).toMatchObject({
+      vramMode: "minimum12b",
+      modelRepo: GEMMA_12B_QAT_MODEL_REPO,
       fitTargetMb: 512,
       mmprojOffload: false,
     });

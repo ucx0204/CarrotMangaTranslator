@@ -8,6 +8,7 @@ export const TAVILY_ANALYSIS_PROVIDERS = ["gemma", "api"] as const;
 export type TavilyAnalysisProvider = (typeof TAVILY_ANALYSIS_PROVIDERS)[number];
 
 export const RESEARCH_GEMMA_PRESETS = [
+  "lowVram26b",
   "minimum12b",
   "qat12b",
   "economy26b",

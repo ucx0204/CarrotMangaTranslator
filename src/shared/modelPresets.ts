@@ -258,6 +258,13 @@ export const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
 export const RTX_50_OCR_GPU_CUDA_TAG = "cu129";
 
 export const GEMMA_MODEL_PRESETS = {
+  lowVram26b: {
+    vramMode: "lowVram26b" as GemmaVramMode,
+    modelRepo: GEMMA_26B_QAT_MODEL_REPO,
+    modelFile: GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+    mmprojRepo: GEMMA_26B_QAT_MMPROJ_REPO,
+    mmprojFile: GEMMA_26B_QAT_MMPROJ_FILE,
+  },
   minimum12b: {
     vramMode: "minimum12b" as GemmaVramMode,
     modelRepo: GEMMA_12B_MODEL_REPO,

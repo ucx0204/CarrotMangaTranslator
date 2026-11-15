@@ -252,6 +252,7 @@ function resolveModelFormValues(
     selectedPreset: resolveModelPreset(
       settings.gemma.modelRepo,
       settings.gemma.modelFile,
+      settings.gemma.vramMode,
     ),
     customModelRepo: settings.gemma.modelRepo,
     customModelFile: settings.gemma.modelFile,

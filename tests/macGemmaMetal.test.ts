@@ -75,8 +75,11 @@ const { buildLlamaServerEnv } =
     ) => NodeJS.ProcessEnv;
   };
 
-const { evaluateGemmaUnifiedMemoryPolicy } =
+const { evaluateGemmaUnifiedMemoryPolicy, assertGemmaUnifiedMemoryPolicy } =
   require("../src/main/runtime/model/gemma-unified-memory.cjs") as {
+    assertGemmaUnifiedMemoryPolicy: (
+      options: Record<string, unknown>,
+    ) => Record<string, unknown>;
     evaluateGemmaUnifiedMemoryPolicy: (
       options: Record<string, unknown>,
       system?: Record<string, unknown>,
@@ -271,6 +274,25 @@ describe("Apple Silicon Gemma Metal runtimes", () => {
 });
 
 describe("Apple unified-memory policy", () => {
+  it("keeps the CPU-expert 26B profile at the 24GB unified-memory tier", () => {
+    expect(
+      assertGemmaUnifiedMemoryPolicy({
+        llamaRuntimeProfile: "cuda12",
+        gemmaVramMode: "lowVram26b",
+      }),
+    ).toMatchObject({ applies: false, allowed: true, mode: "lowVram26b" });
+    expect(evaluateGemmaUnifiedMemory("lowVram26b", 16 * 1024)).toMatchObject({
+      allowed: false,
+      requiredMemoryMb: 24 * 1024,
+    });
+    expect(
+      evaluateGemmaUnifiedMemoryPolicy(
+        { llamaRuntimeProfile: "metal", gemmaVramMode: "lowVram26b" },
+        { platform: "darwin", arch: "arm64", totalMemoryMb: 16 * 1024 },
+      ),
+    ).toMatchObject({ allowed: false, requiredMemoryMb: 24 * 1024 });
+  });
+
   it("selects the 16/24/32GB model tiers", () => {
     expect(resolveRecommendedGemmaVramModeForUnifiedMemory(15 * 1024)).toBe(
       null,

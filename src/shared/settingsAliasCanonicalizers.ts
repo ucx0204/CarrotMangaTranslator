@@ -12,6 +12,7 @@ import type {
 type SettingsAliasSurface = "ipc" | "runtime-stored";
 
 const GEMMA_VRAM_MODE_ALIASES = createAliasMap<GemmaVramMode>([
+  ["lowVram26b", ["lowvram26b"]],
   ["minimum12b", ["minimum12b", "minimum", "minimal", "min", "12b"]],
   ["economy26b", ["economy26b", "economy", "eco", "26b"]],
   ["full31b", ["full31b", "full", "31b"]],

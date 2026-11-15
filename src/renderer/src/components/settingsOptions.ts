@@ -1,4 +1,5 @@
 import type {
+  GemmaVramMode as AppGemmaVramMode,
   ApiReasoningEffort,
   CodexReasoningEffort,
   FluxBackend,
@@ -21,6 +22,10 @@ const MODEL_PRESET_COPY: Record<
   GemmaModelPresetId,
   { labelKey: string; descriptionKey: string }
 > = {
+  lowVram26b: {
+    labelKey: "settings.options.modelPresets.lowVram26b.label",
+    descriptionKey: "settings.options.modelPresets.lowVram26b.description",
+  },
   minimum12b: {
     labelKey: "settings.options.modelPresets.minimum12b.label",
     descriptionKey: "settings.options.modelPresets.minimum12b.description",
@@ -48,6 +53,10 @@ const MODEL_PRESET_COPY: Record<
 } as const;
 
 export const MODEL_PRESETS = {
+  lowVram26b: {
+    ...GEMMA_MODEL_PRESETS.lowVram26b,
+    ...MODEL_PRESET_COPY.lowVram26b,
+  },
   minimum12b: {
     ...GEMMA_MODEL_PRESETS.minimum12b,
     ...MODEL_PRESET_COPY.minimum12b,
@@ -357,6 +366,7 @@ export const INPAINTING_MODEL_OPTIONS: InpaintingModelOption[] = [
 export function resolveModelPreset(
   modelRepo: string,
   modelFile: string,
+  vramMode?: AppGemmaVramMode,
 ): ModelPresetId {
   const trimmedModelRepo = modelRepo.trim();
   const trimmedModelFile = modelFile.trim();
@@ -367,6 +377,7 @@ export function resolveModelPreset(
       (typeof MODEL_PRESETS)[keyof typeof MODEL_PRESETS],
     ]
   >) {
+    if (presetId === "lowVram26b" && vramMode !== "lowVram26b") continue;
     if (matchesPreset(preset, trimmedModelRepo, trimmedModelFile)) {
       return presetId;
     }

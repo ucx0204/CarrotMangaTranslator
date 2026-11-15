@@ -30,6 +30,7 @@ export type GemmaRuntimePreset = {
   fitTargetMb: number;
   fitEnabled?: boolean;
   gpuLayers?: number | "fit" | "all";
+  cpuMoe?: boolean;
   cacheTypeK?: string;
   cacheTypeV?: string;
   ctxCheckpoints?: number;
@@ -54,6 +55,21 @@ export type GemmaRuntimePreset = {
 
 export const GEMMA_RUNTIME_PRESETS: Record<GemmaVramMode, GemmaRuntimePreset> =
   {
+    lowVram26b: {
+      ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+      batch: 1024,
+      ubatch: 1024,
+      fitTargetMb: 1024,
+      cacheTypeK: "q4_0",
+      cacheTypeV: "q4_0",
+      ctxCheckpoints: 0,
+      kvOffload: true,
+      mmprojOffload: true,
+      gpuLayers: "fit",
+      enableMetrics: true,
+      enablePerf: true,
+      useDraft: false,
+    },
     minimum12b: {
       ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
       batch: 1024,
@@ -113,6 +129,11 @@ export function resolveModelSpecificGemmaRuntimePreset(
   }
   const variant = resolveQatGemmaVariant(gemma);
   if (!variant) return preset;
+  if (variant === "qat26b" && gemma.vramMode === "lowVram26b") {
+    // Keep expert tensors in system RAM even when a larger GPU is available.
+    // A second draft model is deliberately excluded from the 8 GiB profile.
+    return { ...preset, cpuMoe: true, disableMmap: true, useDraft: false };
+  }
   if (llamaRuntimeProfile !== "cuda12" && llamaRuntimeProfile !== "rtx50") {
     return { ...preset, useDraft: false };
   }

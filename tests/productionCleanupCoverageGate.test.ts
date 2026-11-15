@@ -590,7 +590,8 @@ describe("production cleanup coverage floor gate", () => {
     // Complete diagnostics touch logger rotation and the renderer error boundary.
     // Issue 168 touches response text; preserve its original measured floor.
     // Build identity and page completion retain their original measured floors.
-    expect(scope.existing).toHaveLength(870);
+    // Issue #177 adds the original measured unified-memory runtime floor.
+    expect(scope.existing).toHaveLength(871);
     // Includes global chat, shared actions, OpenCode help, MCP event streams, shared
     // translation instructions and image budget; inherited floors remain unchanged.
     // inherited floors remain unchanged.

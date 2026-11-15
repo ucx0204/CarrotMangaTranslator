@@ -206,6 +206,7 @@
     "incompleteWithFailures": "翻譯未完成（{{count}} 頁未能完成）",
     "completed": "翻譯工作完成",
     "vram": {
+      "lowVram26b": "26B 8GB · RAM卸載",
       "minimum12b": "12B 最低模式",
       "economy26b": "26B 節省模式",
       "full31b": "31B 完整載入模式"

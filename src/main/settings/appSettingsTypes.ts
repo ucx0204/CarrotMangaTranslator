@@ -92,6 +92,7 @@ export type TranslationOptions = {
   /** Windows DirectML pre-processing preference, captured at job start. */
   graphicsGpuPreference?: GraphicsGpuPreference;
   gpuLayers?: number | "fit" | "all";
+  cpuMoe?: boolean;
   cacheTypeK?: string;
   cacheTypeV?: string;
   ctxCheckpoints?: number;

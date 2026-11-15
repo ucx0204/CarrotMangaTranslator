@@ -138,6 +138,7 @@ type HuggingFaceModelFieldsProps = Pick<
   | "setCustomModelRepo"
   | "setCustomVramMode"
   | "setLlamaRuntimeProfile"
+  | "setGemmaMmprojOffload"
   | "setAllowUnsafeUnifiedMemory"
   | "setSelectedPreset"
   | "submit"

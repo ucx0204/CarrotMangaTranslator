@@ -23,6 +23,7 @@ import {
 } from "../src/renderer/src/lib/fonts";
 import type { CodexAccountSnapshot } from "../src/shared/codexAccountTypes";
 import {
+  GEMMA_MODEL_PRESETS,
   GEMMA_26B_MMPROJ_FILE,
   GEMMA_26B_MMPROJ_REPO,
   GEMMA_26B_MODEL_FILE_IQ3_S,
@@ -58,6 +59,43 @@ afterEach(() => {
 });
 
 describe("settings draft safety", () => {
+  it("keeps 12B first and offers CPU-expert 26B second with tooltip-only guidance", async () => {
+    const settings = resolveDefaultAppSettings(
+      {},
+      {
+        name: "RTX 4060",
+        vendor: "nvidia",
+        memoryMb: 8192,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+      },
+    );
+    const onSubmit = vi.fn();
+    renderSettings({ settings, onSubmit });
+    fireEvent.click(screen.getByRole("tab", { name: "번역" }));
+    const presets = within(
+      screen.getByRole("group", { name: "모델 프리셋" }),
+    ).getAllByRole("button");
+    expect(presets.slice(0, 2).map((button) => button.textContent)).toEqual([
+      "12B (8GB)",
+      "26B (8GB)",
+    ]);
+    expect(presets[0]).toHaveProperty("ariaPressed", "true");
+    fireEvent.click(presets[1]);
+    fireEvent.focus(presets[1]);
+    expect(await screen.findByRole("tooltip")).toHaveProperty(
+      "textContent",
+      "RAM이 넉넉할 때 선택하세요. RAM 24GB 이상(여유 약 16GB)을 권장하며, 12B보다 느릴 수 있습니다.",
+    );
+    expect(document.querySelector('.modal-note[role="status"]')).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(onSubmit.mock.calls[0][0].gemma).toMatchObject({
+      ...GEMMA_MODEL_PRESETS.lowVram26b,
+      mmprojOffload: true,
+    });
+  });
+
   it.each([false, true])(
     "applies local model recommendations transactionally, load failure=%s",
     async (fails) => {
@@ -290,7 +328,7 @@ describe("settings draft safety", () => {
     expect(
       within(familyGroup).getByRole("button", { name: "속도(추천)" }),
     ).toHaveProperty("ariaPressed", "true");
-    expect(within(presetGroup).getAllByRole("button")).toHaveLength(4);
+    expect(within(presetGroup).getAllByRole("button")).toHaveLength(5);
     expect(
       within(presetGroup).getByRole("button", { name: "26B (16GB)" }),
     ).toHaveProperty("ariaPressed", "true");

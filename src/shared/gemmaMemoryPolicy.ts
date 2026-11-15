@@ -1,6 +1,7 @@
 import type { GemmaVramMode } from "./settingsTypes";
 
 const GEMMA_UNIFIED_MEMORY_REQUIREMENTS_MB: Record<GemmaVramMode, number> = {
+  lowVram26b: 24 * 1024,
   minimum12b: 16 * 1024,
   economy26b: 24 * 1024,
   full31b: 32 * 1024,
@@ -10,6 +11,7 @@ export const GEMMA_DEDICATED_VRAM_REQUIREMENTS_MB: Record<
   GemmaVramMode,
   number
 > = {
+  lowVram26b: 8 * 1024,
   minimum12b: 8 * 1024,
   economy26b: 16 * 1024,
   full31b: 24 * 1024,
@@ -32,6 +34,7 @@ export function meetsGemmaDedicatedVramRequirement(
 }
 
 export const GEMMA_MODEL_DOWNLOAD_BYTES: Record<GemmaVramMode, number> = {
+  lowVram26b: 17_990_843_296,
   // Model + vision projector. 31B also includes the DFlash draft model.
   minimum12b: 7_556_000_000,
   economy26b: 13_028_000_000,

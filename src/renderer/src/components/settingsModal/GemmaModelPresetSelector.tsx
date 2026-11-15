@@ -15,12 +15,13 @@ const MODEL_PRESET_BUTTON_IDS: Record<
   ModelPresetFamily,
   readonly ModelPresetId[]
 > = {
-  speed: ["qat12b", "qat26b", "qat31b", "custom"],
+  speed: ["qat12b", "lowVram26b", "qat26b", "qat31b", "custom"],
   legacy: ["minimum12b", "economy26b", "full31b", "custom"],
 };
 const MODEL_PRESET_FAMILY_BY_ID: Partial<
   Record<ModelPresetId, ModelPresetFamily>
 > = {
+  lowVram26b: "speed",
   qat12b: "speed",
   qat26b: "speed",
   qat31b: "speed",
@@ -30,6 +31,7 @@ const MODEL_PRESET_FAMILY_BY_ID: Partial<
 };
 const MODEL_PRESET_COUNTERPARTS: Partial<Record<ModelPresetId, ModelPresetId>> =
   {
+    lowVram26b: "minimum12b",
     qat12b: "minimum12b",
     minimum12b: "qat12b",
     qat26b: "economy26b",
@@ -48,6 +50,7 @@ type GemmaModelPresetSelectorProps = Pick<
   | "setCustomVramMode"
   | "setAllowUnsafeUnifiedMemory"
   | "setSelectedPreset"
+  | "setGemmaMmprojOffload"
   | "unifiedMemoryMb"
   | "usesAppleHardware"
 >;
@@ -69,6 +72,7 @@ export function GemmaModelPresetSelector(
     if (!confirmGemmaMemoryRisk(presetId, props, t)) return false;
     props.clearTestState();
     props.setSelectedPreset(presetId);
+    if (presetId === "lowVram26b") props.setGemmaMmprojOffload(true);
     if (presetId !== "custom") {
       props.setCustomVramMode(MODEL_PRESETS[presetId].vramMode);
     }

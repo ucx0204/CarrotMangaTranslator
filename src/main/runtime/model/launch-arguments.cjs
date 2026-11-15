@@ -35,6 +35,7 @@ function buildLaunchArgs(options) {
     ...buildNetworkArgs(options),
     ...buildSamplingArgs(options),
     ...buildComputeArgs(options, useBeellama),
+    ...(options.cpuMoe === true && !useBeellama ? ["--cpu-moe"] : []),
     ...buildGemma4OfficialChatTemplateArgs(options),
   ];
   appendBeellamaArgs(args, options, useBeellama);

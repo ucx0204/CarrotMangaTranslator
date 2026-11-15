@@ -2081,6 +2081,10 @@
     },
     "options": {
       "modelPresets": {
+        "lowVram26b": {
+          "label": "26B (8GB)",
+          "description": "RAM充足时可选择。建议24GB以上，空闲约16GB。速度可能慢于12B。"
+        },
         "minimum12b": {
           "label": "12B (8GB)",
           "description": "适合8GB显存的旧版12B模型。需要与早期版本保持相同配置时可选择它。"

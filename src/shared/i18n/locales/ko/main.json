@@ -206,6 +206,7 @@
     "incompleteWithFailures": "번역 미완료 - {{count}}페이지를 완료하지 못했습니다.",
     "completed": "번역 작업 완료",
     "vram": {
+      "lowVram26b": "26B 8GB · RAM 사용",
       "minimum12b": "12B 최소 모드",
       "economy26b": "26B 절약 모드",
       "full31b": "31B 풀로드 모드"

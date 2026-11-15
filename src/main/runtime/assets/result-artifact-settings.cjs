@@ -69,6 +69,7 @@ function buildRuntimeSettings(options) {
     ubatch: options.ubatch,
     gemmaVramMode: options.gemmaVramMode,
     fitTargetMb: options.fitTargetMb,
+    cpuMoe: options.cpuMoe,
     fitEnabled: options.fitEnabled,
     gpuMemoryMb: options.gpuMemoryMb,
     cacheTypeK: options.cacheTypeK,

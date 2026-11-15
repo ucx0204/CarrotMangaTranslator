@@ -1,6 +1,6 @@
 import { DEFAULT_GEMMA_SAMPLING } from "../../shared/gemmaSamplingSettings";
 import { MIN_CONTEXT_TOKENS } from "../../shared/modelPresets";
-import type { AppSettings, GemmaVramMode } from "../../shared/settingsTypes";
+import type { AppSettings } from "../../shared/settingsTypes";
 import type { TranslationOptions } from "./appSettingsTypes";
 import {
   resolveMaxTokens,
@@ -13,11 +13,9 @@ import {
 } from "./envSettings";
 import {
   DEFAULT_IMAGE_TOKENS,
-  GEMMA_RUNTIME_PRESETS,
+  type GemmaRuntimePreset,
 } from "./gemmaRuntimePresets";
 import { readOptionalGpuLayersEnv } from "./gemmaGpuLayersEnv";
-
-type GemmaRuntimePreset = (typeof GEMMA_RUNTIME_PRESETS)[GemmaVramMode];
 
 export type GemmaFieldOptions = Pick<
   TranslationOptions,
