@@ -1,3 +1,4 @@
+import type { JobPhase } from "../../../shared/jobTypes";
 import type { TFunction } from "i18next";
 import { translate } from "./appHelpers";
 
@@ -72,3 +73,28 @@ function isUncertainOcrWarning(warning: string): boolean {
     warning.startsWith("uncertain_ocr:") || warning.includes("불확실한 OCR")
   );
 }
+
+export const PROGRESS_TEXT_FALLBACK_BY_PHASE: Partial<
+  Record<JobPhase, { key: string; fallback: string }>
+> = {
+  booting: { key: "job.phase.booting", fallback: "모델 준비 중" },
+  model_downloading: {
+    key: "job.phase.modelDownloading",
+    fallback: "모델 다운로드/서버 준비 중",
+  },
+  font_matching_downloading: {
+    key: "job.phase.fontMatchingDownloading",
+    fallback: "폰트 분석 모델 다운로드 중",
+  },
+  font_matching_running: {
+    key: "job.phase.fontMatchingRunning",
+    fallback: "폰트 분석 중",
+  },
+  inpainting_preparing: {
+    key: "job.phase.inpaintingPreparing",
+    fallback: "인페인팅 준비 중",
+  },
+  finalizing: { key: "job.phase.finalizing", fallback: "결과 정리 중" },
+  done: { key: "job.phase.done", fallback: "작업 완료" },
+  partial: { key: "job.phase.partial", fallback: "작업 부분 완료" },
+};

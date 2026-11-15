@@ -1,3 +1,4 @@
+import { PROGRESS_TEXT_FALLBACK_BY_PHASE } from "./jobProgressFormatting";
 import type { JobEvent, JobPhase, JobState } from "../../../shared/jobTypes";
 import type { TFunction } from "i18next";
 import {
@@ -46,23 +47,6 @@ export type ProgressSnapshot =
       total: number;
       ratio: number;
     };
-
-const PROGRESS_TEXT_FALLBACK_BY_PHASE: Partial<
-  Record<JobPhase, { key: string; fallback: string }>
-> = {
-  booting: { key: "job.phase.booting", fallback: "모델 준비 중" },
-  model_downloading: {
-    key: "job.phase.modelDownloading",
-    fallback: "모델 다운로드/서버 준비 중",
-  },
-  inpainting_preparing: {
-    key: "job.phase.inpaintingPreparing",
-    fallback: "인페인팅 준비 중",
-  },
-  finalizing: { key: "job.phase.finalizing", fallback: "결과 정리 중" },
-  done: { key: "job.phase.done", fallback: "작업 완료" },
-  partial: { key: "job.phase.partial", fallback: "작업 부분 완료" },
-};
 
 const STATIC_LABEL_BY_PHASE: Partial<
   Record<JobPhase, { key: string; fallback: string }>
@@ -290,7 +274,12 @@ function resolveCountProgressSnapshot(
 }
 
 function isIndeterminatePhase(phase: JobPhase | undefined): boolean {
-  return phase === "booting" || phase === "model_downloading";
+  return (
+    phase === "booting" ||
+    phase === "model_downloading" ||
+    phase === "font_matching_downloading" ||
+    phase === "font_matching_running"
+  );
 }
 
 function formatPageLabel(

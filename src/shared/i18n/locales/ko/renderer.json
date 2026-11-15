@@ -99,7 +99,9 @@
       "hunyuanOcrDownloading": "HunyuanOCR 다운로드/설치 중",
       "hunyuanOcrPreparing": "HunyuanOCR 준비 중",
       "hunyuanOcrRunning": "HunyuanOCR 분석 중",
-      "hunyuanOcrPreanalysisDone": "HunyuanOCR 선분석 완료"
+      "hunyuanOcrPreanalysisDone": "HunyuanOCR 선분석 완료",
+      "fontMatchingDownloading": "폰트 분석 모델 다운로드 중",
+      "fontMatchingRunning": "폰트 분석 중"
     },
     "status": {
       "starting": "모델 준비 중",

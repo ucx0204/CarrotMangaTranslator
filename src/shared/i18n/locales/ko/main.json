@@ -432,5 +432,11 @@
     "startedLog": "{{label}} 다운로드 시작",
     "failed": "{{label}} 다운로드에 실패했습니다 ({{status}}).",
     "sizeMismatch": "{{label}} 다운로드 크기가 맞지 않습니다 ({{received}} / {{total}})."
+  },
+  "fontMatching": {
+    "analyzing": "폰트 분석 중",
+    "analyzingFallback": "기본 방식으로 폰트 분석 중",
+    "analysisDetail": "{{count}}페이지의 원문 글꼴을 분석하고 있습니다.",
+    "fallbackDetail": "가속 모델을 준비하지 못해 기본 방식으로 계속합니다. 분석 시간이 더 걸릴 수 있습니다."
   }
 }

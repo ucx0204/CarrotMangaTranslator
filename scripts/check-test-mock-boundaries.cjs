@@ -38,6 +38,12 @@ const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/fontMatchingRuntimeAssets.test.ts::../src/main/runtimeSupport/modelDownloads",
   // Optional glyph verifier: isolate only its managed network gateway; cold-cache install is smoke-tested.
   "tests/fontGlyphVerificationAssets.test.ts::../src/main/runtimeSupport/modelDownloads",
+  // Chapter progress keeps real source preparation, job workspace and UI reduction;
+  // replace only network installation and the native Python process adapters.
+  // Exact glyph bytes and native loading are checked by the cold-cache release smoke.
+  "tests/fontChapterProgress.test.ts::../src/main/runtimeSupport/modelDownloads",
+  "tests/fontChapterProgress.test.ts::../src/main/pipeline/fontChapterRuntimeAssets",
+  "tests/fontChapterProgress.test.ts::../src/main/pipeline/fontChapterC18Worker",
   // Keep archive extraction, inventory verification and publication real; isolate only the network gateway.
   "tests/fontChapterAssetInstaller.test.ts::../src/main/runtimeSupport/modelDownloads",
   "tests/fontChapterC23Manifest.test.ts::../src/main/runtimeSupport/modelDownloads",

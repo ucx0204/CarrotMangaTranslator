@@ -15,6 +15,27 @@ const testTranslator = ((key: string) =>
   `translated:${key}`) as TFunction<"renderer">;
 
 describe("job progress helpers", () => {
+  it("shows font analysis and clears the implied completed-page progress outside workflows", () => {
+    const job = {
+      status: "running" as const,
+      phase: "font_matching_running" as const,
+      progressText: "기본 방식으로 폰트 분석 중",
+      progressCurrent: 19,
+      progressTotal: 19,
+    };
+    expect(formatJobLabel(job)).toBe("기본 방식으로 폰트 분석 중");
+    expect(formatJobLabel({ ...job, progressText: "" }, testTranslator)).toBe(
+      "translated:job.phase.fontMatchingRunning",
+    );
+    expect(resolveProgressSnapshot(job)).toEqual({ mode: "indeterminate" });
+    expect(
+      formatJobLabel(
+        { ...job, phase: "font_matching_downloading", progressText: "" },
+        testTranslator,
+      ),
+    ).toBe("translated:job.phase.fontMatchingDownloading");
+  });
+
   it("formats structured page progress into short Korean labels", () => {
     expect(
       formatJobEventLine({

@@ -432,5 +432,11 @@
     "startedLog": "Started downloading {{label}}",
     "failed": "Failed to download {{label}} ({{status}}).",
     "sizeMismatch": "{{label}} download size does not match ({{received}} / {{total}})."
+  },
+  "fontMatching": {
+    "analyzing": "Analyzing fonts",
+    "analyzingFallback": "Analyzing fonts with the standard method",
+    "analysisDetail": "Analyzing source fonts across {{count}} pages.",
+    "fallbackDetail": "The accelerator could not be prepared. Analysis continues with the standard method and may take longer."
   }
 }

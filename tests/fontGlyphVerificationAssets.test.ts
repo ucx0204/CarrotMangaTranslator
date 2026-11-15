@@ -20,15 +20,35 @@ describe("managed glyph accelerator", () => {
       signal,
       onProgress,
     });
-    expect(directory).toContain("font-glyph-ppocr-v02-r1");
+    expect(directory).toContain("font-glyph-ppocr-v02-r2");
     expect(download).toHaveBeenCalledTimes(2);
+    expect(
+      download.mock.calls.map(([task]) => [
+        task.fileName,
+        task.expectedTotalBytes,
+        task.expectedSha256,
+      ]),
+    ).toEqual([
+      [
+        "manga_rec_v0.2.onnx",
+        21167540,
+        "de12c84c63e62c80339e882e675983d886670dcb6f0147e1ed041afd6fa81888",
+      ],
+      [
+        "ppocrv6_dict.txt",
+        74947,
+        "b5f2bfe2bdd9448429e3e82b51c789775d9b42f2403d082b00662eb77e401c5d",
+      ],
+    ]);
     for (const [task] of download.mock.calls) {
       expect(task).toMatchObject({
         signal,
         onProgress,
         progressPhase: "font_matching_downloading",
       });
-      expect(task.url).toContain("/ba1d479e8a61a20e8318c9758c73fbbbd290b98d/");
+      expect(task.url).toBe(
+        `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/font-glyph-ppocr-v02-20261116-r1/${task.fileName}`,
+      );
       expect(task.expectedSha256).toMatch(/^[a-f0-9]{64}$/);
       expect(task.minimumBytes).toBe(task.maximumBytes);
     }

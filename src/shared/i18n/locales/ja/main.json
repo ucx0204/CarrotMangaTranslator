@@ -432,5 +432,11 @@
     "startedLog": "{{label}}のダウンロードを開始",
     "failed": "{{label}}のダウンロードに失敗しました（{{status}}）。",
     "sizeMismatch": "{{label}}のサイズが一致しません（{{received}} / {{total}}）。"
+  },
+  "fontMatching": {
+    "analyzing": "フォントを解析中",
+    "analyzingFallback": "標準方式でフォントを解析中",
+    "analysisDetail": "{{count}}ページの原文フォントを解析しています。",
+    "fallbackDetail": "高速化モデルを準備できなかったため、標準方式で続行します。解析に時間がかかる場合があります。"
   }
 }

@@ -1,3 +1,4 @@
+import { tMain } from "../i18n";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
@@ -59,13 +60,7 @@ async function prepareChapter(
   if (!first) return undefined;
   const input = await buildFontChapterC18Input(selected, signal);
   if (input.identities.size === 0) return undefined;
-  const options = {
-    ...first.pageOptions,
-    ocrPipeline: "hayai" as const,
-    ocrRuntimeDir: paths.ocrRuntimeDir,
-    workingDir: paths.dataRoot,
-    abortSignal: signal,
-  };
+  const options = chapterWorkerOptions(paths, first.pageOptions, signal);
   const runtime = await prepareFontChapterC18WorkerRuntime(paths, options);
   const { assets, manifest } = await prepareFontChapterRuntime({
     paths,
@@ -108,6 +103,12 @@ async function prepareChapter(
     return {
       worker,
       read: async () => {
+        signal.throwIfAborted();
+        reportChapterAnalysis(
+          options,
+          glyphVerificationAssets,
+          selected.length,
+        );
         const result = await worker.startRequest({ request }, signal).response;
         if (!result.ok)
           throw new Error(`C18 chapter font matching failed: ${result.error}`);
@@ -124,6 +125,20 @@ async function prepareChapter(
       },
     };
   });
+}
+
+function chapterWorkerOptions(
+  paths: AppPaths,
+  pageOptions: TranslationOptions,
+  signal: AbortSignal,
+) {
+  return {
+    ...pageOptions,
+    ocrPipeline: "hayai" as const,
+    ocrRuntimeDir: paths.ocrRuntimeDir,
+    workingDir: paths.dataRoot,
+    abortSignal: signal,
+  };
 }
 
 function prepareChapterGlyphVerification(
@@ -171,4 +186,23 @@ function bindChoices(
     throw new Error("Incomplete C18 source inventory.");
   return (pageId, item) =>
     pages.get(pageId)?.get(fontChapterItemIdentity(item));
+}
+
+function reportChapterAnalysis(
+  options: TranslationOptions,
+  glyphVerificationAssets: string | undefined,
+  pageCount: number,
+): void {
+  const fallback = options.ocrDevice !== "gpu" && !glyphVerificationAssets;
+  options.onProgress?.({
+    phase: "font_matching_running",
+    progressText: tMain(
+      fallback ? "fontMatching.analyzingFallback" : "fontMatching.analyzing",
+    ),
+    detail: tMain(
+      fallback ? "fontMatching.fallbackDetail" : "fontMatching.analysisDetail",
+      { count: pageCount },
+    ),
+    progressMode: "indeterminate",
+  });
 }

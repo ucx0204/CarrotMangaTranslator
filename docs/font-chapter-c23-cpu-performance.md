@@ -93,6 +93,10 @@ manifest binding 및 chapter 선택의 실제 적용 경계를 검사한다.
 
 ### 선택적 글자 검증 가속
 
+> 2026-11-16: 아래 기존 upstream revision의 원격 접근이 불가능해져 동일 바이트를
+> 새 자산 전용 release로 복구했다. 현재 다운로드 URL·캐시 버전·원격 검증과 분석
+> 전환 안내는 [#179 복구 기록](font-glyph-download-recovery-20261116.md)을 따른다.
+
 줄 OCR은 Hayai를 유지한다. 정렬이 끝난 한 글자 atlas에서만
 PP-OCRv6 manga v0.2의 결과가 예상 문자와 NFKC 기준으로 정확히 같고,
 confidence >= 0.995, 잉크 bbox의 폭/높이가 0.8~1.3인 경우 빠른 결과를 쓴다.

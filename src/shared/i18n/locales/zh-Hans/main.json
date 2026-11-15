@@ -432,5 +432,11 @@
     "startedLog": "开始下载{{label}}",
     "failed": "{{label}}下载失败（{{status}}）。",
     "sizeMismatch": "{{label}}下载大小不匹配（{{received}} / {{total}}）。"
+  },
+  "fontMatching": {
+    "analyzing": "正在分析字体",
+    "analyzingFallback": "正在使用标准方式分析字体",
+    "analysisDetail": "正在分析 {{count}} 页的原文字体。",
+    "fallbackDetail": "无法准备加速模型，将使用标准方式继续分析，可能需要更长时间。"
   }
 }

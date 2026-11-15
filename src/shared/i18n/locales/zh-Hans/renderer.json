@@ -99,7 +99,9 @@
       "hunyuanOcrDownloading": "正在下载/安装 HunyuanOCR",
       "hunyuanOcrPreparing": "正在准备 HunyuanOCR",
       "hunyuanOcrRunning": "正在使用 HunyuanOCR 分析",
-      "hunyuanOcrPreanalysisDone": "HunyuanOCR 预分析完成"
+      "hunyuanOcrPreanalysisDone": "HunyuanOCR 预分析完成",
+      "fontMatchingDownloading": "正在下载字体分析模型",
+      "fontMatchingRunning": "正在分析字体"
     },
     "status": {
       "starting": "正在准备模型",

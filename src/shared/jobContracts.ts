@@ -43,6 +43,7 @@ const JOB_PHASE_VALUES = [
   "booting",
   "model_downloading",
   "font_matching_downloading",
+  "font_matching_running",
   "ocr_preparing",
   "ocr_downloading",
   "ocr_running",

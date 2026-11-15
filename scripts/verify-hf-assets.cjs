@@ -44,6 +44,7 @@ const assets = [
     })),
   ),
   ...readHunyuanAssets(),
+  ...readFontGlyphAssets(),
   pinnedGemmaAsset(
     "Gemma 12B model",
     modelPresets,
@@ -242,6 +243,24 @@ const assets = [
     })),
   ),
 ];
+
+function readFontGlyphAssets() {
+  const source = readSource("src/main/pipeline/fontGlyphVerificationAssets.ts");
+  const base = readStringConstant(source, "RELEASE_BASE");
+  const matches = [
+    ...source.matchAll(
+      /name:\s*"([^"]+)",\s*bytes:\s*(\d+),\s*sha256:\s*"([a-f0-9]{64})"/g,
+    ),
+  ];
+  if (matches.length !== 2)
+    throw new Error("Expected two pinned font glyph assets");
+  return matches.map((match) => ({
+    label: `Font glyph verification: ${match[1]}`,
+    url: `${base}/${match[1]}`,
+    expectedBytes: Number(match[2]),
+    expectedSha256: match[3],
+  }));
+}
 
 function readHunyuanAssets() {
   const source = readSource("src/main/runtimeSupport/hunyuanAssets.ts");

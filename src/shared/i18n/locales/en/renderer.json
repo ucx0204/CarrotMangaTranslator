@@ -99,7 +99,9 @@
       "hunyuanOcrDownloading": "Downloading/installing HunyuanOCR",
       "hunyuanOcrPreparing": "Preparing HunyuanOCR",
       "hunyuanOcrRunning": "Analyzing with HunyuanOCR",
-      "hunyuanOcrPreanalysisDone": "HunyuanOCR pre-analysis complete"
+      "hunyuanOcrPreanalysisDone": "HunyuanOCR pre-analysis complete",
+      "fontMatchingDownloading": "Downloading font analysis models",
+      "fontMatchingRunning": "Analyzing fonts"
     },
     "status": {
       "starting": "Preparing model",
