@@ -8,6 +8,7 @@ autobins = false
 default = ["cuda"]
 cuda = []
 metal = []
+vulkan = []
 inspect-gguf = ["dep:candle-core"]
 [dependencies]
 anyhow = "1"

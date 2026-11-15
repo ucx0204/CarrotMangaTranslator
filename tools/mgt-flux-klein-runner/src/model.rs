@@ -47,6 +47,7 @@ impl Flux2Klein {
             "cuda" => "CUDA0",
             "rocm" => "ROCm0",
             "metal" => "MTL0",
+            "vulkan" => "Vulkan0",
             _ => anyhow::bail!("unsupported FLUX backend"),
         };
         ensure!(

@@ -94,9 +94,16 @@ fn main() -> Result<()> {
         bail!("FLUX 0.83.5 uses the native ROCm backend on AMD; ZLUDA is no longer supported");
     }
     let runtime = runner_runtime_policy::native::load_runtime(&cli.native_runtime, "diffusion")?;
-    if cfg!(not(any(feature = "cuda", feature = "metal"))) && runtime.specification.backend != "cpu"
+    if cfg!(not(any(
+        feature = "cuda",
+        feature = "metal",
+        feature = "vulkan"
+    ))) && runtime.specification.backend != "cpu"
     {
         bail!("CPU-only FLUX runner cannot use a GPU runtime");
+    }
+    if cfg!(feature = "vulkan") && runtime.specification.backend != "vulkan" {
+        bail!("Vulkan runner requires a Vulkan runtime");
     }
     if cli.require_metal && runtime.specification.backend != "metal" {
         bail!("Metal request/runtime mismatch");
@@ -129,9 +136,10 @@ fn print_capabilities() -> Result<()> {
             "runner": "mgt-flux-klein",
             "backend": compiled_backend(),
             "metal_device": cfg!(feature = "metal"),
-            "cpu_only": cfg!(not(any(feature = "cuda", feature = "metal"))),
+            "cpu_only": cfg!(not(any(feature = "cuda", feature = "metal", feature = "vulkan"))),
             "cuda_compiled": cfg!(feature = "cuda"),
             "metal_compiled": cfg!(feature = "metal"),
+            "vulkan_compiled": cfg!(feature = "vulkan"),
             "models": ["flux-klein"],
         })
     );
@@ -168,15 +176,19 @@ fn run_protocol_smoke() -> Result<()> {
 }
 
 fn compiled_backend() -> &'static str {
+    #[cfg(feature = "vulkan")]
+    {
+        return "vulkan-native";
+    }
     #[cfg(feature = "metal")]
     {
         return "metal-native";
     }
-    #[cfg(all(not(feature = "metal"), feature = "cuda"))]
+    #[cfg(all(not(feature = "metal"), not(feature = "vulkan"), feature = "cuda"))]
     {
         return "cuda-native";
     }
-    #[cfg(not(any(feature = "metal", feature = "cuda")))]
+    #[cfg(not(any(feature = "metal", feature = "cuda", feature = "vulkan")))]
     {
         "cpu-native"
     }
