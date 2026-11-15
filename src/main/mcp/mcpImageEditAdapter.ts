@@ -58,8 +58,8 @@ export function createMcpImageEditAdapter(
           if (request.direction === "apply") {
             if (references.size >= 64)
               throw new McpEditError(
-                "editor_busy",
-                "This session has 64 retained image edits. Existing recovery remains available; no new image was created.",
+                "image_recovery_limit",
+                "This session has 64 retained image edits. Waiting will not release these references. Inspect saved pages and finish needed recovery before reopening the editing session; do not repeat completed edits. Existing recovery remains available; no new image was created.",
               );
             await forwardImageEdit(
               app,

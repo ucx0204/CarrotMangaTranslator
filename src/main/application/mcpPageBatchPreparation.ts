@@ -23,10 +23,15 @@ export class McpPageBatchPreparation {
         );
       return prior.task;
     }
-    if (occupied + this.pending.size >= 32 || bytes >= 32 * 1024 * 1024)
+    if (occupied >= 32 || bytes >= 32 * 1024 * 1024)
+      throw new McpEditError(
+        "plan_capacity_full",
+        "Bounded session history is full. Wait for a retained plan to expire before preparing another; no model was started.",
+      );
+    if (occupied + this.pending.size >= 32)
       throw new McpEditError(
         "editor_busy",
-        "Bounded session history is full. Wait for a retained plan to expire before preparing another; no model was started.",
+        "Other plans are being prepared. Wait for preparation to settle before retrying; no model was started for this request.",
       );
     const task = Promise.resolve()
       .then(prepare)

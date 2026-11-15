@@ -7,6 +7,10 @@ export class McpEditError extends Error {
     readonly code:
       | "revision_conflict"
       | "editor_busy"
+      | "request_too_large"
+      | "plan_capacity_full"
+      | "action_history_full"
+      | "image_recovery_limit"
       | "retention_full"
       | "history_reclaimed"
       | "editor_open"

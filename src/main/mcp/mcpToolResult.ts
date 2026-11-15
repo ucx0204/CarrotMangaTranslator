@@ -24,6 +24,14 @@ export function mcpToolError(error: unknown) {
     revision_conflict:
       "Read the current page and review changes before retrying.",
     editor_busy: "Save local edits or wait for the active app job, then retry.",
+    request_too_large:
+      "Split the explicit targets into smaller requests. Waiting cannot fix this request; do not retry it unchanged.",
+    plan_capacity_full:
+      "Wait for retained plans to expire or be released, then retry. Finishing an active job alone may not free plan capacity. Preserve recovery records and do not repeat completed work.",
+    action_history_full:
+      "Inspect saved pages and create a new plan only for remaining changes. Waiting will not restore this plan's action capacity; do not repeat completed work.",
+    image_recovery_limit:
+      "Inspect saved pages and finish needed recovery before reopening the editing session. Waiting alone will not release image recovery references. Do not delete recovery data or repeat completed edits.",
     retention_full:
       "The app automatically rotates ordinary recovery history. Check the actual storage error; do not ask the user to delete recovery records or repeat completed work.",
     history_reclaimed:
@@ -44,7 +52,7 @@ export function mcpToolError(error: unknown) {
   const structuredContent = {
     error: code,
     message,
-    retryable: code === "editor_busy",
+    retryable: code === "editor_busy" || code === "plan_capacity_full",
     nextAction:
       guidance[code] ??
       "Check the local app log and resulting page before retrying.",

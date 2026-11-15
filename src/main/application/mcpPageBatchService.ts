@@ -140,13 +140,17 @@ export class McpPageBatchService<
       0,
     );
     if (
-      this.entries.size >= 32 ||
       size.metadataBytes + Buffer.byteLength(signature) > 4 * 1024 * 1024 ||
-      occupied + bytes > 32 * 1024 * 1024
+      bytes > 32 * 1024 * 1024
     )
       throw new McpEditError(
-        "editor_busy",
-        "Bounded session history is full or this plan is too large. Split the explicit target list; nothing was saved.",
+        "request_too_large",
+        "This plan exceeds the per-plan metadata or snapshot limit. Split the explicit target list; nothing was saved. Waiting will not make this plan fit.",
+      );
+    if (this.entries.size >= 32 || occupied + bytes > 32 * 1024 * 1024)
+      throw new McpEditError(
+        "plan_capacity_full",
+        "Bounded session history is full. Wait for retained plans to expire or be released before preparing another; nothing was saved.",
       );
     const entry: Entry<I, C, P> = {
       id: randomUUID(),
@@ -261,10 +265,15 @@ export class McpPageBatchService<
     const signature = JSON.stringify({ ...input, direction });
     const prior = this.replay(owner, input.requestId, signature);
     if (prior) return prior;
-    if (entry.busy || entry.receipts.size >= 32)
+    if (entry.busy)
       throw new McpEditError(
         "editor_busy",
-        "Batch is running or its action history is full; inspect it first.",
+        "Batch is running; wait for it to settle and inspect it before retrying.",
+      );
+    if (entry.receipts.size >= 32)
+      throw new McpEditError(
+        "action_history_full",
+        "This batch has reached its action history limit. Inspect saved pages before planning remaining changes; waiting will not restore this batch's action capacity.",
       );
     const required = { apply: "pending", undo: "applied", redo: "undone" }[
       direction

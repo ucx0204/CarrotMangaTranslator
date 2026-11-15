@@ -91,7 +91,7 @@ it("reserves preview capacity before expensive planning and prevents concurrent 
     );
     await expect(
       service.preview(f.owner, f.request(), f.guard),
-    ).rejects.toMatchObject({ code: "editor_busy" });
+    ).rejects.toMatchObject({ code: "plan_capacity_full" });
     expect(plan).toHaveBeenCalledTimes(32);
   } finally {
     await service.close();
@@ -228,7 +228,7 @@ it("releases failed preview reservations and waits for in-flight preparation on 
     });
     await expect(
       service.preview(f.owner, f.request(), f.guard),
-    ).rejects.toMatchObject({ code: "editor_busy" });
+    ).rejects.toMatchObject({ code: "request_too_large" });
     const pending = new Promise<void>((resolve) => {
       release = resolve;
     });
@@ -303,7 +303,7 @@ it("rejects cumulative preview bytes after planning and releases the reservation
     const input = f.request();
     await expect(
       service.preview(f.owner, input, f.guard),
-    ).rejects.toMatchObject({ code: "editor_busy" });
+    ).rejects.toMatchObject({ code: "plan_capacity_full" });
     plan.mockImplementationOnce(async (...args) =>
       translationBatchPolicy.plan(...args),
     );
