@@ -1,4 +1,5 @@
 import { codexTypesettingPreferencesSchema } from "./codexTypesettingSchemas";
+import { settingsRecoveryIpcContracts } from "./settingsCredentialRecoveryContract";
 import {
   ExportPreferencesSchema,
   type ExportPreferences,
@@ -332,12 +333,7 @@ export const settingsIpcContracts = {
     args: z.tuple([]),
     result: AppSettingsSchema,
   }),
-  getDefaultSettings: defineIpcContract<[], AppSettings>({
-    apiKey: "getDefaultSettings",
-    channel: "settings:get-defaults",
-    args: z.tuple([]),
-    result: AppSettingsSchema,
-  }),
+  ...settingsRecoveryIpcContracts,
   getCodexAccount: defineIpcContract<[], CodexAccountSnapshot>({
     apiKey: "getCodexAccount",
     channel: "settings:codex-account",

@@ -2810,6 +2810,20 @@
     },
     "support": {
       "title": "支援"
+    },
+    "recovery": {
+      "title": "復原設定",
+      "logs": "開啟記錄資料夾",
+      "retry": "重新載入設定",
+      "credentialsTitle": "無法讀取已儲存的憑證",
+      "credentialsDetail": "目前應用程式的加密金鑰無法解密已儲存的 API 憑證。若是暫時性問題，請嘗試重新載入。",
+      "loadTitle": "無法載入設定",
+      "loadDetail": "請嘗試重新載入設定。若問題持續發生，可開啟記錄資料夾查看詳情。",
+      "preserve": "復原會先備份加密設定，再清除 API 金鑰和驗證標頭。翻譯、字型、顯示設定與作品資料都會保留。",
+      "confirm": "我了解復原後需要重新輸入 API 憑證",
+      "recover": "備份並重設憑證",
+      "busy": "正在處理設定…",
+      "waitForJob": "請等待目前工作結束後再復原憑證。"
     }
   },
   "pageBlocks": {

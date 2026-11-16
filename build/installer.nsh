@@ -517,6 +517,18 @@ FunctionEnd
   RMDir "$INSTDIR"
 !macroend
 
+; These stores are encrypted with the Electron profile key. Clear them together.
+!macro MgtClearSettingsCredentials ROOT
+  Delete "${ROOT}\settings.secrets.json"
+  Delete "${ROOT}\settings.commit.json"
+  RMDir /r "${ROOT}\.settings-pairs"
+  RMDir /r "${ROOT}\.settings-credential-backups"
+  RMDir /r "${ROOT}\mcp-private"
+  RMDir /r "${ROOT}\github-report-private"
+  RMDir /r "${ROOT}\electron-user-data"
+  RMDir /r "${ROOT}\electron-session"
+!macroend
+
 !macro customUnInstallSection
   Section /o "un.작품 데이터(보관함) 삭제" MGT_CLEAN_LIBRARY_DATA_SECTION
     DetailPrint "Deleting manga translator library/work data..."
@@ -594,8 +606,7 @@ FunctionEnd
       RMDir /r "$MgtDataRoot\logs"
       RMDir /r "$MgtDataRoot\model-tests"
       RMDir /r "$MgtDataRoot\tmp"
-      RMDir /r "$MgtDataRoot\electron-user-data"
-      RMDir /r "$MgtDataRoot\electron-session"
+      !insertmacro MgtClearSettingsCredentials "$MgtDataRoot"
     ${EndIf}
 
     Delete "$LOCALAPPDATA\manga-gemma-translator\settings.json"
@@ -618,6 +629,11 @@ FunctionEnd
     Delete "$INSTDIR\data\recent-dialog-paths.json"
     RMDir /r "$INSTDIR\data\logs"
     RMDir /r "$INSTDIR\data\model-tests"
+    !insertmacro MgtClearSettingsCredentials "$LOCALAPPDATA\manga-gemma-translator"
+    !insertmacro MgtClearSettingsCredentials "$APPDATA\manga-gemma-translator"
+    !insertmacro MgtClearSettingsCredentials "$LOCALAPPDATA\망가번역기"
+    !insertmacro MgtClearSettingsCredentials "$APPDATA\망가번역기"
+    !insertmacro MgtClearSettingsCredentials "$INSTDIR\data"
 
     ; Remove empty app-data shells only after the selected data categories are gone.
     Delete "$INSTDIR\data-root.txt"

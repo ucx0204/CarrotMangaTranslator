@@ -21,6 +21,7 @@ export const settingsGateway = createMangaDomainGateway("Settings", [
   "pickLocalModelFile",
   "pickVertexServiceAccountFile",
   "resetSettings",
+  "recoverSettingsCredentials",
   "saveSettings",
   "saveExportPreferences",
   "saveCodexTypesettingPreferences",

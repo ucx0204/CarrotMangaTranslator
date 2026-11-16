@@ -1,4 +1,5 @@
 import { safeStorage } from "electron";
+import { SettingsSecretDecryptionError } from "./settingsSecretErrors";
 import { API_PROVIDER_PRESET_IDS } from "../shared/apiProviderPresets";
 import {
   assertSettingsGeneration,
@@ -168,5 +169,9 @@ function decryptSecret(value: string): string {
   if (!safeStorage.isEncryptionAvailable()) {
     throw new Error("OS-backed settings encryption is unavailable.");
   }
-  return safeStorage.decryptString(Buffer.from(value, "base64"));
+  try {
+    return safeStorage.decryptString(Buffer.from(value, "base64"));
+  } catch (error) {
+    throw new SettingsSecretDecryptionError(error);
+  }
 }

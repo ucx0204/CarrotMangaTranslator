@@ -62,6 +62,7 @@ logs/app.log
 /datasets/font-matching-training-*/
 settings.json
 /.settings-pairs/
+/.settings-credential-backups/
 /settings.commit.json
 /settings.secrets.json
 panel-window-bounds.json

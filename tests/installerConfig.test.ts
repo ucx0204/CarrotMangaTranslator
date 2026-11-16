@@ -96,6 +96,7 @@ describe("Windows installer clean uninstall option", () => {
         "!results{,/**/*}",
         "!testProject1{,/**/*}",
         "!.settings-pairs{,/**/*}",
+        "!.settings-credential-backups{,/**/*}",
         "!settings.commit.json",
         "!settings.secrets.json",
         "!block-library.json",
@@ -597,6 +598,42 @@ describe("Windows installer clean uninstall option", () => {
     expect(script).toContain('!define APP_FILENAME "carrot-manga-translator"');
     expect(script).toContain(
       `Delete "$INSTDIR\\${WINDOWS_EXECUTABLE_FILENAME}"`,
+    );
+  });
+
+  it("clears key-bound credentials only with the optional settings cleanup", () => {
+    const script = readFileSync(
+      join(repoRoot, "build", "installer.nsh"),
+      "utf8",
+    );
+    const cleanup = script
+      .split("!macro MgtClearSettingsCredentials ROOT")[1]
+      .split("!macroend")[0];
+    for (const name of [
+      "settings.secrets.json",
+      "settings.commit.json",
+      ".settings-pairs",
+      ".settings-credential-backups",
+      "mcp-private",
+      "github-report-private",
+      "electron-user-data",
+      "electron-session",
+    ]) {
+      expect(cleanup).toContain(`"\${ROOT}\\${name}"`);
+    }
+    for (const name of ["library", "results", "fonts", "models"]) {
+      expect(cleanup).not.toContain(`\\${name}"`);
+    }
+    const optionalSection = script
+      .split('Section /o "un.설정/로그 등 기타 앱 데이터 삭제"')[1]
+      .split("SectionEnd")[0];
+    const calls =
+      script.match(/!insertmacro MgtClearSettingsCredentials [^\r\n]+/g) ?? [];
+    expect(calls).toHaveLength(6);
+    for (const call of calls) expect(optionalSection).toContain(call);
+    expect(optionalSection).toContain('${If} $4 == "1"');
+    expect(optionalSection).toContain(
+      '!insertmacro MgtClearSettingsCredentials "$MgtDataRoot"',
     );
   });
 

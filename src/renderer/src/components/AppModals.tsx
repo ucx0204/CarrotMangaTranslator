@@ -58,6 +58,7 @@ type AppModalsProps = {
     typeof SettingsModal
   >["openRequest"];
   settings: AppSettings | null;
+  settingsRecovery?: React.ComponentProps<typeof SettingsModal>["recovery"];
   settingsBusy: boolean;
   jobActive: boolean;
   confirmDialog: ConfirmDialogState | null;
@@ -257,6 +258,7 @@ function EditAndSettingsModals({
   settings,
   settingsBusy,
   settingsOpen,
+  settingsRecovery,
   settingsOpenRequest,
 }: Pick<
   AppModalsProps,
@@ -275,6 +277,7 @@ function EditAndSettingsModals({
   | "settings"
   | "settingsBusy"
   | "settingsOpen"
+  | "settingsRecovery"
   | "settingsOpenRequest"
 >): React.JSX.Element {
   return (
@@ -285,9 +288,10 @@ function EditAndSettingsModals({
         renameBusy={renameBusy}
         renameTarget={renameTarget}
       />
-      {settingsOpen && settings ? (
+      {settingsOpen ? (
         <SettingsModal
           initialSettings={settings}
+          recovery={settingsRecovery}
           openRequest={settingsOpenRequest}
           library={library}
           busy={settingsBusy}

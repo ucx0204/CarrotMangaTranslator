@@ -173,6 +173,11 @@ function createModalsProps({
     settingsBusy: settingsDialog.settingsBusy,
     settingsOpen: settingsDialog.settingsOpen,
     settingsOpenRequest: settingsDialog.openRequest,
+    settingsRecovery: {
+      failure: settingsDialog.settingsFailure,
+      onRetry: () => void settingsDialog.openSettings(),
+      onRecover: () => void settingsDialog.recoverCredentials(),
+    },
     shareExportBusy: importShareModal.shareExportBusy,
     shareExportDraft: importShareModal.shareExportDraft,
     shareExportOpen: importShareModal.shareExportOpen,

@@ -8,6 +8,7 @@ import type { ExportPreferences } from "../../../shared/exportPreferences";
 import { settingsGateway as mangaGateway } from "../api/settingsGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import { toast } from "../lib/toastStore";
+import { SETTINGS_CREDENTIALS_UNAVAILABLE } from "../../../shared/settingsSecrets";
 
 type UseSettingsDialogResult = {
   saveCodexPreferences?: (
@@ -16,6 +17,8 @@ type UseSettingsDialogResult = {
   settings: AppSettings | null;
   settingsOpen: boolean;
   settingsBusy: boolean;
+  settingsFailure: string | null;
+  recoverCredentials: () => Promise<void>;
   openRequest: SettingsOpenRequest;
   openSettings: (target?: SettingsOpenTarget) => Promise<void>;
   closeSettings: () => void;
@@ -45,6 +48,9 @@ export function useSettingsDialog(
   );
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [settingsBusy, setSettingsBusy] = React.useState(false);
+  const [settingsFailure, setSettingsFailure] = React.useState<string | null>(
+    null,
+  );
   const [openRequest, setOpenRequest] = React.useState<SettingsOpenRequest>({
     revision: 0,
     target: "general",
@@ -56,8 +62,14 @@ export function useSettingsDialog(
     setSettingsBusy,
     setSettingsOpen,
     setOpenRequest,
+    setSettingsFailure,
     settings,
   });
+  const recoverCredentials = useCredentialsRecovery(
+    setSettings,
+    setSettingsBusy,
+    setSettingsFailure,
+  );
   const closeSettings = useCloseSettingsAction(settingsBusy, setSettingsOpen);
   const submitSettings = useSubmitSettingsAction({
     pushStatus,
@@ -86,17 +98,13 @@ export function useSettingsDialog(
     setSettingsBusy,
   });
 
-  React.useEffect(() => {
-    void refreshSettings().catch((error) => {
-      console.error(error);
-    });
-  }, [refreshSettings]);
-
   return {
     saveCodexPreferences,
     settings,
     settingsOpen,
     settingsBusy,
+    settingsFailure,
+    recoverCredentials,
     openRequest,
     openSettings,
     closeSettings,
@@ -105,6 +113,39 @@ export function useSettingsDialog(
     saveSettingsQuietly,
     saveExportPreferences,
   };
+}
+
+function useCredentialsRecovery(
+  setSettings: React.Dispatch<React.SetStateAction<AppSettings | null>>,
+  setBusy: React.Dispatch<React.SetStateAction<boolean>>,
+  setFailure: React.Dispatch<React.SetStateAction<string | null>>,
+): () => Promise<void> {
+  return React.useCallback(async () => {
+    setBusy(true);
+    try {
+      setSettings(await mangaGateway.recoverSettingsCredentials(true));
+      setFailure(null);
+    } catch (error) {
+      setFailure(
+        settingsFailureMessage(
+          error,
+          appI18n.t("settings.loadFailed", { ns: "renderer" }),
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [setSettings, setBusy, setFailure]);
+}
+
+function settingsFailureMessage(error: unknown, fallback: string): string {
+  return formatErrorMessage(
+    error,
+    error instanceof Error &&
+      error.message.includes(SETTINGS_CREDENTIALS_UNAVAILABLE)
+      ? SETTINGS_CREDENTIALS_UNAVAILABLE
+      : fallback,
+  );
 }
 
 function useSettingsState() {
@@ -177,11 +218,15 @@ function useExportPreferencesSaveAction(
 function useSettingsRefresh(
   setSettings: React.Dispatch<React.SetStateAction<AppSettings | null>>,
 ): () => Promise<AppSettings> {
-  return React.useCallback(async () => {
+  const refresh = React.useCallback(async () => {
     const next = await mangaGateway.getSettings();
     setSettings(next);
     return next;
   }, [setSettings]);
+  React.useEffect(() => {
+    void refresh().catch((error) => console.error(error));
+  }, [refresh]);
+  return refresh;
 }
 
 type OpenSettingsActionOptions = {
@@ -190,6 +235,7 @@ type OpenSettingsActionOptions = {
   setSettingsBusy: React.Dispatch<React.SetStateAction<boolean>>;
   setSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setOpenRequest: React.Dispatch<React.SetStateAction<SettingsOpenRequest>>;
+  setSettingsFailure: React.Dispatch<React.SetStateAction<string | null>>;
   settings: AppSettings | null;
 };
 
@@ -199,6 +245,7 @@ function useOpenSettingsAction({
   setSettingsBusy,
   setSettingsOpen,
   setOpenRequest,
+  setSettingsFailure,
   settings,
 }: OpenSettingsActionOptions): (target?: SettingsOpenTarget) => Promise<void> {
   const { t } = useTranslation("renderer");
@@ -216,9 +263,13 @@ function useOpenSettingsAction({
       setSettingsBusy(true);
       try {
         await refreshSettings();
+        setSettingsFailure(null);
         setSettingsOpen(true);
       } catch (error) {
-        console.error(error);
+        setSettingsFailure(
+          settingsFailureMessage(error, t("settings.loadFailed")),
+        );
+        setSettingsOpen(true);
         pushStatus(t("settings.loadFailed"));
       } finally {
         setSettingsBusy(false);
@@ -230,6 +281,7 @@ function useOpenSettingsAction({
       setSettingsBusy,
       setSettingsOpen,
       setOpenRequest,
+      setSettingsFailure,
       settings,
       t,
     ],

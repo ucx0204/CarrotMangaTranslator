@@ -348,6 +348,7 @@ module.exports = {
     // workspace metadata from that data root into a release artifact.
     "!results{,/**/*}",
     "!.settings-pairs{,/**/*}",
+    "!.settings-credential-backups{,/**/*}",
     "!settings.commit.json",
     "!settings.secrets.json",
     "!block-library.json",

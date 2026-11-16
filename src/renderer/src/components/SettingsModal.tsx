@@ -7,9 +7,14 @@ import { ConfirmModal } from "./ConfirmModal";
 import { SettingsModalView } from "./settingsModal/SettingsModalView";
 import { useSettingsModalController } from "./settingsModal/useSettingsModalController";
 import type { SettingsOpenRequest } from "../hooks/useSettingsDialog";
+import {
+  SettingsRecoveryModal,
+  type SettingsRecoveryActions,
+} from "./SettingsRecoveryModal";
 
 type SettingsModalProps = {
-  initialSettings: AppSettings;
+  initialSettings: AppSettings | null;
+  recovery?: SettingsRecoveryActions;
   library?: LibraryIndex;
   busy: boolean;
   jobActive: boolean;
@@ -34,7 +39,7 @@ function SettingsModalContent({
   onOpenModelFolder,
   onReset,
   onSubmit,
-}: SettingsModalProps): React.JSX.Element {
+}: SettingsModalProps & { initialSettings: AppSettings }): React.JSX.Element {
   const { t } = useTranslation("components");
   const [isDirty, setIsDirty] = React.useState(false);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = React.useState(false);
@@ -77,9 +82,25 @@ function SettingsModalContent({
 }
 
 export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
+  if (!props.initialSettings) {
+    return (
+      <SettingsRecoveryModal
+        failure={props.recovery?.failure ?? null}
+        onRetry={props.recovery?.onRetry ?? props.onCancel}
+        onRecover={props.recovery?.onRecover ?? props.onCancel}
+        busy={props.busy}
+        jobActive={props.jobActive}
+        onCancel={props.onCancel}
+        onOpenLogFolder={props.onOpenLogFolder}
+      />
+    );
+  }
   return (
     <ErrorBoundary onRecover={props.onCancel}>
-      <SettingsModalContent {...props} />
+      <SettingsModalContent
+        {...props}
+        initialSettings={props.initialSettings}
+      />
     </ErrorBoundary>
   );
 }

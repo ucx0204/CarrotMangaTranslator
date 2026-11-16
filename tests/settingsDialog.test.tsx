@@ -20,6 +20,7 @@ import { ToastViewport } from "../src/renderer/src/components/ui/ToastViewport";
 import { useSettingsDialog } from "../src/renderer/src/hooks/useSettingsDialog";
 import { dismissToast, getToasts } from "../src/renderer/src/lib/toastStore";
 import type { AppSettings } from "../src/shared/settingsTypes";
+import { SETTINGS_CREDENTIALS_UNAVAILABLE } from "../src/shared/settingsSecrets";
 
 const initialSettings = structuredClone(exampleSettings) as AppSettings;
 
@@ -31,6 +32,62 @@ afterEach(async () => {
 });
 
 describe("settings dialog save flow", () => {
+  it("opens a recovery state on a failed read and returns to settings after explicit recovery", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const recoverSettingsCredentials = vi.fn(async () =>
+      structuredClone(initialSettings),
+    );
+    window.mangaApi = createTestMangaGatewayStub({
+      getSettings: vi.fn(async () => {
+        throw new Error(SETTINGS_CREDENTIALS_UNAVAILABLE);
+      }),
+      recoverSettingsCredentials,
+    });
+    await initializeAppI18n("ko");
+    const hook = renderHook(() => useSettingsDialog(vi.fn()));
+    await act(async () => {
+      await hook.result.current.openSettings();
+    });
+    expect(hook.result.current.settingsOpen).toBe(true);
+    expect(hook.result.current.settings).toBeNull();
+    expect(hook.result.current.settingsFailure).toContain(
+      SETTINGS_CREDENTIALS_UNAVAILABLE,
+    );
+    expect(recoverSettingsCredentials).not.toHaveBeenCalled();
+    await act(async () => {
+      await hook.result.current.recoverCredentials();
+    });
+    expect(recoverSettingsCredentials).toHaveBeenCalledWith(true);
+    expect(hook.result.current.settings).toEqual(initialSettings);
+    expect(hook.result.current.settingsFailure).toBeNull();
+    expect(hook.result.current.settingsOpen).toBe(true);
+    log.mockRestore();
+  });
+
+  it("retries a load failure without resetting credentials", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const getSettings = vi
+      .fn<() => Promise<AppSettings>>()
+      .mockRejectedValue(new Error("Read failed"));
+    const recoverSettingsCredentials = vi.fn();
+    window.mangaApi = createTestMangaGatewayStub({
+      getSettings,
+      recoverSettingsCredentials,
+    });
+    const hook = renderHook(() => useSettingsDialog(vi.fn()));
+    await act(async () => {
+      await hook.result.current.openSettings();
+    });
+    expect(hook.result.current.settingsOpen).toBe(true);
+    getSettings.mockResolvedValue(structuredClone(initialSettings));
+    await act(async () => {
+      await hook.result.current.openSettings();
+    });
+    expect(hook.result.current.settings).toEqual(initialSettings);
+    expect(hook.result.current.settingsFailure).toBeNull();
+    expect(recoverSettingsCredentials).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
   it("keeps the dialog open and shows a success toast after saving", async () => {
     const saveSettings = vi.fn(async (settings: AppSettings) =>
       structuredClone(settings),

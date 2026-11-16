@@ -484,6 +484,7 @@ export interface MangaApi extends McpApi, ChatApi, ClaudeApi, GrokApi {
     preferences: ExportPreferences,
   ) => Promise<ExportPreferences>;
   resetSettings: () => Promise<AppSettings>;
+  recoverSettingsCredentials: (confirmed: true) => Promise<AppSettings>;
   pickLocalModelFile: () => Promise<LocalModelPickResult | null>;
   pickLocalMmprojFile: () => Promise<string | null>;
   pickVertexServiceAccountFile: () => Promise<VertexServiceAccountPickResult | null>;

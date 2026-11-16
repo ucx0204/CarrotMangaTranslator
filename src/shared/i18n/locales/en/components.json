@@ -2810,6 +2810,20 @@
     },
     "support": {
       "title": "Support"
+    },
+    "recovery": {
+      "title": "Recover settings",
+      "logs": "Open log folder",
+      "retry": "Reload settings",
+      "credentialsTitle": "Saved credentials cannot be read",
+      "credentialsDetail": "The current app encryption key could not unlock the saved API credentials. Try reloading if this is temporary.",
+      "loadTitle": "Settings could not be loaded",
+      "loadDetail": "Try reloading settings. If the problem persists, check the log folder for details.",
+      "preserve": "Recovery backs up the encrypted settings, then clears API keys and authentication headers. Translation, font and display settings, and your library are preserved.",
+      "confirm": "I understand that I will need to enter my API credentials again",
+      "recover": "Back up and reset credentials",
+      "busy": "Processing settings…",
+      "waitForJob": "Wait for the current job to finish before recovering credentials."
     }
   },
   "pageBlocks": {

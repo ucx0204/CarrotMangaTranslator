@@ -9,8 +9,8 @@ import {
   loadCommittedSettingsPairFiles,
   settingsCommitPath,
   settingsPairDirectory,
-  type SettingsPairFiles,
 } from "../src/main/settingsPairStorage";
+import type { SettingsPairFiles } from "../src/main/settingsPairCodec";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();

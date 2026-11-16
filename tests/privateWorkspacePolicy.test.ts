@@ -43,6 +43,7 @@ describe("private workspace repository policy", () => {
     "migration-ui.json",
     "logs/app.log",
     ".settings-pairs/generation/settings.json",
+    ".settings-credential-backups/recovery/.settings-pairs/generation/settings.secrets.json",
     "codex/auth.json",
     ".codex-workspace/AGENTS.md",
     "settings.secrets.json",

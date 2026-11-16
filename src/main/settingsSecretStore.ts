@@ -9,11 +9,11 @@ import type { AppPaths } from "./appPaths";
 import {
   commitSettingsPairFiles,
   loadCommittedSettingsPairFiles,
-  type SettingsPairFiles,
 } from "./settingsPairStorage";
 import {
   parseSettingsJsonRecord,
   serializeSettingsJson,
+  type SettingsPairFiles,
 } from "./settingsPairCodec";
 import {
   attachApiProfileSecrets,
@@ -99,6 +99,16 @@ export function commitSettingsPair(
   publicSettings: Record<string, unknown>,
   secrets: SettingsSecrets,
 ): Promise<string> {
+  return commitSettingsPairFiles(
+    paths,
+    createSettingsPairFiles(publicSettings, secrets),
+  );
+}
+
+export function createSettingsPairFiles(
+  publicSettings: Record<string, unknown>,
+  secrets: SettingsSecrets,
+): SettingsPairFiles {
   const generation = randomUUID();
   const publicPayload = {
     ...publicSettings,
@@ -113,11 +123,11 @@ export function commitSettingsPair(
     rawSettingsText: publicText,
     vaultText,
   });
-  return commitSettingsPairFiles(paths, {
+  return {
     generation,
     rawSettingsText: publicText,
     vaultText,
-  });
+  };
 }
 
 export function separateSettingsSecrets(settings: AppSettings): {

@@ -2810,6 +2810,20 @@
     },
     "support": {
       "title": "支持"
+    },
+    "recovery": {
+      "title": "恢复设置",
+      "logs": "打开日志文件夹",
+      "retry": "重新加载设置",
+      "credentialsTitle": "无法读取已保存的凭据",
+      "credentialsDetail": "当前应用的加密密钥无法解密已保存的 API 凭据。如果这是临时问题，请尝试重新加载。",
+      "loadTitle": "无法加载设置",
+      "loadDetail": "请尝试重新加载设置。如果问题仍然存在，可打开日志文件夹查看详情。",
+      "preserve": "恢复操作会先备份加密设置，再清除 API 密钥和身份验证请求头。翻译、字体、显示设置及作品数据均会保留。",
+      "confirm": "我了解恢复后需要重新输入 API 凭据",
+      "recover": "备份并重置凭据",
+      "busy": "正在处理设置…",
+      "waitForJob": "请等待当前任务完成后再恢复凭据。"
     }
   },
   "pageBlocks": {

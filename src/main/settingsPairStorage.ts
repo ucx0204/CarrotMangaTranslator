@@ -2,6 +2,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { chmod, mkdir, open, readFile, readdir, rm } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { AppPaths } from "./appPaths";
+import {
+  createSettingsPairRecovery,
+  type SettingsCommitPointer,
+  type SettingsPairReference,
+} from "./settingsPairRecovery";
 import { renameWithTransientRetry } from "./libraryStore/storage";
 import {
   assertSettingsGeneration,
@@ -9,24 +14,8 @@ import {
   isSettingsJsonRecord,
   parseSettingsJsonRecord,
   serializeSettingsJson,
+  type SettingsPairFiles,
 } from "./settingsPairCodec";
-
-type SettingsPairReference = {
-  generation: string;
-  publicSha256: string;
-  secretSha256: string;
-};
-
-type SettingsCommitPointer = SettingsPairReference & {
-  version: 1;
-  previous?: SettingsPairReference;
-};
-
-export type SettingsPairFiles = {
-  generation: string;
-  rawSettingsText: string;
-  vaultText: string;
-};
 
 const SETTINGS_PAIR_DIRECTORY = ".settings-pairs";
 const SETTINGS_COMMIT_FILE = "settings.commit.json";
@@ -107,6 +96,14 @@ export function commitSettingsPairFiles(
     commitSettingsPairFilesNow(paths, files),
   );
 }
+
+export const recoverSettingsPairFiles = createSettingsPairRecovery({
+  readPointer: readSettingsCommitPointer,
+  readPair: readCommittedPairFiles,
+  writeText: writeRestrictedTextFile,
+  commit: commitSettingsPairFilesNow,
+  run: runSettingsPairOperation,
+});
 
 function runSettingsPairOperation<T>(operation: () => Promise<T>): Promise<T> {
   const pending = settingsCommitTail.then(operation);

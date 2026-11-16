@@ -1,5 +1,7 @@
 import { BrowserWindow } from "electron";
 import { saveExportPreferences } from "../settings/exportPreferencesStore";
+import { recoverSettingsCredentials } from "../settingsCredentialRecovery";
+import { isSettingsSecretDecryptionError } from "../settingsSecretErrors";
 import { registerClaudeAccountIpc } from "./claudeAccountIpc";
 import { registerGrokAccountIpc } from "./grokAccountIpc";
 import { AppSettingsSchema, parseIpcPayload } from "../../shared/ipcSchemas";
@@ -12,7 +14,10 @@ import {
   inferApiProviderPreset,
   type ApiModelDiscoveryRequest,
 } from "../../shared/apiProviderPresets";
-import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../../shared/settingsSecrets";
+import {
+  SETTINGS_CREDENTIALS_UNAVAILABLE,
+  SETTINGS_SECRET_PRESERVE_SENTINEL,
+} from "../../shared/settingsSecrets";
 import {
   getAppSettings,
   getDefaultAppSettings,
@@ -98,8 +103,23 @@ function registerSettingsReadWriteIpc(context: IpcContext): void {
     async (_event, preferences) =>
       saveExportPreferences(preferences, context.appPaths),
   );
-  trustedHandleContract(context, settingsIpcContracts.getSettings, async () =>
-    maskAppSettingsSecrets(await getAppSettings()),
+  trustedHandleContract(context, settingsIpcContracts.getSettings, async () => {
+    try {
+      return maskAppSettingsSecrets(await getAppSettings(context.appPaths));
+    } catch (error) {
+      if (isSettingsSecretDecryptionError(error))
+        throw new Error(SETTINGS_CREDENTIALS_UNAVAILABLE, { cause: error });
+      throw error;
+    }
+  });
+  trustedHandleContract(
+    context,
+    settingsIpcContracts.recoverSettingsCredentials,
+    async (_event, _confirmed: true) => {
+      const recovered = await recoverSettingsCredentials(context.appPaths);
+      broadcastUiLocale(setMainLocale(recovered.ui?.locale));
+      return maskAppSettingsSecrets(recovered);
+    },
   );
   trustedHandleContract(
     context,

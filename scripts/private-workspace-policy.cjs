@@ -6,6 +6,7 @@ const FORBIDDEN_ROOT_DIRECTORIES = Object.freeze([
   ".pytest_cache",
   ".ruff_cache",
   ".settings-pairs",
+  ".settings-credential-backups",
   ".environment-backup",
   "codex",
   "grok",
