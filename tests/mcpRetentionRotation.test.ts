@@ -42,6 +42,9 @@ async function publish(
   );
 }
 
+// This integration case performs three durable edits plus encrypted history
+// rotation. Windows hosted-runner storage exceeded 45 seconds under coverage;
+// keep every lease/retention assertion and bound the whole case at two minutes.
 it("shares active record protection across connections and rotates only after the lease ends", async () => {
   const f = await retentionFixture();
   try {
@@ -73,7 +76,7 @@ it("shares active record protection across connections and rotates only after th
   } finally {
     await f.close();
   }
-});
+}, 120000);
 
 it("keeps outputs and removed-original recovery outside the ordinary history budget", async () => {
   const f = await retentionFixture();
