@@ -2559,7 +2559,7 @@
         "cuda": "NVIDIA GPU 필요",
         "rocm-transformers": "ROCm 지원 AMD GPU 필요",
         "cpu": "GPU 없이 실행",
-        "unsupportedRocm": "감지된 GPU는 ROCm OCR 미지원"
+        "unsupportedRocm": "선택한 OCR 엔진은 이 GPU에서 ROCm을 사용할 수 없습니다."
       },
       "hunyuan": {
         "current": "현재: {{engine}}",

@@ -17,7 +17,10 @@ import {
   saveAppSettings,
   type SettingsStoreDiagnostics,
 } from "../src/main/settingsStore";
-import { resolveDefaultAppSettings } from "../src/main/appSettings";
+import {
+  buildBaseTranslationOptions,
+  resolveDefaultAppSettings,
+} from "../src/main/appSettings";
 import { CURRENT_GENERATION_LIMITS_VERSION } from "../src/main/settings/appSettingsGenerationLimitMigration";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
 import {
@@ -524,6 +527,64 @@ describe("settings store", () => {
       expect(loaded.runtimeHardware?.supportsFluxZluda).toBe(
         expectedFluxSupport,
       );
+    },
+  );
+
+  it.each([
+    ["AMD Radeon RX 7600", null],
+    ["AMD Radeon Graphics", "gfx1102:xnack-"],
+    ["PCI\\VEN_1002&DEV_7480&SUBSYS_0000", null],
+  ])(
+    "routes %s through the RX 7600 Hayai lock after saving",
+    async (name, rocmArch) => {
+      const paths = makeAppPaths(await createTempDir());
+      const detectGpu = async () => ({
+        vendor: "amd" as const,
+        name,
+        rocmArch,
+        memoryMb: 8192,
+        rtxGeneration: null,
+        computeCapability: null,
+      });
+      const defaults = await getDefaultAppSettings({}, detectGpu);
+      expect(defaults.runtimeHardware).toMatchObject({
+        supportsHayaiOcrRocm: true,
+        supportsOcrRocm: false,
+      });
+      const legacy = await getDefaultAppSettings(
+        {
+          MANGA_TRANSLATOR_OCR_PIPELINE: "paddle-legacy",
+        },
+        detectGpu,
+      );
+      expect(legacy.ocr).toMatchObject({
+        pipeline: "paddle-legacy",
+        device: "cpu",
+      });
+      await saveAppSettings(defaults, paths, {}, detectGpu);
+      const settings = await getAppSettings(paths, {}, detectGpu);
+      const options = buildBaseTranslationOptions({
+        jobId: "rx7600",
+        runDir: paths.dataRoot,
+        paths,
+        settings,
+        env: {},
+      });
+      expect(options).toMatchObject({
+        ocrPipeline: "hayai",
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+      });
+      if (process.platform === "win32") {
+        const {
+          resolveIntegrityPinnedOcrInstallBatches,
+        } = require("../src/main/runtime/ocr/requirements-integrity.cjs");
+        expect(
+          resolveIntegrityPinnedOcrInstallBatches([], options)[0],
+        ).toContainEqual(
+          expect.stringMatching(/requirements-hayai-rocm-win\.lock$/),
+        );
+      }
     },
   );
 

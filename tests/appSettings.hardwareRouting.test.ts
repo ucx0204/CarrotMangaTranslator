@@ -323,7 +323,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(settings.inpainting?.fluxBackend).toBe("cpu-native");
   });
 
-  it("keeps GPU OCR off for AMD GPUs Windows ROCm PyTorch does not support", () => {
+  it("selects the packaged Hayai ROCm runtime for RX 7600 desktop and mobile", () => {
     const rx7600mXtDefaults = resolveDefaultAppSettings(
       {},
       {
@@ -338,8 +338,8 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     );
     expect(rx7600mXtDefaults.gemma.llamaRocmTarget).toBe("gfx110X");
     expect(rx7600mXtDefaults.gemma.llamaRuntimeProfile).toBe("rocm");
-    expect(rx7600mXtDefaults.ocr.gpuBackend).not.toBe("rocm-transformers");
-    expect(rx7600mXtDefaults.ocr.device).toBe("cpu");
+    expect(rx7600mXtDefaults.ocr.gpuBackend).toBe("rocm-transformers");
+    expect(rx7600mXtDefaults.ocr.device).toBe("gpu");
     expect(rx7600mXtDefaults.inpainting?.model).toBe("flux-klein");
     expect(rx7600mXtDefaults.inpainting?.fluxBackend).toBe("rocm-native");
 
@@ -355,13 +355,13 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
         supportsRocm: false,
       },
     );
-    // The llama target keeps working through its own runtimes...
     expect(rx7600Defaults.gemma.llamaRocmTarget).toBe("gfx110X");
-    // ...but OCR must not default to the Windows ROCm PyTorch backend.
-    expect(rx7600Defaults.ocr.gpuBackend).not.toBe("rocm-transformers");
-    expect(rx7600Defaults.ocr.device).toBe("cpu");
+    expect(rx7600Defaults.ocr.gpuBackend).toBe("rocm-transformers");
+    expect(rx7600Defaults.ocr.device).toBe("gpu");
     expect(rx7600Defaults.inpainting?.fluxBackend).toBe("rocm-native");
+  });
 
+  it("keeps the CPU default for other unsupported adapters", () => {
     const igpuDefaults = resolveDefaultAppSettings(
       {},
       {

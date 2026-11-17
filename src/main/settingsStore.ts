@@ -282,12 +282,16 @@ function createDetectedRuntimeHardware(
     gpuVendor: normalizeRuntimeGpuVendor(detectedGpu.vendor),
     gpuName: detectedGpu.name,
     gpuMemoryMb: detectedGpu.memoryMb,
-    computeCapability: resolveRuntimeComputeCapability(detectedGpu),
-    rtxGeneration: resolveRuntimeRtxGeneration(detectedGpu),
+    computeCapability: detectedGpu.computeCapability ?? null,
+    rtxGeneration: detectedGpu.rtxGeneration ?? null,
     llamaRocmTarget: resolveAmdRocmTargetFromInfo(detectedGpu),
     ...(detectedGpu.vendor === "amd"
       ? {
-          supportsOcrRocm: supportsWindowsRocmOcrGpu(detectedGpu),
+          supportsOcrRocm: supportsWindowsRocmOcrGpu(
+            detectedGpu,
+            "paddle-legacy",
+          ),
+          supportsHayaiOcrRocm: supportsWindowsRocmOcrGpu(detectedGpu, "hayai"),
           supportsFluxZluda: resolveNativeRocmGpuSupport(detectedGpu),
         }
       : {}),
@@ -313,18 +317,6 @@ function createUnknownRuntimeHardware(): NonNullable<
     supportsMetal: false,
     unifiedMemoryMb: null,
   };
-}
-
-function resolveRuntimeComputeCapability(
-  detectedGpu: DetectedGpuInfo | null,
-): number | null {
-  return detectedGpu?.computeCapability ?? null;
-}
-
-function resolveRuntimeRtxGeneration(
-  detectedGpu: DetectedGpuInfo | null,
-): number | null {
-  return detectedGpu?.rtxGeneration ?? null;
 }
 
 function normalizeRuntimeGpuVendor(

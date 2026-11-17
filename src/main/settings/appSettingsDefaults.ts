@@ -5,7 +5,7 @@ import {
   DEFAULT_CODEX_REASONING_EFFORT,
   DEFAULT_MODEL_SOURCE,
 } from "../../shared/modelPresets";
-import type { AppSettings } from "../../shared/settingsTypes";
+import type { AppSettings, OcrPipeline } from "../../shared/settingsTypes";
 import { DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO } from "../../shared/bubbleLayoutSettings";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
 import {
@@ -50,7 +50,11 @@ export function resolveDefaultAppSettings(
   env: NodeJS.ProcessEnv = process.env,
   detectedGpu?: number | DetectedGpuInfo | null,
 ): AppSettings {
-  const hardwareDefaults = resolveHardwareDefaults(detectedGpu);
+  const pipeline = resolveOcrPipeline(
+    env.MANGA_TRANSLATOR_OCR_PIPELINE,
+    "hayai",
+  );
+  const hardwareDefaults = resolveHardwareDefaults(detectedGpu, pipeline);
   const modelProvider = resolveModelProvider(
     env.MANGA_TRANSLATOR_MODEL_PROVIDER,
     hardwareDefaults.modelProvider,
@@ -75,7 +79,7 @@ export function resolveDefaultAppSettings(
       claude: { model: "default", effort: "high" },
     },
     api,
-    ocr: resolveDefaultOcrSettings(env, hardwareDefaults),
+    ocr: resolveDefaultOcrSettings(env, hardwareDefaults, pipeline),
     ui: resolveDefaultUiSettings(env),
     inpainting: resolveDefaultInpaintingSettings(env, hardwareDefaults),
     blockFormatDefaults: {
@@ -238,14 +242,11 @@ function resolveDefaultCodexSettings(
 function resolveDefaultOcrSettings(
   env: NodeJS.ProcessEnv,
   hardwareDefaults: HardwareDefaults,
+  pipeline: OcrPipeline,
 ): AppSettings["ocr"] {
   const device = resolveOcrDevice(
     env.MANGA_TRANSLATOR_OCR_DEVICE,
     hardwareDefaults.ocrDevice,
-  );
-  const pipeline = resolveOcrPipeline(
-    env.MANGA_TRANSLATOR_OCR_PIPELINE,
-    "hayai",
   );
   return {
     hunyuan: { model: "f16", device: "auto" },

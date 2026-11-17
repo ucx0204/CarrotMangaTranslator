@@ -1,14 +1,7 @@
+import type { OcrPipeline } from "../../shared/settingsTypes";
 import { parseRocmArch } from "../amdRocmTargets";
 import type { DetectedGpuInfo } from "../gpuInfo";
 
-/**
- * Windows PyTorch ROCm 7.2.1 (the OCR rocm-transformers runtime) officially
- * supports only these architectures. Other AMD GPUs that merely have a llama
- * `rocmTarget` (RX 6000 = gfx103X, RX 7600 = gfx1102, Radeon 7x0M iGPUs =
- * gfx1103, ...) crash or hang the HIP runtime on Windows, so OCR defaults to
- * CPU for them. Power users can still force GPU via
- * MANGA_TRANSLATOR_OCR_GPU_BACKEND / MANGA_TRANSLATOR_OCR_DEVICE.
- */
 const SUPPORTED_WINDOWS_ROCM_OCR_ARCHES = new Set([
   "gfx1100",
   "gfx1101",
@@ -31,6 +24,7 @@ const SUPPORTED_WINDOWS_ROCM_OCR_NAME_PATTERNS: RegExp[] = [
 
 export function supportsWindowsRocmOcrGpu(
   info: DetectedGpuInfo | null,
+  pipeline: OcrPipeline,
 ): boolean {
   if (!info || info.vendor !== "amd") {
     return false;
@@ -38,13 +32,20 @@ export function supportsWindowsRocmOcrGpu(
   const arch = parseRocmArch(String(info.rocmArch ?? ""));
   if (arch) {
     const baseArch = arch.match(/^gfx[0-9a-f]+/)?.[0] ?? arch;
-    return SUPPORTED_WINDOWS_ROCM_OCR_ARCHES.has(baseArch);
+    return (
+      SUPPORTED_WINDOWS_ROCM_OCR_ARCHES.has(baseArch) ||
+      (pipeline === "hayai" && baseArch === "gfx1102")
+    );
   }
   const name = String(info.name ?? "")
     .toLowerCase()
     .replace(/[™®]/g, " ");
-  if (!name.trim()) {
-    return false;
+  // Windows can report just the adapter name or PCI ID before HIP is installed.
+  if (
+    pipeline === "hayai" &&
+    /\brx\s*7600(?:m|s)?\b|\bven_1002&dev_7480\b/.test(name)
+  ) {
+    return true;
   }
   return SUPPORTED_WINDOWS_ROCM_OCR_NAME_PATTERNS.some((pattern) =>
     pattern.test(name),

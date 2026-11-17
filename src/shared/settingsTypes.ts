@@ -71,8 +71,9 @@ type RuntimeHardwareInfo = {
   computeCapability?: number | null;
   rtxGeneration?: number | null;
   llamaRocmTarget?: AmdRocmTarget | null;
-  /** Whether the detected AMD adapter is supported by the packaged ROCm OCR runtime. */
+  /** Whether the detected AMD adapter is supported by the legacy Paddle ROCm runtime. */
   supportsOcrRocm?: boolean;
+  supportsHayaiOcrRocm?: boolean;
   /** Whether AMD officially supports the adapter in the current Windows HIP SDK. */
   supportsFluxZluda?: boolean;
   supportsRocm?: boolean;

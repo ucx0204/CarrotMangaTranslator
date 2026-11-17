@@ -59,6 +59,45 @@ afterEach(() => {
 });
 
 describe("settings draft safety", () => {
+  it("saves Hayai ROCm from a previously CPU-only RX 7600 setup", async () => {
+    const settings: AppSettings = {
+      ...initialSettings,
+      ocr: {
+        ...initialSettings.ocr,
+        pipeline: "hayai",
+        device: "cpu",
+        gpuBackend: "cuda",
+      },
+      runtimeHardware: {
+        gpuVendor: "amd",
+        gpuName: "AMD Radeon RX 7600",
+        gpuMemoryMb: 8192,
+        supportsHayaiOcrRocm: true,
+        supportsOcrRocm: false,
+      },
+    };
+    const onSubmit = vi.fn();
+    renderSettings({ settings, onSubmit });
+    fireEvent.click(screen.getByRole("tab", { name: "OCR" }));
+    const button = (name: string) => screen.getByRole("button", { name });
+    const rocm = () => button("AMD ROCm");
+    expect(button("CPU").getAttribute("aria-pressed")).toBe("true");
+    expect(rocm()).toHaveProperty("disabled", false);
+    fireEvent.click(rocm());
+    fireEvent.click(button("PaddleOCR(레거시)"));
+    expect(rocm()).toHaveProperty("disabled", true);
+    expect(button("CPU").getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(button("HayaiOCR"));
+    fireEvent.click(rocm());
+    fireEvent.click(button("저장"));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(onSubmit.mock.calls[0][0].ocr).toMatchObject({
+      pipeline: "hayai",
+      device: "gpu",
+      gpuBackend: "rocm-transformers",
+    });
+  });
+
   it("keeps 12B first and offers CPU-expert 26B second with tooltip-only guidance", async () => {
     const settings = resolveDefaultAppSettings(
       {},

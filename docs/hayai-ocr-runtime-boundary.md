@@ -28,14 +28,16 @@ This OCR-runtime rule is separate from Text Detector's existing same-model Direc
 | Hayai         | CPU                                 | `hayai-cpu`              | `requirements-hayai-cpu-win.lock`        |
 | Hayai         | NVIDIA CUDA 12.6                    | `hayai-cuda-cu126`       | `requirements-hayai-cuda-cu126-win.lock` |
 | Hayai         | NVIDIA CUDA 13.0                    | `hayai-cuda-cu130`       | `requirements-hayai-cuda-cu130-win.lock` |
-| Hayai         | AMD ROCm 7.2.1                      | `hayai-rocm`             | `requirements-hayai-rocm-win.lock`       |
+| Hayai         | AMD ROCm 10.0.0                     | `hayai-rocm`             | `requirements-hayai-rocm-win.lock`       |
 | Paddle legacy | CPU / Paddle GPU / Transformers GPU | existing legacy variants | existing legacy locks                    |
+
+On Windows, Hayai enables ROCm for the Radeon RX 7600 (gfx1102) using the pinned PyTorch, torchvision and ROCm SDK device wheels. Legacy Paddle uses ROCm 7.2.1 and offers CPU on this card.
 
 Hayai locks are hash-complete and forbid Paddle packages. Custom Hayai package or PyTorch index overrides require a caller-supplied hash-complete requirements lock.
 
 Normal runtimes use variant-specific `.venv-*` and `python-packages-*` directories. Windows ROCm uses short paths because native wheel entries can exceed the legacy path limit. Its engine-owned leaves are disjoint:
 
-- Hayai: runtime `h721`, packages `h`, venv `y`
+- Hayai: runtime `h1000`, packages `h`, venv `y`
 - Paddle legacy: runtime `r721`, packages `p`, venv `v`
 
 Shared download caches may contain generic pip, Hugging Face, or PyTorch artifacts. An engine's import path, package directory, venv, install marker, and verification contract must remain private.

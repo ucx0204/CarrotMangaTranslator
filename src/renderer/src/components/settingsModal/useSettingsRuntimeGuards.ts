@@ -114,6 +114,10 @@ function resolveRuntimeContext(
   const usesAmdOcrContext = usesAmdHardware || usesAmdGemmaRuntime;
   return {
     ...detected,
+    supportsOcrRocm:
+      values.ocrPipeline === "hayai"
+        ? (hardware?.supportsHayaiOcrRocm ?? hardware?.supportsOcrRocm)
+        : hardware?.supportsOcrRocm,
     usesAmdOcrContext,
     usesNvidiaOcrContext:
       usesNvidiaHardware || (!usesAmdOcrContext && usesNvidiaGemmaRuntime),
@@ -132,7 +136,6 @@ function resolveDetectedRuntimeContext(
   return {
     ...hardwareFlags,
     ...nvidiaFeatures,
-    supportsOcrRocm: hardware?.supportsOcrRocm,
     supportsFluxZluda: hardware?.supportsFluxZluda,
     unifiedMemoryMb: hardware?.unifiedMemoryMb ?? null,
   };
@@ -197,10 +200,19 @@ function useOcrRuntimeGuard(
   setters: SettingsFormSetters,
   runtime: ReturnType<typeof resolveRuntimeContext>,
 ): void {
+  const previousPipeline = React.useRef(values.ocrPipeline);
   React.useEffect(() => {
+    const changedPipeline = previousPipeline.current !== values.ocrPipeline;
+    previousPipeline.current = values.ocrPipeline;
+    const switchToCpu =
+      changedPipeline &&
+      values.ocrPipeline === "paddle-legacy" &&
+      runtime.usesAmdHardware &&
+      runtime.supportsOcrRocm === false &&
+      values.ocrGpuBackend === "rocm-transformers";
     const corrected = resolveCompatibleOcrSettings(
       {
-        ocrDevice: values.ocrDevice,
+        ocrDevice: switchToCpu ? "cpu" : values.ocrDevice,
         ocrGpuBackend: values.ocrGpuBackend,
         ocrQualityMode: values.ocrQualityMode,
       },
@@ -223,6 +235,8 @@ function useOcrRuntimeGuard(
     runtime.usesAmdOcrContext,
     runtime.usesNvidiaOcrContext,
     runtime.supportsOcrRocm,
+    runtime.usesAmdHardware,
+    values.ocrPipeline,
     setters,
     values.ocrDevice,
     values.ocrGpuBackend,

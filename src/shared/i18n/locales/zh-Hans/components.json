@@ -2559,7 +2559,7 @@
         "cuda": "需要 NVIDIA GPU",
         "rocm-transformers": "需要支持 ROCm 的 AMD GPU",
         "cpu": "无需 GPU",
-        "unsupportedRocm": "检测到的 GPU 不支持 ROCm OCR"
+        "unsupportedRocm": "所选 OCR 引擎不支持在此 GPU 上使用 ROCm。"
       },
       "hunyuan": {
         "current": "当前：{{engine}}",

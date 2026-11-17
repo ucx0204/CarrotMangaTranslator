@@ -10,6 +10,7 @@ import type {
   ModelProvider,
   OcrDevice,
   OcrGpuBackend,
+  OcrPipeline,
   OcrQualityMode,
 } from "../../shared/settingsTypes";
 import type { DetectedGpuInfo } from "../gpuInfo";
@@ -50,9 +51,10 @@ type HardwareBaseDefaults = Omit<
 
 export function resolveHardwareDefaults(
   detectedGpu?: number | DetectedGpuInfo | null,
+  pipeline: OcrPipeline = "hayai",
 ): HardwareDefaults {
   const info = normalizeDetectedGpuInfo(detectedGpu);
-  const baseDefaults = resolveHardwareBaseDefaults(info);
+  const baseDefaults = resolveHardwareBaseDefaults(info, pipeline);
   if (!supportsGemmaDefaults(info)) {
     return buildHardwareDefaults(
       baseDefaults,
@@ -160,11 +162,14 @@ function resolveGemmaDefaultVramMode(
 
 function resolveHardwareBaseDefaults(
   info: DetectedGpuInfo | null,
+  pipeline: OcrPipeline,
 ): HardwareBaseDefaults {
   const llamaRocmTarget = resolveHardwareLlamaRocmTarget(info);
   return {
     ocrGpuCudaTag: resolveHardwareOcrGpuCudaTag(info),
-    ocrGpuBackend: resolveHardwareOcrGpuBackend(info),
+    ocrGpuBackend: supportsWindowsRocmOcrGpu(info, pipeline)
+      ? "rocm-transformers"
+      : "cuda",
     llamaRuntimeProfile: resolveHardwareLlamaRuntimeProfile(info),
     ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
     fluxBackend: resolveHardwareFluxBackend(info),
@@ -201,19 +206,6 @@ function resolveHardwareOcrGpuCudaTag(info: DetectedGpuInfo | null): string {
     return RTX_50_OCR_GPU_CUDA_TAG;
   }
   return DEFAULT_OCR_GPU_CUDA_TAG;
-}
-
-function resolveHardwareOcrGpuBackend(
-  info: DetectedGpuInfo | null,
-): OcrGpuBackend {
-  // Only GPUs Windows PyTorch ROCm actually supports get the ROCm OCR
-  // backend. Other AMD cards default to CPU OCR with the CUDA backend kept as
-  // metadata; an explicit later GPU selection is preserved and fails loudly
-  // if that backend cannot run.
-  if (info?.vendor === "amd" && supportsWindowsRocmOcrGpu(info)) {
-    return "rocm-transformers";
-  }
-  return "cuda";
 }
 
 function resolveHardwareLlamaRocmTarget(
