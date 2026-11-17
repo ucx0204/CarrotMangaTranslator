@@ -8884,6 +8884,28 @@
         "pct": 87.5
       }
     },
+    "src/main/settings/ocrRocmSupport.ts": {
+      "lines": {
+        "covered": 9,
+        "total": 13,
+        "pct": 69.23
+      },
+      "statements": {
+        "covered": 9,
+        "total": 13,
+        "pct": 69.23
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 8,
+        "total": 14,
+        "pct": 57.14
+      }
+    },
     "src/main/settings/translationApiOptions.ts": {
       "lines": {
         "covered": 18,

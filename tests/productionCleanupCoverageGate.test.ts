@@ -592,7 +592,8 @@ describe("production cleanup coverage floor gate", () => {
     // Build identity and page completion retain their original measured floors.
     // Issue #177 adds the original measured unified-memory runtime floor.
     // Settings recovery adds the shared credential-error constant to the tracked baseline.
-    expect(scope.existing).toHaveLength(872);
+    // RX 7600 support adds the original measured Windows OCR policy floor.
+    expect(scope.existing).toHaveLength(873);
     // Includes global chat, shared actions, OpenCode help, MCP event streams, shared
     // translation instructions and image budget; inherited floors remain unchanged.
     // inherited floors remain unchanged.
