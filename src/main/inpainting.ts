@@ -67,7 +67,7 @@ export async function prepareFluxInpaintingEngine(
   let modelPath: string | undefined;
   let vaePath: string | undefined;
   let textEncoderPath: string | undefined;
-  if (usesManagedFluxModelAssets(launch.backend)) {
+  if (launch.backend.endsWith("-native")) {
     const download = createCombinedDownloadProgress(
       options.onProgress,
       tMain("inpainting.assets.fluxModel"),
@@ -147,16 +147,6 @@ function reportFluxEngineReady(
     progressMode: "log-only",
     installLogLine: tMain("inpainting.runtime.fluxReadyLog"),
   });
-}
-
-function usesManagedFluxModelAssets(backend: string): boolean {
-  return [
-    "cuda-native",
-    "rocm-native",
-    "zluda-native",
-    "metal-native",
-    "cpu-native",
-  ].includes(backend);
 }
 
 export async function applyInpaintingRetouch(

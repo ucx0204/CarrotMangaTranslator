@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   download: vi.fn(),
   start: vi.fn(),
   dispose: vi.fn(),
+  launch: vi.fn(),
 }));
 vi.mock("../src/main/runtimeSupport/modelDownloads", async (original) => ({
   ...(await original<
@@ -35,15 +36,16 @@ vi.mock("../src/main/pipeline/fontChapterC18Worker", () => ({
   prepareFontChapterC18WorkerRuntime: async () => ({
     pythonAbi: "cpython-314",
   }),
-  launchFontChapterC18Worker: async () => ({
-    startRequest: mocks.start,
-    dispose: mocks.dispose,
-  }),
+  launchFontChapterC18Worker: mocks.launch,
 }));
 
 const roots: string[] = [];
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.launch.mockResolvedValue({
+    startRequest: mocks.start,
+    dispose: mocks.dispose,
+  });
   mocks.start.mockReturnValue({
     response: Promise.resolve({
       ok: true,
@@ -144,6 +146,7 @@ it.each(["downloaded", "unavailable", "gpu"] as const)(
         new AbortController().signal,
       ),
     ).resolves.toBeTypeOf("function");
+    expect(mocks.launch.mock.calls[0]?.[3]).toBe(30 * 60_000);
     const last = events.at(-1);
     if (!last) throw new Error("No analysis progress event");
     expect(last.detail).toContain(
@@ -210,6 +213,45 @@ it("never reports analysis or starts the worker after download cancellation", as
   ).rejects.toMatchObject({ name: "AbortError" });
   expect(onProgress).not.toHaveBeenCalled();
   expect(mocks.start).not.toHaveBeenCalled();
+});
+
+it("budgets for all 201 analyzed pages while keeping a single chapter palette", async () => {
+  const root = await mkdtemp(join(tmpdir(), "font-large-chapter-"));
+  roots.push(root);
+  const source = await sourceEntry(root);
+  const pageOptions: TranslationOptions = {
+    ...baseOptions(root),
+    autoFontMatching: true,
+    sourceLanguage: "ja",
+    targetLanguage: "ko",
+    ocrDevice: "gpu",
+  };
+  const pages = Array.from({ length: 201 }, (_, i) => ({
+    ...source,
+    page: { ...source.page, id: String(i) },
+    pageOptions,
+  }));
+  const choices = pages.map((_, i) => ({
+    key: `P${String(i + 1).padStart(6, "0")}/D000001`,
+    groupId: "group",
+    fontId: "jua",
+    fontWeight: 400,
+    italic: false,
+  }));
+  mocks.start.mockReturnValueOnce({
+    response: Promise.resolve({
+      ok: true,
+      result: { version: "c23.0", choices },
+    }),
+  });
+  const port = createFontChapterC18Port({
+    dataRoot: root,
+    runtimeDir: root,
+  } as AppPaths);
+  const resolve = await port.prepare(pages, new AbortController().signal);
+  expect(mocks.launch.mock.calls[0]?.[3]).toBe(201 * 60_000);
+  expect(mocks.start).toHaveBeenCalledTimes(1);
+  expect(resolve?.("200", source.items[0])?.groupId).toBe("group");
 });
 
 function baseOptions(root: string): TranslationOptions {

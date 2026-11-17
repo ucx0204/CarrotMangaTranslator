@@ -93,11 +93,13 @@ async function prepareChapter(
         glyphVerificationAssets,
       }),
     );
-    signal.throwIfAborted();
     const worker = await launchFontChapterC18Worker(
       paths,
       options,
       assets,
+      // The worker analyzes all eligible pages in a single request. Keep the
+      // existing half-hour minimum and allow one minute per analyzed page.
+      Math.min(2_147_483_647, Math.max(30, input.pages.length) * 60_000),
       runtime,
     );
     return {

@@ -20,6 +20,16 @@ const request = {
 };
 
 describe("Flux native failure diagnostics", () => {
+  it("preserves a Vulkan CLI error without suggesting a driver failure", () => {
+    const message = buildFluxRuntimeExitError(
+      2,
+      "error: required arguments were not provided: --transformer-path",
+      "vulkan-native",
+    ).message;
+    expect(message).toContain("exitCode=2");
+    expect(message).toContain("--transformer-path");
+    expect(message).not.toContain("드라이버");
+  });
   it("reports Vulkan failures without CUDA advice or CPU substitution", () => {
     const error = buildFluxRuntimeExitError(
       3,

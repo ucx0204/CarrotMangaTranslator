@@ -37,7 +37,7 @@ export function buildFluxRuntimeExitError(
     `exitCode=${code ?? "unknown"} ${formatFluxRuntimeDetail(stderr)}`.trim();
   if (backend === "vulkan-native") {
     return new Error(
-      `Flux Vulkan 런타임이 종료되었습니다 (${code}). 선택한 GPU와 그래픽 드라이버의 Vulkan 지원을 확인하세요. ${detail}`,
+      `Flux Vulkan 런타임이 종료되었습니다 (${code}). ${detail}`,
     );
   }
   return (

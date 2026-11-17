@@ -77,8 +77,10 @@ export async function launchFontChapterC18Worker(
   paths: AppPaths,
   options: TranslationOptions,
   assets: string,
+  requestTimeoutMs: number,
   prepared?: Awaited<ReturnType<typeof prepareFontChapterC18WorkerRuntime>>,
 ) {
+  options.abortSignal?.throwIfAborted();
   const runtime =
     prepared ?? (await prepareFontChapterC18WorkerRuntime(paths, options));
   const { env } = runtime;
@@ -107,6 +109,7 @@ export async function launchFontChapterC18Worker(
       PYTHONDONTWRITEBYTECODE: "1",
     },
     workerName: "C18 chapter font matching",
+    requestTimeoutMs,
     buildExitError: (code, stderr) =>
       new Error(`C18 worker exited (${code}): ${stderr}`),
     buildNotRunningError: (stderr) =>

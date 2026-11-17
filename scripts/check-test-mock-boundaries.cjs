@@ -24,6 +24,9 @@ const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/nativeInferenceLaunch.test.ts::../src/main/runtimeSupport/nativeInferenceRuntime",
   "tests/fluxCpuWorker.test.ts::../src/main/runtimeSupport/nativeInferenceLaunch",
   "tests/fluxWorker.test.ts::../src/main/runtimeSupport/nativeInferenceLaunch",
+  // Capture the actual worker argv from the app entry point; substitute only downloaded assets and runtime installation.
+  "tests/fluxVulkanEngine.test.ts::../src/main/runtimeSupport/nativeInferenceLaunch",
+  "tests/fluxVulkanEngine.test.ts::../src/main/runtimeSupport/modelDownloads",
   "tests/koharuInpaintingExports.test.ts::../src/main/runtimeSupport/nativeInferenceLaunch",
   // Substitute only the Python installer; use real command/env modules and worker transport.
   "tests/hayaiRecognitionSession.test.ts::../src/main/runtimeModuleLoader",
