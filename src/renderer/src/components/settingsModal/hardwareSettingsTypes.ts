@@ -2,6 +2,7 @@ import type React from "react";
 import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
 import type {
   FluxBackend,
+  FluxMode,
   InpaintingModel,
   OcrDevice,
   OcrGpuBackend,
@@ -27,6 +28,7 @@ export type HardwareSettingsPanelProps = {
   computeCapability?: number | null;
   rtxGeneration?: number | null;
   fluxBackend: FluxBackend;
+  fluxMode: FluxMode;
   graphicsGpuPreference: GraphicsGpuPreference;
   inpaintingModel: InpaintingModel;
   isFluxBackendOptionDisabled: (backend: FluxBackend) => boolean;
@@ -35,6 +37,7 @@ export type HardwareSettingsPanelProps = {
   ocrPipeline: OcrPipeline;
   ocrQualityMode: OcrQualityMode;
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
+  setFluxMode: React.Dispatch<React.SetStateAction<FluxMode>>;
   setGraphicsGpuPreference: React.Dispatch<
     React.SetStateAction<GraphicsGpuPreference>
   >;

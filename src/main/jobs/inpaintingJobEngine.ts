@@ -37,14 +37,15 @@ export async function acquireInpaintingEngineIfNeeded({
   if (codexEngine) {
     return codexEngine(context.appPaths, appSettings, abortController.signal);
   }
+  const inpainting = appSettings.inpainting ?? {};
   return runtime.acquireEngine({
     appPaths: context.appPaths,
-    model: appSettings.inpainting?.model ?? "flux-klein",
-    fluxBackend: appSettings.inpainting?.fluxBackend,
-    koharuBackend: appSettings.inpainting?.koharuBackend,
+    model: inpainting.model ?? "flux-klein",
+    fluxBackend: inpainting.fluxBackend,
+    fluxMode: inpainting.fluxMode,
+    koharuBackend: inpainting.koharuBackend,
     computeGpuIndex: appSettings.hardware?.computeGpuIndex,
-    allowUnsafeLowMemoryFlux:
-      appSettings.inpainting?.allowUnsafeLowMemoryFlux ?? false,
+    allowUnsafeLowMemoryFlux: inpainting.allowUnsafeLowMemoryFlux ?? false,
     signal: abortController.signal,
     onProgress: (progress) =>
       emit({

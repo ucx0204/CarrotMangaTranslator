@@ -1514,6 +1514,28 @@
         "pct": 100
       }
     },
+    "src/main/inpainting/fluxCropTiling.ts": {
+      "lines": {
+        "total": 25,
+        "covered": 23,
+        "pct": 92
+      },
+      "statements": {
+        "total": 28,
+        "covered": 26,
+        "pct": 92.85
+      },
+      "functions": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "branches": {
+        "total": 23,
+        "covered": 21,
+        "pct": 91.3
+      }
+    },
     "src/main/inpainting/fluxEngine.ts": {
       "lines": {
         "covered": 16,
@@ -1534,6 +1556,28 @@
         "covered": 14,
         "total": 19,
         "pct": 73.68
+      }
+    },
+    "src/main/inpainting/fluxEngineConstants.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/inpainting/fluxEnginePool.ts": {
@@ -1600,6 +1644,28 @@
         "covered": 20,
         "total": 22,
         "pct": 90.9
+      }
+    },
+    "src/main/inpainting/fluxWindowPreparation.ts": {
+      "lines": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "statements": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "functions": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "branches": {
+        "total": 8,
+        "covered": 8,
+        "pct": 100
       }
     },
     "src/main/inpainting/fluxWorker.ts": {

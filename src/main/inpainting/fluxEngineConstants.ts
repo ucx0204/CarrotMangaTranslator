@@ -1,5 +1,7 @@
 export const FLUX_INPAINT_CONTEXT_PX = 160;
-export const FLUX_METAL_INPAINT_CONTEXT_PX = 96;
+export const FLUX_REDUCED_INPAINT_CONTEXT_PX = 96;
+export const FLUX_LIGHT_MAX_PIXELS = 384 * 384;
+export const FLUX_INPAINT_STEPS = { normal: 4, light: 3 } as const;
 export const FLUX_INPAINT_MASK_PADDING_PX = 16;
 export const FLUX_RUNNER_MASK_PADDING_PX = 0;
 export const FLUX_INPAINT_FEATHER_PX = 8;

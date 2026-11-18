@@ -4,6 +4,7 @@ import { clamp } from "../../shared/geometry";
 import { safeCleanup } from "../safeCleanup";
 import {
   FLUX_INPAINT_CONTEXT_PX,
+  FLUX_INPAINT_STEPS,
   FLUX_INPAINT_FEATHER_PX,
   FLUX_INPAINT_MASK_PADDING_PX,
   FLUX_INPAINT_MAX_PIXELS,
@@ -53,7 +54,7 @@ export async function runFluxInpaint(
     getWorker,
     height,
     isolateWindowMasks,
-    tileLargeCrops,
+    cropStrategy,
     mask,
     runOptions,
     runRootDir,
@@ -100,7 +101,7 @@ export async function runFluxInpaint(
       getWorker,
       height,
       isolateWindowMasks,
-      tileLargeCrops,
+      cropStrategy,
       mask,
       options,
       runDir,
@@ -185,7 +186,7 @@ async function processFluxWindow(
     contextBitmap,
     getWorker,
     index,
-    tileLargeCrops,
+    cropStrategy,
     options,
     runDir,
     runOptions,
@@ -216,14 +217,15 @@ async function processFluxWindow(
         input: paths.inputPath,
         mask: paths.maskPath,
         output: paths.outputPath,
-        steps: 4,
+        steps: runOptions.steps ?? FLUX_INPAINT_STEPS.normal,
         strength: 1,
-        maxPixels: tileLargeCrops
-          ? Math.min(
-              options.maxPixels,
-              crop.processSize.width * crop.processSize.height,
-            )
-          : options.maxPixels,
+        maxPixels:
+          cropStrategy !== "resize"
+            ? Math.min(
+                options.maxPixels,
+                crop.processSize.width * crop.processSize.height,
+              )
+            : options.maxPixels,
         maskPadding: FLUX_RUNNER_MASK_PADDING_PX,
         speechBubble: runOptions.speechBubbleWindows?.[index],
       },
@@ -313,7 +315,7 @@ function prepareFluxWindowForProcessing({
   mask,
   options,
   runOptions,
-  tileLargeCrops,
+  cropStrategy,
   width,
   window,
   windowMasks,
@@ -323,7 +325,7 @@ function prepareFluxWindowForProcessing({
     height,
     isolateWindowMasks: isolateWindowMasks || !!runOptions.compositeConstraints,
     mask,
-    tileLargeCrops,
+    cropStrategy,
     width,
     window,
     windowMask: windowMasks?.[index],

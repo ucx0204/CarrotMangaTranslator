@@ -6,7 +6,10 @@ import {
   type FluxInpaintingEngine,
   type InpaintingRuntimeProgress,
 } from "../inpainting";
-import type { FluxBackend } from "../../shared/inpaintingSettingsTypes";
+import type {
+  FluxBackend,
+  FluxMode,
+} from "../../shared/inpaintingSettingsTypes";
 import { resolveFluxCudaDevice } from "./fluxCudaDevice";
 import { tMain } from "./localization";
 import { LeasedIdleResourcePool } from "../runtimeSupport/leasedIdleResource";
@@ -35,6 +38,7 @@ const fluxEnginePool = new LeasedIdleResourcePool<FluxInpaintingEngine>({
 export async function acquireFluxInpaintingEngine(options: {
   appPaths: AppPaths;
   fluxBackend?: FluxBackend;
+  fluxMode?: FluxMode;
   computeGpuIndex?: number;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
@@ -77,13 +81,15 @@ export async function acquireFluxInpaintingEngine(options: {
     nvidiaComputeCapability,
     sm75Fp16Enabled,
   );
-  const key = `${fluxBackend}\n${computeGpuIndex ?? "auto"}\n${cudaDevice?.uuid ?? "none"}\n${nvidiaComputeCapability ?? "generic"}\nsm75-fp16=${sm75Fp16Enabled}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
+  const fluxMode = options.fluxMode ?? "normal";
+  const key = `${fluxBackend}\n${fluxMode}\n${computeGpuIndex ?? "auto"}\n${cudaDevice?.uuid ?? "none"}\n${nvidiaComputeCapability ?? "generic"}\nsm75-fp16=${sm75Fp16Enabled}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
 
   const lease = await fluxEnginePool.acquire(key, () =>
     prepareFluxInpaintingEngine({
       runtimeDir,
       modelDir,
       fluxBackend,
+      fluxMode,
       computeGpuIndex,
       cudaDevice,
       nvidiaComputeCapability,

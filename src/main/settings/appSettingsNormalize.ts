@@ -175,22 +175,27 @@ function normalizeInpaintingSettings(
   inpainting: Record<string, unknown> | null,
   defaults: AppSettings,
 ): NonNullable<AppSettings["inpainting"]> {
+  const stored = inpainting ?? {};
+  const fallback = defaults.inpainting ?? {};
   return {
     model: resolveStoredInpaintingModel(inpainting, defaults),
     fluxBackend: resolveStoredFluxBackend(inpainting, defaults),
+    fluxMode:
+      stored.fluxMode === "light" || stored.fluxMode === "normal"
+        ? stored.fluxMode
+        : (fallback.fluxMode ?? "normal"),
     koharuBackend: resolveStoredKoharuInpaintingBackend(inpainting, defaults),
     allowUnsafeLowMemoryFlux: resolveBoolean(
-      inpainting?.allowUnsafeLowMemoryFlux,
-      defaults.inpainting?.allowUnsafeLowMemoryFlux ?? false,
+      stored.allowUnsafeLowMemoryFlux,
+      fallback.allowUnsafeLowMemoryFlux ?? false,
     ),
     bubbleLayoutAfterInpainting: resolveBoolean(
-      inpainting?.bubbleLayoutAfterInpainting,
-      defaults.inpainting?.bubbleLayoutAfterInpainting ?? false,
+      stored.bubbleLayoutAfterInpainting,
+      fallback.bubbleLayoutAfterInpainting ?? false,
     ),
     bubbleLayoutPaddingRatio: resolveNumberRange(
-      inpainting?.bubbleLayoutPaddingRatio,
-      defaults.inpainting?.bubbleLayoutPaddingRatio ??
-        DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO,
+      stored.bubbleLayoutPaddingRatio,
+      fallback.bubbleLayoutPaddingRatio ?? DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO,
       MIN_BUBBLE_LAYOUT_PADDING_RATIO,
       MAX_BUBBLE_LAYOUT_PADDING_RATIO,
     ),

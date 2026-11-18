@@ -52,6 +52,7 @@
   "inpainting": {
     "model": "flux-klein",
     "fluxBackend": "cuda-native",
+    "fluxMode": "normal",
     "koharuBackend": "auto"
   },
   "maxTokens": 32768,

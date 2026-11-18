@@ -1,3 +1,5 @@
+export type FluxMode = "normal" | "light";
+
 export type FluxBackend =
   | "cuda-native"
   | "cuda-sm75-experimental"

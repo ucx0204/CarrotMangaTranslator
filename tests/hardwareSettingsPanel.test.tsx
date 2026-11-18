@@ -76,6 +76,8 @@ describe("HardwareSettingsPanel", () => {
   it("separates the auto-detected GPU from a manually selected runtime device", () => {
     render(
       <HardwareSettingsPanel
+        fluxMode="normal"
+        setFluxMode={vi.fn()}
         allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
         computeGpuIndex={1}
@@ -188,6 +190,8 @@ describe("HardwareSettingsPanel", () => {
     const clearTestState = vi.fn();
     render(
       <HardwareSettingsPanel
+        fluxMode="normal"
+        setFluxMode={vi.fn()}
         allowUnsafeLowMemoryFlux={false}
         clearTestState={clearTestState}
         computeGpuIndex={null}
@@ -289,6 +293,8 @@ describe("HardwareSettingsPanel", () => {
   it("disables every Flux backend while settings controls are busy", () => {
     render(
       <HardwareSettingsPanel
+        fluxMode="normal"
+        setFluxMode={vi.fn()}
         allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
         computeGpuIndex={null}
@@ -334,6 +340,8 @@ describe("HardwareSettingsPanel", () => {
     const setOcrQualityMode = vi.fn();
     render(
       <HardwareSettingsPanel
+        fluxMode="normal"
+        setFluxMode={vi.fn()}
         allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
         computeGpuIndex={null}
@@ -376,6 +384,8 @@ describe("HardwareSettingsPanel", () => {
     const setOcrQualityMode = vi.fn();
     render(
       <HardwareSettingsPanel
+        fluxMode="normal"
+        setFluxMode={vi.fn()}
         allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
         computeGpuIndex={null}
@@ -427,6 +437,8 @@ describe("HardwareSettingsPanel", () => {
     const setOcrGpuBackend = vi.fn();
     const setOcrPipeline = vi.fn();
     const props: React.ComponentProps<typeof HardwareSettingsPanel> = {
+      fluxMode: "normal",
+      setFluxMode: vi.fn(),
       allowUnsafeLowMemoryFlux: false,
       clearTestState,
       computeGpuIndex: null,
@@ -556,6 +568,8 @@ describe("HardwareSettingsPanel", () => {
     const setOcrQualityMode = vi.fn();
     render(
       <HardwareSettingsPanel
+        fluxMode="normal"
+        setFluxMode={vi.fn()}
         allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
         computeGpuIndex={null}
@@ -609,6 +623,8 @@ describe("HardwareSettingsPanel", () => {
   it("allows SM75 instead of standard CUDA on RTX 20 and keeps it visible elsewhere", () => {
     const setFluxBackend = vi.fn();
     const props: React.ComponentProps<typeof HardwareSettingsPanel> = {
+      fluxMode: "normal",
+      setFluxMode: vi.fn(),
       allowUnsafeLowMemoryFlux: false,
       clearTestState: vi.fn(),
       computeGpuIndex: null,

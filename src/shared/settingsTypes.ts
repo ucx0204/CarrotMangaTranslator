@@ -1,6 +1,7 @@
 import type { CodexImageGenerationModel } from "./codexSettings";
 import type {
   FluxBackend,
+  FluxMode,
   InpaintingModel,
   KoharuInpaintingBackend,
 } from "./inpaintingSettingsTypes";
@@ -19,6 +20,7 @@ import type { ApiProviderPresetId } from "./apiProviderPresets";
 
 export type {
   FluxBackend,
+  FluxMode,
   InpaintingModel,
   KoharuInpaintingBackend,
 } from "./inpaintingSettingsTypes";
@@ -229,6 +231,7 @@ export type WheelZoomSensitivityPercent = number;
 type InpaintingSettings = {
   model?: InpaintingModel;
   fluxBackend?: FluxBackend;
+  fluxMode?: FluxMode;
   koharuBackend?: KoharuInpaintingBackend;
   /** Explicit Alpha opt-in for Flux Metal below the recommended 16 GiB. */
   allowUnsafeLowMemoryFlux?: boolean;

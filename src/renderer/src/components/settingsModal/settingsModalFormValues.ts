@@ -1,3 +1,4 @@
+import { resolveDefaultFluxMode } from "../../../../shared/fluxHardwarePolicy";
 import type { HunyuanSettings } from "../../../../shared/settingsTypes";
 import {
   DEFAULT_GEMMA_SAMPLING,
@@ -9,6 +10,7 @@ import type {
   AppSettings,
   CodexReasoningEffort,
   FluxBackend,
+  FluxMode,
   GemmaVramMode,
   InpaintingModel,
   LlamaRuntimeProfile,
@@ -133,6 +135,7 @@ export type SettingsFormValues = {
   ocrQualityMode: OcrQualityMode;
   inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
+  fluxMode: FluxMode;
   allowUnsafeLowMemoryFlux: boolean;
   bubbleLayoutPaddingRatio: number;
   maxTokens: string;
@@ -293,21 +296,28 @@ function resolveHardwareFormValues(
   | "ocrQualityMode"
   | "inpaintingModel"
   | "fluxBackend"
+  | "fluxMode"
   | "allowUnsafeLowMemoryFlux"
   | "bubbleLayoutPaddingRatio"
 > {
+  const inpainting = settings.inpainting ?? {};
   return {
     ocrDevice: settings.ocr.device,
     ocrPipeline: settings.ocr.pipeline ?? "paddle-legacy",
     hunyuanOcr: normalizeHunyuanSettings(settings.ocr.hunyuan),
     ocrGpuBackend: settings.ocr.gpuBackend ?? "cuda",
     ocrQualityMode: settings.ocr.qualityMode ?? "economy",
-    inpaintingModel: settings.inpainting?.model ?? "flux-klein",
-    fluxBackend: settings.inpainting?.fluxBackend ?? "cuda-native",
-    allowUnsafeLowMemoryFlux:
-      settings.inpainting?.allowUnsafeLowMemoryFlux === true,
+    inpaintingModel: inpainting.model ?? "flux-klein",
+    fluxBackend: inpainting.fluxBackend ?? "cuda-native",
+    fluxMode:
+      inpainting.fluxMode ??
+      resolveDefaultFluxMode(
+        settings.runtimeHardware?.gpuVendor === "amd",
+        settings.runtimeHardware?.gpuMemoryMb,
+      ),
+    allowUnsafeLowMemoryFlux: inpainting.allowUnsafeLowMemoryFlux === true,
     bubbleLayoutPaddingRatio:
-      settings.inpainting?.bubbleLayoutPaddingRatio ??
+      inpainting.bubbleLayoutPaddingRatio ??
       DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO,
   };
 }

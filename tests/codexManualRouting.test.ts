@@ -71,6 +71,36 @@ function fixture() {
 }
 
 describe("manual Codex routing", () => {
+  it("passes FLUX mode to local jobs and accepts older settings without inpainting options", async () => {
+    const { input, settings, runtime, lease } = fixture();
+    runtime.acquireEngine.mockResolvedValue(lease);
+    settings.inpainting = {
+      model: "flux-klein",
+      fluxBackend: "vulkan-native",
+      fluxMode: "light",
+    };
+    await acquireInpaintingEngineIfNeeded({ ...input, engine: undefined });
+    expect(runtime.acquireEngine).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        model: "flux-klein",
+        fluxBackend: "vulkan-native",
+        fluxMode: "light",
+      }),
+    );
+    delete settings.inpainting;
+    delete settings.hardware;
+    await acquireInpaintingEngineIfNeeded({ ...input, engine: undefined });
+    expect(runtime.acquireEngine).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        model: "flux-klein",
+        fluxMode: undefined,
+        allowUnsafeLowMemoryFlux: false,
+      }),
+    );
+    expect(
+      await acquireInpaintingEngineIfNeeded({ ...input, appSettings: null }),
+    ).toBeNull();
+  });
   it("rejects a missing Codex engine port without starting the local model", async () => {
     const { input, runtime } = fixture();
     await expect(

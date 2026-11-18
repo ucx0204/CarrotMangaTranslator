@@ -1,13 +1,17 @@
+import type { FluxMode } from "../../shared/inpaintingSettingsTypes";
 import { basename, dirname, join, resolve } from "node:path";
 import { FluxWorker, type FluxWorkerDiagnostics } from "./fluxWorker";
 import type { FluxWorkerLaunchSpec } from "./fluxWorkerTypes";
+import type { FluxCropStrategy } from "./fluxCropTiling";
 import {
   runFluxInpaint,
   type FluxInpaintDiagnostics,
 } from "./fluxEngineRunner";
 import {
   FLUX_INPAINT_CONTEXT_PX,
-  FLUX_METAL_INPAINT_CONTEXT_PX,
+  FLUX_INPAINT_STEPS,
+  FLUX_LIGHT_MAX_PIXELS,
+  FLUX_REDUCED_INPAINT_CONTEXT_PX,
 } from "./fluxEngineConstants";
 import type { InpaintingEngine } from "./inpaintingEngine";
 
@@ -27,10 +31,24 @@ const productionRuntime: FluxEngineRuntime = {
   runInpaint: runFluxInpaint,
 };
 
+function resolveFluxCropStrategy(
+  light: boolean,
+  backend: FluxWorkerLaunchSpec["backend"],
+  sm75Fp16Enabled = false,
+): FluxCropStrategy {
+  if (light) return "native";
+  return backend === "metal-native" ||
+    backend === "cpu-native" ||
+    sm75Fp16Enabled
+    ? "native-tiled"
+    : "resize";
+}
+
 export function createFluxEngine(
   options: {
     diagnostics?: FluxEngineDiagnostics;
     launch: FluxWorkerLaunchSpec;
+    fluxMode?: FluxMode;
     modelPath?: string;
     vaePath?: string;
     sm75Fp16Enabled?: boolean;
@@ -39,6 +57,10 @@ export function createFluxEngine(
   runtime: FluxEngineRuntime = productionRuntime,
 ): FluxInpaintingEngine {
   let worker: FluxWorker | null = null;
+  const light = options.fluxMode === "light";
+  const { backend } = options.launch;
+  const { sm75Fp16Enabled } = options;
+  const cropStrategy = resolveFluxCropStrategy(light, backend, sm75Fp16Enabled);
   const getWorker = () => {
     if (worker && !worker.isHealthy()) {
       throw new Error(
@@ -55,19 +77,26 @@ export function createFluxEngine(
     runtimePath: options.launch.runtimePath,
     modelPath: options.modelPath,
     vaePath: options.vaePath,
-    backend: options.launch.backend,
+    backend,
     runRootDir: options.runRootDir,
     isHealthy() {
       return !worker || worker.isHealthy();
     },
     async inpaint(bitmap, width, height, mask, windows, runOptions = {}) {
       const resolvedRunOptions =
-        options.launch.backend === "metal-native"
+        light || backend === "metal-native"
           ? {
               ...runOptions,
+              ...(light && {
+                maxPixels: Math.min(
+                  runOptions.maxPixels ?? FLUX_LIGHT_MAX_PIXELS,
+                  FLUX_LIGHT_MAX_PIXELS,
+                ),
+                steps: FLUX_INPAINT_STEPS.light,
+              }),
               contextPx: Math.min(
                 runOptions.contextPx ?? FLUX_INPAINT_CONTEXT_PX,
-                FLUX_METAL_INPAINT_CONTEXT_PX,
+                FLUX_REDUCED_INPAINT_CONTEXT_PX,
               ),
             }
           : runOptions;
@@ -76,11 +105,8 @@ export function createFluxEngine(
           bitmap,
           getWorker,
           height,
-          isolateWindowMasks: options.launch.backend === "metal-native",
-          tileLargeCrops:
-            options.launch.backend === "metal-native" ||
-            options.launch.backend === "cpu-native" ||
-            options.sm75Fp16Enabled === true,
+          isolateWindowMasks: light || backend === "metal-native",
+          cropStrategy,
           mask,
           runOptions: resolvedRunOptions,
           runRootDir: options.runRootDir,

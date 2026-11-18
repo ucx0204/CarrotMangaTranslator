@@ -218,6 +218,7 @@ async function acquireWorkflowErasure(
         signal: context.signal,
         model: settings.inpainting?.model ?? "flux-klein",
         fluxBackend: settings.inpainting?.fluxBackend,
+        fluxMode: settings.inpainting?.fluxMode,
         koharuBackend: settings.inpainting?.koharuBackend,
         computeGpuIndex: settings.hardware?.computeGpuIndex,
         allowUnsafeLowMemoryFlux:

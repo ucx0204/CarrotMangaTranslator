@@ -86,6 +86,7 @@ export function buildSettingsFromDraft({
     ocrQualityMode: values.ocrQualityMode,
     inpaintingModel: values.inpaintingModel,
     fluxBackend: values.fluxBackend,
+    fluxMode: values.fluxMode,
     allowUnsafeLowMemoryFlux: values.allowUnsafeLowMemoryFlux,
     bubbleLayoutPaddingRatio: values.bubbleLayoutPaddingRatio,
     maxTokens: draft.parsedMaxTokens,

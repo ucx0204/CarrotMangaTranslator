@@ -5,6 +5,7 @@ import {
 import type {
   AmdRocmTarget,
   FluxBackend,
+  FluxMode,
   GemmaVramMode,
   LlamaRuntimeProfile,
   ModelProvider,
@@ -14,7 +15,10 @@ import type {
   OcrQualityMode,
 } from "../../shared/settingsTypes";
 import type { DetectedGpuInfo } from "../gpuInfo";
-import { resolveDefaultFluxNvidiaBackend } from "../../shared/fluxHardwarePolicy";
+import {
+  resolveDefaultFluxMode,
+  resolveDefaultFluxNvidiaBackend,
+} from "../../shared/fluxHardwarePolicy";
 import { resolveRecommendedOcrQualityMode } from "../../shared/ocrMemoryPolicy";
 import {
   normalizeAmdRocmTarget,
@@ -42,6 +46,7 @@ export type HardwareDefaults = {
   llamaRuntimeProfile: LlamaRuntimeProfile;
   llamaRocmTarget?: AmdRocmTarget;
   fluxBackend: FluxBackend;
+  fluxMode: FluxMode;
 };
 
 type HardwareBaseDefaults = Omit<
@@ -173,6 +178,7 @@ function resolveHardwareBaseDefaults(
     llamaRuntimeProfile: resolveHardwareLlamaRuntimeProfile(info),
     ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
     fluxBackend: resolveHardwareFluxBackend(info),
+    fluxMode: resolveDefaultFluxMode(info?.vendor === "amd", info?.memoryMb),
   };
 }
 

@@ -94,6 +94,7 @@ async function acquireLocalEngine(input: Production, command: Erasure) {
     appPaths: input.app.appPaths,
     model: command.expectedEngine,
     fluxBackend: settings.inpainting?.fluxBackend,
+    fluxMode: settings.inpainting?.fluxMode,
     koharuBackend: settings.inpainting?.koharuBackend,
     computeGpuIndex: settings.hardware?.computeGpuIndex,
     allowUnsafeLowMemoryFlux:

@@ -130,6 +130,7 @@ async function prepareInpaintingEngine(
       appPaths: paths,
       model: inpainting.model ?? "flux-klein",
       fluxBackend: inpainting.fluxBackend,
+      fluxMode: inpainting.fluxMode,
       koharuBackend: inpainting.koharuBackend,
       computeGpuIndex: settings.hardware?.computeGpuIndex,
       allowUnsafeLowMemoryFlux: inpainting.allowUnsafeLowMemoryFlux ?? false,

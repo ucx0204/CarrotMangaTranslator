@@ -3,6 +3,7 @@ import type { AppPaths } from "../appPaths";
 import { totalmem } from "node:os";
 import type {
   FluxBackend,
+  FluxMode,
   InpaintingModel,
   KoharuInpaintingBackend,
 } from "../../shared/inpaintingSettingsTypes";
@@ -50,6 +51,7 @@ export async function acquireInpaintingEngine(
     appPaths: AppPaths;
     model: InpaintingModel;
     fluxBackend?: FluxBackend;
+    fluxMode?: FluxMode;
     koharuBackend?: KoharuInpaintingBackend;
     computeGpuIndex?: number;
     allowUnsafeLowMemoryFlux?: boolean;
@@ -102,6 +104,7 @@ async function acquireNativeEngine(
       await dependencies.acquireFlux({
         appPaths: options.appPaths,
         fluxBackend: options.fluxBackend,
+        fluxMode: options.fluxMode,
         computeGpuIndex,
         signal: options.signal,
         onProgress: options.onProgress,

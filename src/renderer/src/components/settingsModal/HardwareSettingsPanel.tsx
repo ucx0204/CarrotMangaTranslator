@@ -7,6 +7,7 @@ import { GpuAssignmentSettings } from "./GpuAssignmentSettings";
 import { FluxBackendSettings } from "./FluxBackendSettings";
 import { HardwareStatusSummary } from "./HardwareStatusSummary";
 import type { HardwareSettingsPanelProps } from "./hardwareSettingsTypes";
+import { SegmentedControl } from "../ui/SegmentedControl";
 import { Button } from "../ui/Button";
 import { HunyuanSettingsFields } from "./HunyuanSettingsFields";
 import { OcrRecommendation } from "../OcrRecommendation";
@@ -163,6 +164,8 @@ export function InpaintingSettingsSection({
   clearTestState,
   controlsBusy,
   fluxBackend,
+  fluxMode,
+  setFluxMode,
   inpaintingModel,
   isFluxBackendOptionDisabled,
   setFluxBackend,
@@ -171,6 +174,7 @@ export function InpaintingSettingsSection({
   detectedGpuName,
   supportsFluxZluda,
 }: HardwareSettingsPanelProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   if (inpaintingModel !== "flux-klein") return <></>;
   return (
     <div className="settings-subsection-stack">
@@ -186,6 +190,22 @@ export function InpaintingSettingsSection({
         usesAmdHardware={usesAmdHardware}
         usesAppleHardware={usesAppleHardware}
       />
+      <div className="settings-field-stack">
+        <span>{t("settings.hardware.fluxMode")}</span>
+        <SegmentedControl
+          ariaLabel={t("settings.hardware.fluxMode")}
+          options={[
+            { id: "normal", label: t("settings.hardware.fluxModeNormal") },
+            { id: "light", label: t("settings.hardware.fluxModeLight") },
+          ]}
+          value={fluxMode}
+          disabled={controlsBusy}
+          onChange={(mode) => {
+            clearTestState();
+            setFluxMode(mode);
+          }}
+        />
+      </div>
     </div>
   );
 }

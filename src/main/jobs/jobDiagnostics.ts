@@ -116,6 +116,7 @@ function executionSettingsDiagnostic(settings: AppSettings) {
     inpainting: inpainting && {
       model: inpainting.model,
       fluxBackend: inpainting.fluxBackend,
+      fluxMode: inpainting.fluxMode,
       koharuBackend: inpainting.koharuBackend,
     },
   };

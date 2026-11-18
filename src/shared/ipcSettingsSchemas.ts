@@ -305,6 +305,7 @@ export const AppSettingsSchema = z
       .object({
         model: InpaintingModelSchema.optional(),
         fluxBackend: FluxBackendSchema.optional(),
+        fluxMode: z.enum(["normal", "light"]).optional(),
         koharuBackend: KoharuInpaintingBackendSchema.optional(),
         allowUnsafeLowMemoryFlux: z.boolean().optional(),
         bubbleLayoutAfterInpainting: z.boolean().optional(),

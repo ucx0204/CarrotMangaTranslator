@@ -1,8 +1,12 @@
 import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
 import { resolveRecommendedOcrQualityMode } from "../../../../shared/ocrMemoryPolicy";
-import { resolveDefaultFluxNvidiaBackend } from "../../../../shared/fluxHardwarePolicy";
+import {
+  resolveDefaultFluxMode,
+  resolveDefaultFluxNvidiaBackend,
+} from "../../../../shared/fluxHardwarePolicy";
 import type {
   FluxBackend,
+  FluxMode,
   InpaintingModel,
   OcrDevice,
   OcrGpuBackend,
@@ -24,6 +28,7 @@ export type HardwareRecommendationInput = {
 
 export type HardwareRecommendation = {
   fluxBackend: FluxBackend;
+  fluxMode: FluxMode;
   graphicsGpuPreference: GraphicsGpuPreference;
   inpaintingModel: InpaintingModel;
   ocrDevice: OcrDevice;
@@ -37,6 +42,7 @@ export function resolveHardwareRecommendation(
   if (props.usesAppleHardware) {
     return {
       fluxBackend: "metal-native",
+      fluxMode: "normal",
       graphicsGpuPreference: "auto",
       inpaintingModel:
         (props.unifiedMemoryMb ?? 0) >= 16 * 1024 ? "flux-klein" : "lama-manga",
@@ -69,6 +75,7 @@ export function resolveHardwareRecommendation(
   }
   return {
     fluxBackend: "cpu-native",
+    fluxMode: "normal",
     graphicsGpuPreference: "auto",
     inpaintingModel: "aot-inpainting",
     ocrDevice: "cpu",
@@ -85,6 +92,7 @@ function createGpuRecommendation(
   const ocrDevice = "gpu" as const;
   return {
     fluxBackend,
+    fluxMode: resolveDefaultFluxMode(props.usesAmdHardware, props.gpuMemoryMb),
     graphicsGpuPreference: "high-performance",
     inpaintingModel:
       fluxBackend === "cpu-native" ? "aot-inpainting" : "flux-klein",

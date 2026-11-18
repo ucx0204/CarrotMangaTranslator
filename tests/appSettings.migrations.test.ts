@@ -191,6 +191,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrQualityMode: "full",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
+      fluxMode: "normal",
       fluxBackend: "cuda-native",
       llamaRuntimeProfile: "cuda12",
     });
@@ -208,6 +209,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrQualityMode: "full",
       ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
+      fluxMode: "normal",
       fluxBackend: "cuda-native",
       llamaRuntimeProfile: "rtx50",
     });
@@ -225,6 +227,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrQualityMode: "full",
       ocrGpuCudaTag: RTX_50_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
+      fluxMode: "normal",
       fluxBackend: "cuda-native",
       llamaRuntimeProfile: "rtx50",
     });
@@ -242,6 +245,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrQualityMode: "full",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
+      fluxMode: "normal",
       fluxBackend: "cuda-native",
       llamaRuntimeProfile: "cuda12",
     });
@@ -259,6 +263,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrQualityMode: "full",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
+      fluxMode: "normal",
       fluxBackend: "cuda-sm75-experimental",
       llamaRuntimeProfile: "cuda12",
     });
@@ -278,6 +283,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrGpuBackend: "cuda",
       // The current automatic SM75 path is validated for RTX 20 hardware;
       // do not select the BF16 CUDA path just because this adapter is NVIDIA.
+      fluxMode: "normal",
       fluxBackend: "cpu-native",
       llamaRuntimeProfile: "cuda12",
     });
@@ -298,6 +304,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrQualityMode: "full",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "rocm-transformers",
+      fluxMode: "normal",
       fluxBackend: "rocm-native",
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X",
@@ -319,6 +326,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrQualityMode: "full",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "rocm-transformers",
+      fluxMode: "normal",
       fluxBackend: "rocm-native",
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X",
@@ -330,6 +338,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrQualityMode: "economy",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
+      fluxMode: "normal",
       fluxBackend: "cpu-native",
       llamaRuntimeProfile: "cuda12",
     });

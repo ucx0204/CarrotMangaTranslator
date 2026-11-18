@@ -59,6 +59,33 @@ afterEach(() => {
 });
 
 describe("settings draft safety", () => {
+  it("saves a manual FLUX mode independently of the backend on an 8 GB Radeon", async () => {
+    const settings: AppSettings = {
+      ...initialSettings,
+      runtimeHardware: {
+        gpuVendor: "amd",
+        gpuMemoryMb: 8192,
+        supportsVulkan: true,
+      },
+      inpainting: { model: "flux-klein", fluxBackend: "vulkan-native" },
+    };
+    const onSubmit = vi.fn();
+    renderSettings({ settings, onSubmit });
+    fireEvent.click(screen.getByRole("tab", { name: "이미지 · 원문 제거" }));
+    const modes = within(
+      screen.getByRole("radiogroup", { name: "FLUX 인페인팅 모드" }),
+    );
+    expect(
+      modes.getByRole("radio", { name: "경량" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    fireEvent.click(modes.getByRole("radio", { name: "일반" }));
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(onSubmit.mock.calls[0][0].inpainting).toMatchObject({
+      fluxBackend: "vulkan-native",
+      fluxMode: "normal",
+    });
+  });
   it("saves Hayai ROCm from a previously CPU-only RX 7600 setup", async () => {
     const settings: AppSettings = {
       ...initialSettings,

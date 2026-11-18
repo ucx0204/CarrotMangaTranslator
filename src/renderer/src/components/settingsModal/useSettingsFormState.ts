@@ -138,6 +138,7 @@ function useSettingsFormSetters(
       setOcrQualityMode: createFormFieldDispatch(setValues, "ocrQualityMode"),
       setInpaintingModel: createFormFieldDispatch(setValues, "inpaintingModel"),
       setFluxBackend: createFormFieldDispatch(setValues, "fluxBackend"),
+      setFluxMode: createFormFieldDispatch(setValues, "fluxMode"),
       setAllowUnsafeLowMemoryFlux: createFormFieldDispatch(
         setValues,
         "allowUnsafeLowMemoryFlux",

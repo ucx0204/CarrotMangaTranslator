@@ -2531,6 +2531,9 @@
         "rocm-transformers": "使用AMD ROCm运行HayaiOCR。",
         "cpu": "使用CPU运行HayaiOCR，速度可能比GPU慢。"
       },
+      "fluxMode": "FLUX 图像修复模式",
+      "fluxModeNormal": "普通",
+      "fluxModeLight": "轻量",
       "fluxBackend": "Flux图像修复后端",
       "inpaintingModel": "图像修复模型",
       "amdOcrExperimental": "AMD GPU OCR为实验功能。如失败，可仅将OCR切换到CPU。",

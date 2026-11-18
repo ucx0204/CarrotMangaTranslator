@@ -85,6 +85,7 @@ export function portableSettings(
   clean.inpainting = {
     ...clean.inpainting,
     fluxBackend: defaults.inpainting?.fluxBackend,
+    fluxMode: defaults.inpainting?.fluxMode,
     koharuBackend: defaults.inpainting?.koharuBackend,
     allowUnsafeLowMemoryFlux: false,
   };

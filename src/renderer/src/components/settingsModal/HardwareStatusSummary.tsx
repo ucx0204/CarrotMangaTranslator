@@ -85,7 +85,8 @@ function hardwareRecommendationMatches(
     props.ocrQualityMode === recommendation.ocrQualityMode &&
     props.inpaintingModel === recommendation.inpaintingModel &&
     (props.inpaintingModel !== "flux-klein" ||
-      props.fluxBackend === recommendation.fluxBackend)
+      (props.fluxBackend === recommendation.fluxBackend &&
+        props.fluxMode === recommendation.fluxMode))
   );
 }
 
@@ -101,6 +102,7 @@ function applyHardwareRecommendation(
   props.setOcrQualityMode(recommendation.ocrQualityMode);
   props.setInpaintingModel(recommendation.inpaintingModel);
   props.setFluxBackend(recommendation.fluxBackend);
+  props.setFluxMode(recommendation.fluxMode);
   props.setAllowUnsafeLowMemoryFlux(false);
 }
 

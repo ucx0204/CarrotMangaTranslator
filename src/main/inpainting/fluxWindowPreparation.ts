@@ -1,6 +1,7 @@
 import {
   prepareFluxWindowCrops,
   type FluxPreparedCrop,
+  type FluxCropStrategy,
 } from "./fluxCropTiling";
 import { isolateMaskToWindow } from "./imageRaster";
 import {
@@ -19,7 +20,7 @@ export function prepareFluxWindow(options: {
   height: number;
   isolateWindowMasks: boolean;
   mask: Uint8Array;
-  tileLargeCrops: boolean;
+  cropStrategy: FluxCropStrategy;
   width: number;
   window: PixelRect;
   windowMask?: ExclusiveInpaintingWindowMasks;
@@ -50,7 +51,7 @@ export function prepareFluxWindow(options: {
       inputMask,
       inputMaskPaddingPx: inputMask ? 0 : undefined,
       mask: effectiveMask,
-      tileLargeCrops: options.tileLargeCrops,
+      cropStrategy: options.cropStrategy,
       width: options.width,
       window: options.window,
     }),

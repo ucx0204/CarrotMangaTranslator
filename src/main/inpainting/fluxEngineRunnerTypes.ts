@@ -1,3 +1,4 @@
+import type { FluxCropStrategy } from "./fluxCropTiling";
 import type { FluxWorker } from "./fluxWorker";
 import type { FluxInpaintSummary } from "./fluxInpaintSummary";
 import type { InpaintingWindowMask } from "./inpaintingEngine";
@@ -6,6 +7,7 @@ import type { PixelRect } from "./maskGeometry";
 
 export type FluxInpaintRunOptions = {
   signal?: AbortSignal;
+  steps?: number;
   featherPx?: number;
   contextPx?: number;
   maskPaddingPx?: number;
@@ -30,7 +32,7 @@ export type FluxInpaintRunnerArgs = {
   getWorker: () => FluxWorker;
   height: number;
   isolateWindowMasks: boolean;
-  tileLargeCrops: boolean;
+  cropStrategy: FluxCropStrategy;
   mask: Uint8Array;
   runOptions: FluxInpaintRunOptions;
   runRootDir: string;
@@ -50,7 +52,7 @@ export type FluxWindowProcessArgs = {
   height: number;
   index: number;
   isolateWindowMasks: boolean;
-  tileLargeCrops: boolean;
+  cropStrategy: FluxCropStrategy;
   mask: Uint8Array;
   options: ResolvedFluxInpaintOptions;
   runDir: string;

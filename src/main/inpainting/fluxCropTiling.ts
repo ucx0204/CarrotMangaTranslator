@@ -12,6 +12,8 @@ import {
   type PixelRect,
 } from "./maskGeometry";
 
+export type FluxCropStrategy = "resize" | "native" | "native-tiled";
+
 export type FluxPreparedCrop = {
   localMask: Uint8Array;
   paddedBounds: PixelRect;
@@ -29,7 +31,7 @@ export function prepareFluxWindowCrops(options: {
   mask: Uint8Array;
   maskPaddingPx: number;
   maxPixels: number;
-  tileLargeCrops: boolean;
+  cropStrategy: FluxCropStrategy;
   width: number;
   window: PixelRect;
 }): FluxPreparedCrop[] {
@@ -70,14 +72,15 @@ export function prepareFluxWindowCrops(options: {
       {
         localMask,
         paddedBounds: cropBounds,
-        processSize: options.tileLargeCrops
-          ? { width: cropBounds.w, height: cropBounds.h }
-          : resolveFluxProcessSize(
-              cropBounds.w,
-              cropBounds.h,
-              options.maxPixels,
-              FLUX_INPAINT_MULTIPLE,
-            ),
+        processSize:
+          options.cropStrategy !== "resize"
+            ? { width: cropBounds.w, height: cropBounds.h }
+            : resolveFluxProcessSize(
+                cropBounds.w,
+                cropBounds.h,
+                options.maxPixels,
+                FLUX_INPAINT_MULTIPLE,
+              ),
         validationMask: buildValidationMask(
           options.mask,
           options.width,
@@ -96,7 +99,7 @@ function resolveCropTiles(
   paddedBounds: PixelRect,
 ) {
   if (
-    !options.tileLargeCrops ||
+    options.cropStrategy !== "native-tiled" ||
     (paddedBounds.w <= FLUX_METAL_TILE_SIZE_PX &&
       paddedBounds.h <= FLUX_METAL_TILE_SIZE_PX)
   ) {

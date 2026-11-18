@@ -1,5 +1,14 @@
-import type { FluxBackend } from "./inpaintingSettingsTypes";
+import type { FluxBackend, FluxMode } from "./inpaintingSettingsTypes";
 import { isFluxRtx20Sm75Hardware } from "./fluxSm75";
+
+export function resolveDefaultFluxMode(
+  usesAmdHardware: boolean,
+  memoryMb: number | null | undefined,
+): FluxMode {
+  return usesAmdHardware && memoryMb != null && memoryMb > 0 && memoryMb <= 8192
+    ? "light"
+    : "normal";
+}
 
 // Keep automatic selection aligned with the CUDA runners the app distributes.
 export const FLUX_NVIDIA_RUNNER_COMPUTE_CAPS = [

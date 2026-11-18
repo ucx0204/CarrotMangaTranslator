@@ -192,6 +192,7 @@ async function eraseRegionWithConfiguredEngine(
       appPaths,
       model,
       fluxBackend: inpainting.fluxBackend,
+      fluxMode: inpainting.fluxMode,
       koharuBackend: inpainting.koharuBackend,
       computeGpuIndex: settings.hardware?.computeGpuIndex,
       allowUnsafeLowMemoryFlux: inpainting.allowUnsafeLowMemoryFlux ?? false,

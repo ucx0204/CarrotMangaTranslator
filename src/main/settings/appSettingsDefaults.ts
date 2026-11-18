@@ -315,6 +315,7 @@ function resolveDefaultInpaintingSettings(
       env.MANGA_TRANSLATOR_INPAINTING_MODEL ?? env.MGT_INPAINTING_MODEL,
       defaultModel,
     ),
+    fluxMode: hardwareDefaults.fluxMode,
     fluxBackend: resolveFluxBackend(
       env.MANGA_TRANSLATOR_FLUX_BACKEND ?? env.MGT_FLUX_BACKEND,
       hardwareDefaults.fluxBackend,

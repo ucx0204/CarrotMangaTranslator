@@ -18,6 +18,39 @@ import {
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
 describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
+  it.each([
+    ["amd", 4096, "light"],
+    ["amd", 8176, "light"],
+    ["amd", 8192, "light"],
+    ["amd", 8193, "normal"],
+    ["amd", 0, "normal"],
+    ["amd", null, "normal"],
+    ["nvidia", 8192, "normal"],
+    ["apple", 8192, "normal"],
+  ] as const)(
+    "sets the initial FLUX mode for %s %s MiB and retains a manual choice",
+    (vendor, memoryMb, expected) => {
+      const defaults = resolveDefaultAppSettings(
+        {},
+        {
+          name: "GPU",
+          vendor,
+          memoryMb,
+          rtxGeneration: null,
+          computeCapability: null,
+        },
+      );
+      expect(defaults.inpainting?.fluxMode).toBe(expected);
+      const read = (inpainting: object) =>
+        parseStoredAppSettings(JSON.stringify({ inpainting }), defaults)
+          .inpainting;
+      expect(read({})?.fluxMode).toBe(expected);
+      expect(read({ fluxMode: "unknown" })?.fluxMode).toBe(expected);
+      for (const fluxMode of ["light", "normal"]) {
+        expect(read({ fluxMode })?.fluxMode).toBe(fluxMode);
+      }
+    },
+  );
   it("retains Vulkan through AMD settings persistence without changing the ROCm default", () => {
     const defaults = resolveDefaultAppSettings(
       {},

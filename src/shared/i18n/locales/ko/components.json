@@ -2531,6 +2531,9 @@
         "rocm-transformers": "AMD ROCm으로 HayaiOCR를 실행합니다.",
         "cpu": "CPU로 HayaiOCR를 실행합니다. GPU보다 느릴 수 있습니다."
       },
+      "fluxMode": "FLUX 인페인팅 모드",
+      "fluxModeNormal": "일반",
+      "fluxModeLight": "경량",
       "fluxBackend": "Flux 인페인팅 백엔드",
       "inpaintingModel": "인페인팅 모델",
       "amdOcrExperimental": "AMD OCR GPU는 실험 기능입니다. 실패하면 OCR만 CPU로 바꿀 수 있습니다.",

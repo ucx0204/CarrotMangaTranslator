@@ -93,6 +93,34 @@ describe("HardwareSettingsPanel GPU selection", () => {
     }
   });
 
+  it.each(["normal", "light"] as const)(
+    "detects and applies the recommended FLUX mode on an 8 GB Radeon from %s",
+    async (fluxMode) => {
+      const setFluxMode = vi.fn();
+      renderPanel({
+        usesAmdHardware: true,
+        usesNvidiaHardware: false,
+        gpuMemoryMb: 8192,
+        graphicsGpuPreference: "high-performance",
+        supportsFluxZluda: true,
+        supportsOcrRocm: true,
+        ocrGpuBackend: "rocm-transformers",
+        ocrQualityMode: "full",
+        fluxBackend: "rocm-native",
+        fluxMode,
+        setFluxMode,
+      });
+      const apply = screen.getByRole("button", { name: "권장값 적용" });
+      fireEvent.focus(apply);
+      expect(screen.getByRole("tooltip").textContent).toContain(
+        fluxMode === "light"
+          ? "이 하드웨어의 권장 설정을 사용 중입니다."
+          : "권장값과 다른 고급 설정이 있습니다.",
+      );
+      fireEvent.click(apply);
+      await waitFor(() => expect(setFluxMode).toHaveBeenCalledWith("light"));
+    },
+  );
   it("applies recommendations for an existing AOT setup without a Gemma reset hook", async () => {
     const setInpaintingModel = vi.fn();
     const setComputeGpuIndex = vi.fn();
@@ -113,6 +141,8 @@ function renderPanel(
   overrides: Partial<React.ComponentProps<typeof HardwareSettingsPanel>> = {},
 ) {
   const props: React.ComponentProps<typeof HardwareSettingsPanel> = {
+    fluxMode: "normal",
+    setFluxMode: vi.fn(),
     allowUnsafeLowMemoryFlux: false,
     clearTestState: vi.fn(),
     computeGpuIndex: null,

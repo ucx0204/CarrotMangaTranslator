@@ -6,6 +6,7 @@ import type {
   BlockFormatDefaults,
   CodexReasoningEffort,
   FluxBackend,
+  FluxMode,
   GemmaVramMode,
   InpaintingModel,
   LlamaRuntimeProfile,
@@ -109,6 +110,7 @@ type BuildSettingsFromFormInput = {
   ocrQualityMode: OcrQualityMode;
   inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
+  fluxMode: FluxMode;
   allowUnsafeLowMemoryFlux: boolean;
   bubbleLayoutPaddingRatio: number;
   keybindings: KeybindingOverrides;
@@ -181,6 +183,7 @@ export function buildSettingsFromForm(
       ...input.initialSettings.inpainting,
       model: input.inpaintingModel,
       fluxBackend: input.fluxBackend,
+      fluxMode: input.fluxMode,
       allowUnsafeLowMemoryFlux: input.allowUnsafeLowMemoryFlux,
       bubbleLayoutPaddingRatio: input.bubbleLayoutPaddingRatio,
       koharuBackend: input.initialSettings.inpainting?.koharuBackend ?? "auto",

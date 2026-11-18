@@ -185,6 +185,56 @@ describe("Flux inpainting engine change detection", () => {
     expect(runFluxInpaint.mock.calls[1]?.[0].runOptions.contextPx).toBe(200);
   });
 
+  it.each(["rocm-native", "vulkan-native"] as const)(
+    "processes one large region in a single request with the selected pixel budget on %s",
+    async (backend) => {
+      vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
+      const { createFluxEngine } =
+        await import("../src/main/inpainting/fluxEngine");
+      const root = createTempDir("mgt-flux-modes-");
+      const capture = join(root, "requests.json");
+      const worker = join(root, "worker.cjs");
+      writeFileSync(worker, createTileCaptureWorkerScript(capture));
+      const size = 768;
+      const mask = new Uint8Array(size * size).fill(1);
+      for (const fluxMode of ["normal", "light"] as const) {
+        const engine = createFluxEngine({
+          fluxMode,
+          diagnostics: createTestDiagnostics(),
+          launch: {
+            backend,
+            executable: process.execPath,
+            args: [worker],
+            runtimePath: root,
+            label: "FLUX mode test",
+          },
+          runRootDir: root,
+        });
+        try {
+          await engine.inpaint(
+            Buffer.alloc(mask.length * 4),
+            size,
+            size,
+            mask,
+            [{ x: 0, y: 0, w: size, h: size }],
+            { requirePixelChange: false },
+          );
+        } finally {
+          await engine.dispose();
+        }
+      }
+      expect(JSON.parse(readFileSync(capture, "utf8"))).toEqual([
+        expect.objectContaining({ steps: 4, maxPixels: 1024 * 1024 }),
+        expect.objectContaining({
+          width: size,
+          height: size,
+          steps: 3,
+          maxPixels: 384 * 384,
+        }),
+      ]);
+    },
+  );
+
   it("uses conservative crop tiling for the SM75 FP16 CUDA path", async () => {
     const runFluxInpaint = vi.fn().mockResolvedValue(undefined);
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
@@ -209,7 +259,7 @@ describe("Flux inpainting engine change detection", () => {
       { x: 0, y: 0, w: 1, h: 1 },
     ]);
 
-    expect(runFluxInpaint.mock.calls[0]?.[0].tileLargeCrops).toBe(true);
+    expect(runFluxInpaint.mock.calls[0]?.[0].cropStrategy).toBe("native-tiled");
   });
 
   it("uses conservative crop tiling for the CPU compatibility path", async () => {
@@ -235,7 +285,7 @@ describe("Flux inpainting engine change detection", () => {
       { x: 0, y: 0, w: 1, h: 1 },
     ]);
 
-    expect(runFluxInpaint.mock.calls[0]?.[0].tileLargeCrops).toBe(true);
+    expect(runFluxInpaint.mock.calls[0]?.[0].cropStrategy).toBe("native-tiled");
   });
 
   it("keeps small crops at their native aligned size", () => {
@@ -706,6 +756,7 @@ rl.on("line", (line) => {
     width: header.width,
     height: header.height,
     maxPixels: request.max_pixels,
+    steps: request.steps,
   });
   fs.writeFileSync(${JSON.stringify(capturePath)}, JSON.stringify(requests));
   fs.copyFileSync(request.input, request.output);

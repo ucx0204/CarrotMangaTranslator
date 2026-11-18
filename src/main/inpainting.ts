@@ -31,12 +31,16 @@ import {
   prepareFluxWorkerLaunch,
   type FluxEngineLaunchOptions,
 } from "./inpainting/fluxEngineLaunch";
+import type { FluxMode } from "../shared/inpaintingSettingsTypes";
 import {
   createFluxEngine,
   resolveDefaultFluxRunRootDir,
   type FluxInpaintingEngine,
 } from "./inpainting/fluxEngine";
-import { FLUX_INPAINT_MASK_PADDING_PX } from "./inpainting/fluxEngineConstants";
+import {
+  FLUX_INPAINT_MASK_PADDING_PX,
+  FLUX_INPAINT_STEPS,
+} from "./inpainting/fluxEngineConstants";
 import type { InpaintingRuntimeProgress } from "./inpainting/inpaintingEngine";
 export { prepareKoharuInpaintingEngine } from "./inpainting/koharuEngine";
 import {
@@ -61,7 +65,10 @@ export type {
 export { inpaintPatternPage } from "./inpainting/patternPage";
 
 export async function prepareFluxInpaintingEngine(
-  options: FluxEngineLaunchOptions & { runRootDir?: string },
+  options: FluxEngineLaunchOptions & {
+    runRootDir?: string;
+    fluxMode?: FluxMode;
+  },
 ): Promise<FluxInpaintingEngine> {
   const launch = await prepareFluxWorkerLaunch(options);
   let modelPath: string | undefined;
@@ -118,7 +125,7 @@ export async function prepareFluxInpaintingEngine(
       "--text-encoder-path",
       textEncoderPath,
       "--steps",
-      "4",
+      String(FLUX_INPAINT_STEPS[options.fluxMode ?? "normal"]),
       "--strength",
       "1",
       "--mask-padding",
@@ -129,6 +136,7 @@ export async function prepareFluxInpaintingEngine(
 
   return createFluxEngine({
     launch,
+    fluxMode: options.fluxMode,
     modelPath,
     vaePath,
     sm75Fp16Enabled: options.sm75Fp16Enabled === true,
