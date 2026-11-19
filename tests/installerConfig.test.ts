@@ -286,7 +286,7 @@ describe("Windows installer clean uninstall option", () => {
       "const MAX_PACKAGED_BYTES = 1080 * 1024 * 1024;",
     );
     expect(packagedRuntimeVerifier).toContain(
-      "const MAX_PACKAGED_FILES = 331;",
+      "const MAX_PACKAGED_FILES = 332;",
     );
     expect(packagedRuntimeVerifier).toContain(
       "const mainRuntimeSmokeMessage = runPackagedMainRuntimeSmoke();",

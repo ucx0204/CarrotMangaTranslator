@@ -144,7 +144,8 @@ const allowedElectronLocales = new Set([
 // CLI runtimes are downloaded from pinned official assets on first use.
 // Remove their former 49-file / 615 MiB allowance from the payload ceiling.
 // In-app NSIS updates restore the single required resources/elevate.exe helper.
-const MAX_PACKAGED_FILES = 331;
+// Local Gemma streaming adds resources/app-runtime/transport/gemma-chat-stream.cjs.
+const MAX_PACKAGED_FILES = 332;
 const MAX_PACKAGED_BYTES = 1080 * 1024 * 1024;
 
 for (const name of ["c", "claude"]) {
