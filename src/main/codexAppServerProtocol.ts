@@ -50,6 +50,7 @@ export type CodexAppServerPreviewTool = {
 };
 
 export type CodexAppServerTurnResult = {
+  appliedReasoningEffort?: CodexAppServerTurnRequest["effort"] | null;
   requestedImageGenerationModel?: string;
   /** Client-owned image asset root; never supplied by the model. */
   imageDirectory?: string;

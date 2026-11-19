@@ -339,8 +339,11 @@ it.each([
         capability,
       ),
     );
-    await session.runEphemeralTurn(request);
+    const turnResult = await session.runEphemeralTurn(request);
     const native = model === "auto" || capability === "isolated";
+    expect(turnResult.appliedReasoningEffort).toBe(
+      native ? settings.codex.imageReasoningEffort : null,
+    );
     expect(nativeTurn).toHaveBeenCalledTimes(native ? 1 : 0);
     expect(http).toHaveBeenCalledTimes(native ? 0 : 1);
     if (native) {

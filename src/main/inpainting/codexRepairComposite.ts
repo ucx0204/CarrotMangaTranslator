@@ -16,18 +16,44 @@ export function compositeCodexRepair(
   permission: Uint8Array,
   mode: "region" | "paint",
   paintedCore?: Uint8Array,
+  {
+    proportionalCrop,
+    selection,
+  }: { proportionalCrop?: () => Raster; selection?: Uint8Array } = {},
 ) {
-  const rough = codexRepairDifference(original, candidate, permission);
-  const alignmentMask =
-    mode === "paint"
-      ? permission
-      : dilateBinaryMaskDisk(rough.seed, original.width, original.height, 3);
-  const registration = registerTypesettingPatch(
-    original,
-    candidate,
-    erase,
-    alignmentMask,
-  );
+  function align(image: Raster) {
+    const alignmentMask =
+      mode === "paint"
+        ? permission
+        : dilateBinaryMaskDisk(
+            codexRepairDifference(original, image, permission).seed,
+            original.width,
+            original.height,
+            3,
+          );
+    return {
+      alignmentMask,
+      registration: registerTypesettingPatch(
+        original,
+        image,
+        erase,
+        alignmentMask,
+      ),
+    };
+  }
+  let { alignmentMask, registration } = align(candidate);
+  let framing = "resize";
+  if (proportionalCrop && !registration.accepted) {
+    const image = proportionalCrop();
+    const recovered = align(image);
+    // Cropping can remove context. Require the existing independent edge checks
+    // against the source before accepting this alternative framing.
+    if (recovered.registration.accepted) {
+      candidate = image;
+      ({ alignmentMask, registration } = recovered);
+      framing = "center-crop";
+    }
+  }
   if (!registration.supported || !registration.opaque)
     throw new Error("Codex 결과가 선택 영역을 완전히 덮지 못했습니다.");
   const aligned = { ...original, data: Buffer.from(original.data) };
@@ -44,6 +70,7 @@ export function compositeCodexRepair(
     tone.output,
     permission,
     mode === "paint" ? (paintedCore ?? permission) : undefined,
+    selection,
   );
   const output = { ...original, data: Buffer.from(original.data) };
   for (let at = 0; at < permission.length; at++) {
@@ -56,5 +83,5 @@ export function compositeCodexRepair(
       );
     }
   }
-  return { output, registration, difference, tone: tone.curves };
+  return { output, registration, difference, tone: tone.curves, framing };
 }

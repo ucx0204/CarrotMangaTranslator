@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @typedef {{ label: string; maximumBytes: number; signal?: AbortSignal | null }} BoundedResponseOptions */
+/** @typedef {{ label: string; maximumBytes: number; signal?: AbortSignal | null; onText?: (text: string) => void }} BoundedResponseOptions */
 
 /** @param {string} label @param {number} maximumBytes @param {number} receivedBytes */
 function createResponseTooLargeError(label, maximumBytes, receivedBytes) {
@@ -64,49 +64,30 @@ async function readBoundedBodyText(body, options) {
 
 /** @param {ReadableStreamDefaultReader<Uint8Array>} reader @param {BoundedResponseOptions} options */
 async function decodeBoundedText(reader, options) {
-  const decoder = new TextDecoder("utf-8", { fatal: false });
+  const decoder = new TextDecoder();
   /** @type {string[]} */
   const parts = [];
+  const accept = options.onText ?? ((text) => parts.push(text));
   let receivedBytes = 0;
   while (true) {
     throwIfAborted(options.signal);
-    const chunk = await reader.read();
+    const { done, value } = await reader.read();
     throwIfAborted(options.signal);
-    if (chunk.done) break;
-    receivedBytes = await appendBoundedTextChunk(
-      reader,
-      decoder,
-      parts,
-      chunk.value,
-      receivedBytes,
-      options,
-    );
+    if (done) break;
+    receivedBytes += value.byteLength;
+    if (receivedBytes > options.maximumBytes) {
+      const error = createResponseTooLargeError(
+        options.label,
+        options.maximumBytes,
+        receivedBytes,
+      );
+      await cancelReaderSafely(reader, error);
+      throw error;
+    }
+    accept(decoder.decode(value, { stream: true }));
   }
-  parts.push(decoder.decode());
+  accept(decoder.decode());
   return parts.join("");
-}
-
-/** @param {ReadableStreamDefaultReader<Uint8Array>} reader @param {TextDecoder} decoder @param {string[]} parts @param {Uint8Array} value @param {number} receivedBytes @param {BoundedResponseOptions} options */
-async function appendBoundedTextChunk(
-  reader,
-  decoder,
-  parts,
-  value,
-  receivedBytes,
-  options,
-) {
-  const next = receivedBytes + value.byteLength;
-  if (Number.isSafeInteger(next) && next <= options.maximumBytes) {
-    parts.push(decoder.decode(value, { stream: true }));
-    return next;
-  }
-  const error = createResponseTooLargeError(
-    options.label,
-    options.maximumBytes,
-    next,
-  );
-  await cancelReaderSafely(reader, error);
-  throw error;
 }
 
 /** @param {Response} response @param {unknown} [reason] */

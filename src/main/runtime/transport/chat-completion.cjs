@@ -8,6 +8,7 @@
 
 const {
   isOpenAIApiProvider,
+  resolveModelProvider,
   resolveProviderDisplayName,
 } = require("../simple-page-model-config.cjs");
 const {
@@ -33,6 +34,7 @@ const {
   truncateSensitiveText,
 } = require("./model-http-errors.cjs");
 const { readResponseText } = require("./model-response-readers.cjs");
+const { fetchLocalGemmaCompletion } = require("./gemma-chat-stream.cjs");
 
 /**
  * @param {ModelServer} server
@@ -57,7 +59,16 @@ async function sendChatCompletion(
     { sentGeneration: recordRequestGeneration(requestSummary, requestBody) },
   );
   try {
-    return await fetch(`${server.baseUrl}/chat/completions`, {
+    const url = `${server.baseUrl}/chat/completions`;
+    if (resolveModelProvider(options) === "gemma") {
+      return await fetchLocalGemmaCompletion(
+        url,
+        options,
+        requestBody,
+        requestSummary,
+      );
+    }
+    return await fetch(url, {
       method: "POST",
       headers: buildChatRequestHeaders(options, apiKey),
       body: JSON.stringify(requestBody),

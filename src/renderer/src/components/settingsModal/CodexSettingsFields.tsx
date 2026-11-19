@@ -264,6 +264,7 @@ function CodexReasoningField({
   setCodexReasoningEffort,
   codexImageReasoningEffort,
   codexImageModel,
+  codexImageGenerationModel,
   setCodexImageReasoningEffort,
   image = false,
 }: CodexSettingsFieldsProps & {
@@ -279,9 +280,11 @@ function CodexReasoningField({
   const selectedEffort = image
     ? (codexImageReasoningEffort ?? "low")
     : codexReasoningEffort;
-  const label = image
-    ? t("settings.codex.imageReasoning")
-    : t("settings.codex.reasoning.label");
+  const imageLabel =
+    codexImageGenerationModel === "auto"
+      ? t("settings.codex.imageReasoning")
+      : t("settings.codex.reviewReasoning");
+  const label = image ? imageLabel : t("settings.codex.reasoning.label");
   const { efforts, activeEffort } = reasoningOptions(model, selectedEffort);
   return (
     <Field

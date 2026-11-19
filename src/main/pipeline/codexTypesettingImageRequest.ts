@@ -20,6 +20,7 @@ export async function generateImage(
   images: string[],
   nativeSize: { width: number; height: number },
   purpose?: "background" | "lettering",
+  repairId?: string,
 ): Promise<Buffer> {
   signal.throwIfAborted();
   const targetSize = {
@@ -34,6 +35,7 @@ export async function generateImage(
   const metadata = {
     model,
     purpose,
+    repairId,
     nativeSize,
     targetSize,
     requestedSize: purpose ? resolveCodexImageSize(nativeSize) : undefined,
@@ -208,6 +210,7 @@ export function generateCodexErasedCrop(
   mask: PNG,
   mode: "region" | "paint",
   targets?: CodexErasureTarget[],
+  repairId?: string,
 ) {
   return generateImage(
     client,
@@ -228,5 +231,6 @@ export function generateCodexErasedCrop(
       : erasureImageInputs(crop, mask),
     { width: mask.width, height: mask.height },
     "background",
+    repairId,
   );
 }

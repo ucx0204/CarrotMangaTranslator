@@ -141,6 +141,14 @@ describe("CodexSettingsFields", () => {
       ["GPT Image 2.6 Flare", "gpt-image-2.6-flare"],
     ]) {
       chooseCustomSelectOption("이미지 모델", label);
+      expect(
+        screen.getByRole("combobox", {
+          name:
+            value === "auto"
+              ? "생성·검수 추론 강도"
+              : "Codex 검수 전용 추론 강도",
+        }),
+      ).toBeTruthy();
       expect(screen.getByTestId("generation-model").textContent).toBe(value);
       expect(screen.getByTestId("image-model").textContent).toBe("gpt-6-astra");
       expect(screen.getByTestId("selected-model").textContent).toBe(
@@ -169,9 +177,9 @@ describe("CodexSettingsFields", () => {
     render(
       <Harness initialModel="gpt-5.6-sol" initialEffort="high" imageOnly />,
     );
-    await screen.findByRole("combobox", { name: "이미지 작업 추론 강도" });
+    await screen.findByRole("combobox", { name: "Codex 검수 전용 추론 강도" });
     expect(screen.getByTestId("image-effort").textContent).toBe("low");
-    chooseCustomSelectOption("이미지 작업 추론 강도", "최대");
+    chooseCustomSelectOption("Codex 검수 전용 추론 강도", "최대");
     expect(screen.getByTestId("image-effort").textContent).toBe("max");
     expect(screen.getByTestId("selected-effort").textContent).toBe("high");
     expect(screen.getByRole("combobox", { name: "Codex 모델" })).toBeTruthy();

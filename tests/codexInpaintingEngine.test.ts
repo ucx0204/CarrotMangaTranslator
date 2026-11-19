@@ -684,6 +684,50 @@ class Raster {
   }
 }
 
+it("recovers a centered image with extra margins in one generation", async () => {
+  const fixture = await setup();
+  const generate = fixture.turn.getMockImplementation();
+  if (!generate) throw new Error("Missing generator");
+  fixture.turn.mockImplementation(async (request) => {
+    const response = await generate(request);
+    const source = PNG.sync.read(
+      Buffer.from(JSON.parse(response.text).result, "base64"),
+    );
+    const padded = new PNG({
+      width: source.width + 100,
+      height: source.height,
+    });
+    padded.data.fill(64);
+    PNG.bitblt(source, padded, 0, 0, source.width, source.height, 50, 0);
+    return {
+      ...response,
+      text: JSON.stringify({
+        result: PNG.sync.write(padded).toString("base64"),
+      }),
+    };
+  });
+  await fixture.engine.inpaint(fixture.bitmap, 192, 160, fixture.mask, [
+    fixture.window,
+  ]);
+  const exact = await setup();
+  await exact.engine.inpaint(exact.bitmap, 192, 160, exact.mask, [
+    exact.window,
+  ]);
+  expect(fixture.bitmap).toEqual(exact.bitmap);
+  expect(fixture.turn).toHaveBeenCalledTimes(1);
+  const file = (await readdir(fixture.directory)).find((name) =>
+    name.startsWith("splice-"),
+  );
+  if (!file) throw new Error("Missing splice record");
+  const audit = JSON.parse(
+    await readFile(join(fixture.directory, file), "utf8"),
+  );
+  expect(audit).toMatchObject({
+    framing: "center-crop",
+    registration: { accepted: true },
+  });
+});
+
 it.each([false, true])(
   "validates geometry after resizing a different ImageGen aspect ratio (%s)",
   async (badContext) => {

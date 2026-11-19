@@ -8158,6 +8158,28 @@
         "pct": 84.61
       }
     },
+    "src/main/runtime/transport/bounded-response-body.cjs": {
+      "lines": {
+        "total": 62,
+        "covered": 53,
+        "pct": 85.48
+      },
+      "statements": {
+        "total": 67,
+        "covered": 56,
+        "pct": 83.58
+      },
+      "functions": {
+        "total": 13,
+        "covered": 10,
+        "pct": 76.92
+      },
+      "branches": {
+        "total": 34,
+        "covered": 23,
+        "pct": 67.64
+      }
+    },
     "src/main/runtime/transport/chat-completion.cjs": {
       "lines": {
         "covered": 23,
@@ -24946,6 +24968,28 @@
         "pct": 100
       }
     },
+    "src/main/inpainting/codexRepairFraming.ts": {
+      "lines": {
+        "total": 17,
+        "covered": 17,
+        "pct": 100
+      },
+      "statements": {
+        "total": 17,
+        "covered": 17,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "pct": 100
+      },
+      "branches": {
+        "total": 14,
+        "covered": 14,
+        "pct": 100
+      }
+    },
     "src/main/inpainting/codexRepairTiles.ts": {
       "lines": {
         "total": 9,
@@ -37880,6 +37924,28 @@
         "total": 46,
         "covered": 18,
         "pct": 39.13
+      }
+    },
+    "src/main/runtime/transport/gemma-chat-stream.cjs": {
+      "lines": {
+        "total": 79,
+        "covered": 77,
+        "pct": 97.46
+      },
+      "statements": {
+        "total": 91,
+        "covered": 86,
+        "pct": 94.5
+      },
+      "functions": {
+        "total": 12,
+        "covered": 12,
+        "pct": 100
+      },
+      "branches": {
+        "total": 56,
+        "covered": 49,
+        "pct": 87.5
       }
     },
     "src/main/runtime/transport/mtp-fit-cache.cjs": {

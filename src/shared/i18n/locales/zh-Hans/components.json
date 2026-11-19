@@ -2363,7 +2363,8 @@
         "loginFailed": "Codex 登录失败。",
         "logoutFailed": "Codex 退出登录失败。"
       },
-      "imageReasoning": "图像任务推理强度",
+      "imageReasoning": "生成和审查推理强度",
+      "reviewReasoning": "仅 Codex 审查的推理强度",
       "imageGenerationModel": "图像模型",
       "imageGenerationAuto": "Codex 默认",
       "imageGenerationAutoHint": "使用 Codex 内置图像工具。",

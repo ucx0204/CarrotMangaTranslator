@@ -11,11 +11,13 @@ export function codexRepairDifference(
   generated: Raster,
   permission: Uint8Array,
   paintedCore?: Uint8Array,
+  selection = permission,
 ) {
   if (
     original.width !== generated.width ||
     original.height !== generated.height ||
-    permission.length !== original.width * original.height
+    permission.length !== original.width * original.height ||
+    selection.length !== permission.length
   )
     throw new Error("배경 차이 입력의 해상도가 다릅니다.");
   const fine = toneDifference(original, generated, 1);
@@ -25,16 +27,12 @@ export function codexRepairDifference(
     coarse: noiseThreshold(coarse, permission, 14),
   };
   const seed = new Uint8Array(permission.length);
-  for (let at = 0; at < seed.length; at++)
-    if (
-      permission[at] &&
-      fine[at] > thresholds.fine &&
-      coarse[at] > thresholds.coarse
-    )
-      seed[at] = 1;
-  if (paintedCore)
-    for (let at = 0; at < seed.length; at++)
-      if (paintedCore[at] && permission[at]) seed[at] = 1;
+  for (let at = 0; at < seed.length; at++) {
+    if (!permission[at]) continue;
+    const changed =
+      fine[at] > thresholds.fine && coarse[at] > thresholds.coarse;
+    seed[at] = Number(Boolean(paintedCore?.[at]) || changed);
+  }
   return {
     seed,
     thresholds,
@@ -44,6 +42,7 @@ export function codexRepairDifference(
       original.width,
       original.height,
       paintedCore,
+      selection,
     ),
   };
 }
@@ -53,7 +52,8 @@ function featherChanges(
   permission: Uint8Array,
   width: number,
   height: number,
-  paintedCore?: Uint8Array,
+  paintedCore: Uint8Array | undefined,
+  selection: Uint8Array,
 ) {
   const core = dilateBinaryMaskDisk(seed, width, height, 2);
   const bounds = { x: 0, y: 0, w: width, h: height };
@@ -66,7 +66,9 @@ function featherChanges(
     bounds,
     radius,
   );
-  const outside = Uint8Array.from(permission, (value) => (value ? 0 : 1));
+  // The adjacent tile owns its pixels, but its edge is inside the user's edit.
+  // Fading to the original there would leave a stripe of the erased lettering.
+  const outside = Uint8Array.from(selection, (value) => (value ? 0 : 1));
   const boundary = horizontalMaskDistances(
     { bounds, data: outside },
     bounds,

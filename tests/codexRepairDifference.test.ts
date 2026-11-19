@@ -44,6 +44,29 @@ describe("generated background differences", () => {
     const result = codexRepairDifference(original, generated, region());
     expect(result.opacity[30 * 96 + 40]).toBe(1);
   });
+
+  it("keeps a stroke erased across adjacent region tiles while preserving the outer selection edge", () => {
+    const source = canvas(255),
+      erased = canvas(255),
+      selection = region();
+    rectangle(source, 30, 27, 30, 8, [0, 0, 0]);
+    for (const left of [true, false]) {
+      const owned = selection.map((value, i) =>
+        i % 96 < 45 === left ? value : 0,
+      );
+      const diff = codexRepairDifference(
+        source,
+        erased,
+        owned,
+        undefined,
+        selection,
+      );
+      const row = 30 * 96;
+      expect(diff.opacity[row + (left ? 44 : 45)]).toBe(1);
+      expect(diff.opacity[row + (left ? 45 : 44)]).toBe(0);
+      expect(diff.opacity[row + 5]).toBe(0);
+    }
+  });
   it("does not treat a shifted fine checker pattern alone as a repair", () => {
     const original = canvas(150),
       generated = canvas(150);

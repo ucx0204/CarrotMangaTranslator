@@ -6,6 +6,7 @@ import type { AppSettings } from "../shared/settingsTypes";
 import { CODEX_TYPESETTING_MODEL } from "../shared/codexTypesettingDefaults";
 import { CodexAppServerClient } from "./codexAppServerClient";
 import { isCodexImageModel } from "../shared/codexSettings";
+import type { CodexAppServerTurnResult } from "./codexAppServerProtocol";
 
 /** Image jobs have their own model and effort, independent of text translation. */
 export async function startCodexImageSession(
@@ -50,7 +51,7 @@ export async function startCodexImageSession(
       imageModel,
       runEphemeralTurn: async (
         request: Parameters<CodexAppServerClient["runEphemeralTurn"]>[0],
-      ) => {
+      ): Promise<CodexAppServerTurnResult> => {
         const input = {
           ...request,
           model: imageModel,
@@ -63,9 +64,15 @@ export async function startCodexImageSession(
         };
         input.signal.throwIfAborted();
         if (capability === "isolated" || imageGenerationModel === "auto")
-          return connection.runEphemeralTurn(input);
+          return {
+            ...(await connection.runEphemeralTurn(input)),
+            appliedReasoningEffort: effort,
+          };
         await connection.readAccount(true);
-        return runCodexImageResponse(paths, imageGenerationModel, input);
+        return {
+          ...(await runCodexImageResponse(paths, imageGenerationModel, input)),
+          appliedReasoningEffort: null,
+        };
       },
       dispose: () => {
         lifetime.abort();

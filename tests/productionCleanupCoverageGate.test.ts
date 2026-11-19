@@ -594,7 +594,8 @@ describe("production cleanup coverage floor gate", () => {
     // Settings recovery adds the shared credential-error constant to the tracked baseline.
     // RX 7600 support adds the original measured Windows OCR policy floor.
     // FLUX modes register the original constants, crop tiling and window preparation floors.
-    expect(scope.existing).toHaveLength(876);
+    // Local Gemma streaming reuses the existing bounded body reader.
+    expect(scope.existing).toHaveLength(877);
     // Includes global chat, shared actions, OpenCode help, MCP event streams, shared
     // translation instructions and image budget; inherited floors remain unchanged.
     // inherited floors remain unchanged.
@@ -623,7 +624,8 @@ describe("production cleanup coverage floor gate", () => {
     // Includes startup cache, refresh coordination, font workspace cleanup and Codex schema owners.
     // Issue #176 adds nine per-job storage, cache and shared import policy owners.
     // Credential recovery adds five storage, error, contract and production UI owners.
-    expect(scope.added).toHaveLength(1636);
+    // Image framing recovery and local Gemma stream handling have measured floors.
+    expect(scope.added).toHaveLength(1638);
     expect(scope.deleted).toHaveLength(12);
   });
 });

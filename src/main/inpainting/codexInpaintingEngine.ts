@@ -8,6 +8,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { PNG } from "pngjs";
+import { prepareCodexRepairFrames, recordRepair } from "./codexRepairFraming";
 import type { AppPaths } from "../appPaths";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { startCodexImageSession } from "../codexImageSession";
@@ -159,18 +160,14 @@ async function inpaintCodexWindow(
     mask.image,
     request.mode,
     prepareCodexErasureTargets(request.targets, rect, window),
+    index,
   );
   request.signal.throwIfAborted();
   const decoded = nativeImage.createFromBuffer(output);
   if (decoded.isEmpty())
     throw new Error("Codex 원문 제거 결과를 읽지 못했습니다.");
-  const generated = decoded.getSize();
-  const aspectMismatch =
-    Math.abs(Math.log(generated.width / generated.height / (rect.w / rect.h))) >
-    0.025;
-  const candidate = PNG.sync.read(
-    decoded.resize({ width: rect.w, height: rect.h, quality: "best" }).toPNG(),
-  );
+  const { candidate, aspectMismatch, proportionalCrop } =
+    prepareCodexRepairFrames(decoded, rect);
   const original = PNG.sync.read(crop.toPNG());
   const erase = {
     x: Math.max(0, window.x - rect.x),
@@ -189,6 +186,7 @@ async function inpaintCodexWindow(
     mask.permission,
     request.mode,
     mask.core,
+    { proportionalCrop, selection: mask.selection },
   );
   await recordRepair(
     directory,
@@ -203,50 +201,6 @@ async function inpaintCodexWindow(
     repair,
   );
   pasteRepair(request, rect, repair);
-}
-
-async function recordRepair(
-  directory: string,
-  index: string,
-  geometry: {
-    rect: PixelRect;
-    erase: PixelRect;
-    mode: Request["mode"];
-    generatedSize: { width: number; height: number };
-    aspectMismatch: boolean;
-  },
-  repair: ReturnType<typeof compositeCodexRepair>,
-) {
-  await writeFile(
-    join(directory, `splice-${index}-${randomUUID()}.json`),
-    JSON.stringify({
-      ...geometry,
-      registration: repair.registration,
-      thresholds: repair.difference.thresholds,
-      tone: repair.tone,
-      changedPixels: repair.difference.changedPixels,
-    }),
-  );
-  if (geometry.aspectMismatch && !repair.registration.accepted) {
-    const { generatedSize: generated, rect } = geometry;
-    throw new Error(
-      `생성된 배경(${generated.width}×${generated.height})을 작업 영역(${rect.w}×${rect.h})에 맞춰도 원본 경계가 맞지 않습니다. 이 영역은 보류했습니다.`,
-    );
-  }
-  // Misaligned context is not image noise. An inflated noise threshold can
-  // suppress most removed glyphs while leaving a few changed pixels behind.
-  // Those few pixels must not turn an unusable splice into a successful edit.
-  if (
-    (repair.difference.changedPixels === 0 ||
-      (repair.difference.thresholds.fine > 72 &&
-        repair.difference.thresholds.coarse > 42)) &&
-    repair.registration.samples >= 32 &&
-    repair.registration.contextErrorAfter > 0.06 &&
-    repair.registration.boundary.worst > 0.12
-  )
-    throw new Error(
-      "생성된 배경의 구도·경계가 원본과 맞지 않아 적용하지 못했습니다.",
-    );
 }
 
 function pasteRepair(
@@ -280,40 +234,45 @@ function pasteRepair(
 function cropMask(request: Request, rect: PixelRect) {
   const image = new PNG({ width: rect.w, height: rect.h });
   const permission = new Uint8Array(rect.w * rect.h);
+  const selection = request.tileBounds
+    ? new Uint8Array(permission.length)
+    : undefined;
   const core = request.paintedCore
     ? new Uint8Array(permission.length)
     : undefined;
   for (let y = 0; y < rect.h; y++)
     for (let x = 0; x < rect.w; x++) {
       const at = (y + rect.y) * request.width + x + rect.x;
-      const value = permittedPixel(request, at) ? 255 : 0;
-      const offset = (y * rect.w + x) * 4;
-      image.data.fill(value, offset, offset + 3);
+      const local = y * rect.w + x;
+      const allowed = permittedPixel(request, at);
+      if (selection) selection[local] = Number(allowed);
+      const owned = Number(
+        allowed && inTile(request.tileBounds, x + rect.x, y + rect.y),
+      );
+      const offset = local * 4;
+      image.data.fill(owned * 255, offset, offset + 3);
       image.data[offset + 3] = 255;
-      permission[y * rect.w + x] = value ? 1 : 0;
-      if (core)
-        core[y * rect.w + x] = value && request.paintedCore?.[at] ? 1 : 0;
+      permission[local] = owned;
+      if (core) core[local] = owned && request.paintedCore?.[at] ? 1 : 0;
     }
-  return { image, permission, core };
+  return { image, permission, core, selection };
 }
 
 function permittedPixel(request: Request, at: number): boolean {
-  const bounds = request.tileBounds;
-  if (bounds) {
-    const x = at % request.width,
-      y = Math.floor(at / request.width);
-    if (
-      x < bounds.x ||
-      x >= bounds.x + bounds.w ||
-      y < bounds.y ||
-      y >= bounds.y + bounds.h
-    )
-      return false;
-  }
   return Boolean(
     request.mask[at] &&
     !request.protectedMask?.[at] &&
     (!request.constraint || request.constraint[at]),
+  );
+}
+
+function inTile(bounds: PixelRect | undefined, x: number, y: number): boolean {
+  return (
+    !bounds ||
+    (x >= bounds.x &&
+      x < bounds.x + bounds.w &&
+      y >= bounds.y &&
+      y < bounds.y + bounds.h)
   );
 }
 
