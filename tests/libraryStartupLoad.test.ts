@@ -37,6 +37,52 @@ describe("library startup load", () => {
     expect(await readFile(image, "utf8")).toBe("original bytes");
   });
 
+  it.each([
+    {
+      record: "work",
+      change: { id: "other-work" },
+      error: "작품 정보의 보관함 위치",
+    },
+    {
+      record: "chapter",
+      change: { workId: "other-work" },
+      error: "화 정보의 보관함 위치",
+    },
+    {
+      record: "chapter",
+      change: { pageOrder: ["missing-page"] },
+      error: "페이지 순서 정보",
+    },
+  ])(
+    "keeps unlisted originals when startup encounters invalid $record metadata ($error)",
+    async ({ record, change, error }) => {
+      const { libraryDir, workIds, chapterIds } = await createLibraryFixture(1);
+      const workDir = join(libraryDir, "works", workIds[0]);
+      const chapterDir = join(workDir, "chapters", chapterIds[0]);
+      const metadata =
+        record === "work"
+          ? join(workDir, "work.json")
+          : join(chapterDir, "chapter.json");
+      const damaged = {
+        ...JSON.parse(await readFile(metadata, "utf8")),
+        ...change,
+      };
+      await writeJson(metadata, damaged);
+      const unlisted = join(libraryDir, "works", "unlisted");
+      await mkdir(unlisted);
+      const original = join(unlisted, "original.png");
+      await writeFile(original, "original bytes");
+      vi.doMock("../src/main/appPaths", () => ({
+        getAppPaths: () => ({ libraryDir }),
+      }));
+      const { cleanupLibraryOrphans } =
+        await import("../src/main/library/libraryMutationFacade");
+      await expect(cleanupLibraryOrphans()).rejects.toThrow(error);
+      expect(await readFile(original, "utf8")).toBe("original bytes");
+      expect(JSON.parse(await readFile(metadata, "utf8"))).toEqual(damaged);
+    },
+  );
+
   it("returns every stored work and chapter in index order", async () => {
     const fixture = await createLibraryFixture(18, {
       includeMissingWorkReference: true,
