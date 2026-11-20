@@ -13,6 +13,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
+import * as appPaths from "../src/main/appPaths";
+import { listLibrary } from "../src/main/library/libraryReadFacade";
 import type { LibraryChapter } from "../src/shared/libraryTypes";
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import {
@@ -32,8 +34,14 @@ import {
   RESTORE_NAMES,
   backupRelativePath,
 } from "../src/main/environmentBackup/policy";
-import { regularFiles } from "../src/main/environmentBackup/files";
-import { extractBackupArchive } from "../src/main/environmentBackup/archive";
+import {
+  hashBackupFile,
+  regularFiles,
+} from "../src/main/environmentBackup/files";
+import {
+  extractBackupArchive,
+  writeBackupArchive,
+} from "../src/main/environmentBackup/archive";
 import { relocateCopiedChapterImagePath } from "../src/main/libraryStore/chapterImageRelocation";
 import { createPageRevision } from "../src/shared/pageRevision";
 import { copyCategories } from "../src/main/environmentBackup/snapshot";
@@ -269,7 +277,164 @@ async function fixture(root: string) {
   return { imagePath, checkpoint };
 }
 
+// v3.8.15 copied every file, but only counted and relocated indexed chapters.
+async function writeLegacyLibraryBackup(
+  root: string,
+  archive: string,
+  works: number,
+  pages: number,
+) {
+  await put(
+    root,
+    "portable-settings.json",
+    resolveDefaultAppSettings({}, null),
+  );
+  const paths = [
+    "portable-settings.json",
+    ...(await regularFiles(join(root, "library"), "library")),
+  ];
+  const files = await Promise.all(
+    paths.map((path) => hashBackupFile(root, path, signal())),
+  );
+  await writeBackupArchive(
+    root,
+    archive,
+    {
+      format: "carrot-environment-backup",
+      version: 1,
+      appVersion: "3.8.15",
+      createdAt: new Date().toISOString(),
+      ui: {},
+      connections: [],
+      files,
+      summary: {
+        works,
+        pages,
+        bytes: files.reduce((sum, file) => sum + file.size, 0),
+      },
+    },
+    signal(),
+    progress,
+  );
+}
+
 describe("environment backup", () => {
+  it.each([false, true])(
+    "restores verified legacy records omitted from the index (work indexed = %s)",
+    async (workIndexed) => {
+      const source = await temp(),
+        target = await temp(),
+        out = await temp();
+      await fixture(source);
+      const workOrder = workIndexed ? ["work-a"] : [];
+      await put(source, "library/index.json", { workOrder });
+      const workPath = "library/works/work-a/work.json";
+      const work = JSON.parse(await readFile(join(source, workPath), "utf8"));
+      await put(source, workPath, { ...work, chapterOrder: [] });
+      const archive = join(out, "legacy.zip");
+      await writeLegacyLibraryBackup(source, archive, workOrder.length, 0);
+      const original = await readFile(archive);
+      const store = new EnvironmentBackupStore(paths(target), "3.8.15");
+      const preview = await store.preview(archive, signal(), progress);
+      expect(preview).toMatchObject({ works: 1, pages: 1 });
+      expect(existsSync(join(target, "library/index.json"))).toBe(false);
+      await store.schedule(preview.id, {});
+      recoverEnvironmentRestore(target);
+      const getPaths = vi
+        .spyOn(appPaths, "getAppPaths")
+        .mockReturnValue(paths(target));
+      try {
+        expect(await listLibrary()).toMatchObject({
+          workOrder: ["work-a"],
+          works: [
+            {
+              chapterOrder: ["chapter-a"],
+              chapters: [{ id: "chapter-a", pageCount: 1 }],
+            },
+          ],
+        });
+      } finally {
+        getPaths.mockRestore();
+      }
+      const restored = JSON.parse(
+        await readFile(join(target, chapterPath), "utf8"),
+      ) as LibraryChapter;
+      expect(restored.pages[0].imagePath).toBe(
+        join(
+          target,
+          "library/works/work-a/chapters/chapter-a/pages/source.png",
+        ),
+      );
+      expect(await readFile(restored.pages[0].imagePath, "utf8")).toBe(
+        "original bytes",
+      );
+      expect(await readFile(archive)).toEqual(original);
+    },
+  );
+
+  it("repairs order in the exported copy while preserving the original library and its order", async () => {
+    const source = await temp(),
+      out = await temp(),
+      extracted = await temp();
+    await fixture(source);
+    const work = JSON.parse(
+      await readFile(join(source, "library/works/work-a/work.json"), "utf8"),
+    );
+    await put(source, "library/works/work-z/work.json", {
+      ...work,
+      id: "work-z",
+      chapterOrder: [],
+    });
+    await put(source, "library/index.json", { workOrder: ["work-z"] });
+    const archive = join(out, "exported.zip");
+    await new EnvironmentBackupStore(paths(source), "3.8.15").export(
+      archive,
+      {},
+      signal(),
+      progress,
+    );
+    const manifest = await extractBackupArchive({
+      archive,
+      root: extracted,
+      signal: signal(),
+      progress,
+    });
+    expect(manifest.summary).toMatchObject({ works: 2, pages: 1 });
+    expect(
+      JSON.parse(await readFile(join(extracted, "library/index.json"), "utf8"))
+        .workOrder,
+    ).toEqual(["work-z", "work-a"]);
+    expect(
+      JSON.parse(await readFile(join(source, "library/index.json"), "utf8"))
+        .workOrder,
+    ).toEqual(["work-z"]);
+  });
+
+  it("rejects a false legacy summary or incomplete work before changing the destination", async () => {
+    const source = await temp(),
+      target = await temp(),
+      out = await temp();
+    await fixture(source);
+    await put(source, "library/index.json", { workOrder: [] });
+    await put(target, "library/keep.txt", "keep");
+    const store = new EnvironmentBackupStore(paths(target), "3.8.15");
+    const archive = join(out, "invalid.zip");
+    await writeLegacyLibraryBackup(source, archive, 1, 1);
+    await expect(store.preview(archive, signal(), progress)).rejects.toThrow(
+      /counts/,
+    );
+    await unlink(join(source, "library/works/work-a/work.json"));
+    await writeLegacyLibraryBackup(source, archive, 0, 0);
+    await expect(store.preview(archive, signal(), progress)).rejects.toThrow(
+      /work.json/,
+    );
+    expect(await readFile(join(target, "library/keep.txt"), "utf8")).toBe(
+      "keep",
+    );
+    expect(existsSync(join(backupWorkspace(target), "journal.json"))).toBe(
+      false,
+    );
+  });
   it("round trips an environment across roots without credentials, then restores the original destination", async () => {
     const source = await temp(),
       target = await temp(),

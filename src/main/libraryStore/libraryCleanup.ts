@@ -1,13 +1,11 @@
 import { existsSync } from "node:fs";
-import { readdir, rm } from "node:fs/promises";
+import { readdir, rm, rmdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
   ensureLibraryStructure,
   readIndexFile,
   readChapterFile,
   readWorkFile,
-  removeChapterDirectory,
-  removeWorkDirectory,
   writeIndexFile,
   writeChapterFile,
   writeWorkFile,
@@ -34,7 +32,10 @@ export async function cleanupLibraryOrphansUnlocked(): Promise<LibraryCleanupRes
   await ensureLibraryStructure();
   const result = createLibraryCleanupResult();
   const retainedWorkIds = await removeMissingWorkReferences(result);
-  await removeDanglingWorkDirectories(retainedWorkIds, result);
+  result.workDirsRemoved = await removeEmptyUnlistedDirectories(
+    getWorksRoot(),
+    retainedWorkIds,
+  );
 
   for (const workId of retainedWorkIds) {
     await cleanupWorkChapterReferences(workId, result);
@@ -71,19 +72,31 @@ async function removeMissingWorkReferences(
   return retainedWorkIds;
 }
 
-async function removeDanglingWorkDirectories(
-  retainedWorkIds: string[],
-  result: LibraryCleanupResult,
-): Promise<void> {
-  const retainedWorkIdSet = new Set(retainedWorkIds);
-  const workEntries = await readdir(getWorksRoot(), { withFileTypes: true });
-  for (const entry of workEntries) {
-    if (!entry.isDirectory() || retainedWorkIdSet.has(entry.name)) {
+async function removeEmptyUnlistedDirectories(
+  parent: string,
+  retainedIds: string[],
+): Promise<number> {
+  if (!existsSync(parent)) return 0;
+  const retained = new Set(retainedIds);
+  let removed = 0;
+  for (const entry of await readdir(parent, { withFileTypes: true })) {
+    if (
+      !entry.isDirectory() ||
+      entry.isSymbolicLink() ||
+      retained.has(entry.name)
+    )
       continue;
+    try {
+      // An incomplete index is never authorization to recursively delete user files.
+      await rmdir(join(parent, entry.name));
+      removed++;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ENOTEMPTY" && code !== "EEXIST" && code !== "ENOENT")
+        throw error;
     }
-    await removeWorkDirectory(entry.name);
-    result.workDirsRemoved += 1;
   }
+  return removed;
 }
 
 async function cleanupWorkChapterReferences(
@@ -107,7 +120,10 @@ async function cleanupWorkChapterReferences(
       updatedAt: new Date().toISOString(),
     });
   }
-  await removeDanglingChapterDirectories(workId, retainedChapterIds, result);
+  result.chapterDirsRemoved += await removeEmptyUnlistedDirectories(
+    join(getWorksRoot(), workId, "chapters"),
+    retainedChapterIds,
+  );
   for (const chapterId of retainedChapterIds) {
     await cleanupChapterCheckpoints(workId, chapterId, result);
   }
@@ -127,27 +143,6 @@ async function removeMissingChapterReferences(
     retainedChapterIds.push(chapterId);
   }
   return retainedChapterIds;
-}
-
-async function removeDanglingChapterDirectories(
-  workId: string,
-  retainedChapterIds: string[],
-  result: LibraryCleanupResult,
-): Promise<void> {
-  const chaptersRoot = join(getWorksRoot(), workId, "chapters");
-  if (!existsSync(chaptersRoot)) {
-    return;
-  }
-
-  const retainedChapterIdSet = new Set(retainedChapterIds);
-  const chapterEntries = await readdir(chaptersRoot, { withFileTypes: true });
-  for (const entry of chapterEntries) {
-    if (!entry.isDirectory() || retainedChapterIdSet.has(entry.name)) {
-      continue;
-    }
-    await removeChapterDirectory(workId, entry.name);
-    result.chapterDirsRemoved += 1;
-  }
 }
 
 async function cleanupChapterCheckpoints(

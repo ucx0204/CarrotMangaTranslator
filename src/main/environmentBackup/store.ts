@@ -135,14 +135,14 @@ export class EnvironmentBackupStore {
         progress,
       });
       await validateBackupUserStores(root);
-      const summary = await relocateBackupLibrary(
+      const { summary, indexed } = await relocateBackupLibrary(
         root,
         manifest.files.map((entry) => entry.path),
         this.paths.dataRoot,
       );
       if (
-        summary.works !== manifest.summary.works ||
-        summary.pages !== manifest.summary.pages
+        indexed.works !== manifest.summary.works ||
+        indexed.pages !== manifest.summary.pages
       )
         throw new Error("Backup counts do not match its library.");
       await relocateBackupRedaction(root, this.paths.dataRoot);
@@ -162,7 +162,8 @@ export class EnvironmentBackupStore {
       await this.sealStage(root, signal);
       return {
         id,
-        ...manifest.summary,
+        bytes: manifest.summary.bytes,
+        ...summary,
         createdAt: manifest.createdAt,
         appVersion: manifest.appVersion,
         recoveryPath: recoveryPath(this.paths.dataRoot, id),

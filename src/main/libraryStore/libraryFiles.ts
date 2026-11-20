@@ -247,17 +247,6 @@ export async function makeUniqueChapterTitle(
   return makeUniqueTitleInList(desired, used);
 }
 
-export async function removeWorkDirectory(workId: string): Promise<void> {
-  const worksRoot = resolve(getWorksRoot());
-  const workDir = resolve(join(worksRoot, workId));
-  if (!isPathInside(worksRoot, workDir) || workDir === worksRoot) {
-    return;
-  }
-  if (existsSync(workDir)) {
-    await rm(workDir, { recursive: true, force: true });
-  }
-}
-
 export async function removeChapterDirectory(
   workId: string,
   chapterId: string,

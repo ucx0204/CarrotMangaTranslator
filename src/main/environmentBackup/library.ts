@@ -96,55 +96,116 @@ async function relocatePage(
   return result;
 }
 
+function backupWorkDirectories(files: string[]): Map<string, Set<string>> {
+  const works = new Map<string, Set<string>>();
+  for (const path of files) {
+    if (!path.startsWith("library/works/")) continue;
+    const [, , workId, child, chapterId, file] = path.split("/", 6);
+    if (!child) continue;
+    const chapters = works.get(workId) ?? new Set<string>();
+    works.set(workId, chapters);
+    // Legacy share trash has its own recovery rules at startup.
+    if (child === "chapters" && file && chapterId !== ".trash")
+      chapters.add(chapterId);
+  }
+  return works;
+}
+
+function completeOrder(
+  listed: string[],
+  directories: Iterable<string>,
+): string[] {
+  const ids = new Set(listed);
+  const missing = Array.from(directories)
+    .filter((id) => !ids.has(id))
+    .sort();
+  return [...listed, ...missing];
+}
+
+async function relocateBackupChapter(
+  root: string,
+  workId: string,
+  chapterId: string,
+  destination?: string,
+): Promise<number> {
+  backupRelativePath(chapterId);
+  if (chapterId.includes("/")) throw new Error("Invalid chapter ID.");
+  const path = `library/works/${workId}/chapters/${chapterId}/chapter.json`;
+  const chapter = LibraryChapterFileSchema.parse(
+    await readBackupJson(join(root, path)),
+  );
+  if (chapter.id !== chapterId || chapter.workId !== workId)
+    throw new Error("Chapter identity mismatch.");
+  assertUniqueIds(chapter.pageOrder, "Duplicate page order.");
+  const ids = chapter.pages.map((page) => page.id);
+  assertUniqueIds(ids, "Duplicate page ID.");
+  if (chapter.pageOrder.some((id) => !ids.includes(id)))
+    throw new Error("Invalid page order.");
+  const pages: LibraryPageRecord[] = [];
+  for (const page of chapter.pages)
+    pages.push(await relocatePage(root, path, page, destination));
+  await writeFile(join(root, path), JSON.stringify({ ...chapter, pages }));
+  return pages.length;
+}
+
+async function relocateBackupWork(
+  root: string,
+  id: string,
+  directories: Iterable<string>,
+  destination?: string,
+) {
+  backupRelativePath(id);
+  if (id.includes("/")) throw new Error("Invalid work ID.");
+  const path = join(root, "library/works", id, "work.json");
+  const work = LibraryWorkFileSchema.parse(await readBackupJson(path));
+  if (work.id !== id) throw new Error("Work identity mismatch.");
+  assertUniqueIds(work.chapterOrder, "Duplicate chapter ID.");
+  const chapterOrder = completeOrder(work.chapterOrder, directories);
+  if (chapterOrder.length !== work.chapterOrder.length) {
+    const repaired = LibraryWorkFileSchema.parse({ ...work, chapterOrder });
+    await writeFile(path, JSON.stringify(repaired));
+  }
+  let pages = 0,
+    indexedPages = 0;
+  for (const [position, chapterId] of chapterOrder.entries()) {
+    const count = await relocateBackupChapter(root, id, chapterId, destination);
+    pages += count;
+    if (position < work.chapterOrder.length) indexedPages += count;
+  }
+  return { pages, indexedPages };
+}
+
 export async function relocateBackupLibrary(
   root: string,
   files: string[],
   destination?: string,
-): Promise<{ works: number; pages: number }> {
-  let works = 0;
-  let pages = 0;
+) {
+  const directories = backupWorkDirectories(files);
   const indexPath = join(root, "library/index.json");
-  if (!(await exists(indexPath))) {
-    if (files.some((path) => path.startsWith("library/works/")))
-      throw new Error("Library index is missing.");
-    return { works, pages };
-  }
-  const index = StoredLibraryIndexFileSchema.parse(
-    await readBackupJson(indexPath),
-  );
+  const hasIndex = await exists(indexPath);
+  if (!hasIndex && destination && directories.size)
+    throw new Error("Library index is missing.");
+  const index = hasIndex
+    ? StoredLibraryIndexFileSchema.parse(await readBackupJson(indexPath))
+    : { workOrder: [] };
   assertUniqueIds(index.workOrder, "Duplicate work ID.");
-  for (const id of index.workOrder) {
-    backupRelativePath(id);
-    if (id.includes("/")) throw new Error("Invalid work ID.");
-    const work = LibraryWorkFileSchema.parse(
-      await readBackupJson(join(root, "library/works", id, "work.json")),
-    );
-    if (work.id !== id) throw new Error("Work identity mismatch.");
-    assertUniqueIds(work.chapterOrder, "Duplicate chapter ID.");
-    works++;
-    for (const chapterId of work.chapterOrder) {
-      backupRelativePath(chapterId);
-      if (chapterId.includes("/")) throw new Error("Invalid chapter ID.");
-      const path = `library/works/${id}/chapters/${chapterId}/chapter.json`;
-      const chapter = LibraryChapterFileSchema.parse(
-        await readBackupJson(join(root, path)),
-      );
-      if (chapter.id !== chapterId || chapter.workId !== id)
-        throw new Error("Chapter identity mismatch.");
-      assertUniqueIds(chapter.pageOrder, "Duplicate page order.");
-      const ids = chapter.pages.map((page) => page.id);
-      assertUniqueIds(ids, "Duplicate page ID.");
-      if (chapter.pageOrder.some((id) => !ids.includes(id)))
-        throw new Error("Invalid page order.");
-      const relocated: LibraryPageRecord[] = [];
-      for (const page of chapter.pages)
-        relocated.push(await relocatePage(root, path, page, destination));
-      pages += relocated.length;
-      await writeFile(
-        join(root, path),
-        JSON.stringify({ ...chapter, pages: relocated }),
-      );
-    }
+  const workOrder = completeOrder(index.workOrder, directories.keys());
+  if (workOrder.length !== index.workOrder.length) {
+    const repaired = StoredLibraryIndexFileSchema.parse({ workOrder });
+    await writeFile(indexPath, JSON.stringify(repaired));
   }
-  return { works, pages };
+  const summary = { works: workOrder.length, pages: 0 };
+  // Old manifests counted only chapters reachable through both stored orders.
+  const indexed = { works: index.workOrder.length, pages: 0 };
+  for (const [position, id] of workOrder.entries()) {
+    const work = await relocateBackupWork(
+      root,
+      id,
+      directories.get(id) ?? [],
+      destination,
+    );
+    summary.pages += work.pages;
+    if (position < indexed.works) indexed.pages += work.indexedPages;
+  }
+  return { summary, indexed };
 }

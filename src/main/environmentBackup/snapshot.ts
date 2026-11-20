@@ -103,7 +103,10 @@ export async function captureEnvironment(
     join(root, "portable-settings.json"),
     await exportPortableSettings(paths),
   );
-  const summary = await relocateBackupLibrary(root, await regularFiles(root));
+  const { summary } = await relocateBackupLibrary(
+    root,
+    await regularFiles(root),
+  );
   await relocateBackupRedaction(root);
   await validateBackupUserStores(root);
   const files = await regularFiles(root);

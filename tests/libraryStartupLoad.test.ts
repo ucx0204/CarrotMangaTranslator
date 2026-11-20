@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +17,26 @@ afterEach(async () => {
 });
 
 describe("library startup load", () => {
+  it("preserves unlisted work and chapter contents across startup cleanup", async () => {
+    const { libraryDir, workIds, chapterIds } = await createLibraryFixture(1);
+    const workDir = join(libraryDir, "works", workIds[0]);
+    const workPath = join(workDir, "work.json");
+    const work = JSON.parse(await readFile(workPath, "utf8"));
+    await writeJson(workPath, { ...work, chapterOrder: [] });
+    const image = join(workDir, "chapters", chapterIds[0], "original.png");
+    await writeFile(image, "original bytes");
+    vi.doMock("../src/main/appPaths", () => ({
+      getAppPaths: () => ({ libraryDir }),
+    }));
+    const { cleanupLibraryOrphans } =
+      await import("../src/main/library/libraryMutationFacade");
+    await cleanupLibraryOrphans();
+    expect(await readFile(image, "utf8")).toBe("original bytes");
+    await writeJson(join(libraryDir, "index.json"), { workOrder: [] });
+    await cleanupLibraryOrphans();
+    expect(await readFile(image, "utf8")).toBe("original bytes");
+  });
+
   it("returns every stored work and chapter in index order", async () => {
     const fixture = await createLibraryFixture(18, {
       includeMissingWorkReference: true,
