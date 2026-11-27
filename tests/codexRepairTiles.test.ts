@@ -1,10 +1,43 @@
 import { expect, it } from "vitest";
 import {
+  applyCodexRepairTiles,
   planCodexRepairTiles,
   prepareCodexErasureTargets,
 } from "../src/main/inpainting/codexRepairTiles";
+import { CodexRepairGeometryError } from "../src/main/inpainting/codexRepairComposite";
 import { resolveCodexImageSize } from "../src/main/pipeline/codexImageSize";
 import { expandRect } from "../src/main/inpainting/maskGeometry";
+
+it.each(["overlap", "abort"] as const)(
+  "propagates %s during a page geometry hold",
+  async (reason) => {
+    const controller = new AbortController();
+    const area = { x: 0, y: 0, w: 8, h: 8 };
+    const peer = { x: 7, y: 7, w: 3, h: 3 };
+    const error = new CodexRepairGeometryError("invalid geometry");
+    const stopped = new Error("stopped");
+    const request = {
+      bitmap: Buffer.alloc(10 * 10 * 4),
+      width: 10,
+      height: 10,
+      mask: new Uint8Array(100),
+      windows: [area, peer],
+      signal: controller.signal,
+      mode: "region" as const,
+      feather: 0,
+    };
+    const operation = applyCodexRepairTiles(
+      request,
+      [{ cropBounds: area, writeBounds: area }],
+      { bounds: request.windows, index: 0 },
+      async () => {
+        if (reason === "abort") controller.abort(stopped);
+        throw error;
+      },
+    );
+    await expect(operation).rejects.toBe(reason === "abort" ? stopped : error);
+  },
+);
 
 it("keeps reading hints with their own window and native crop, without promoting overlapping neighbors", () => {
   const crop = { x: 80, y: 80, w: 160, h: 160 };

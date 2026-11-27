@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { codexRepairDifference } from "../src/main/inpainting/codexRepairDifference";
-import { compositeCodexRepair } from "../src/main/inpainting/codexRepairComposite";
+import {
+  compositeCodexRepair,
+  CodexRepairGeometryError,
+} from "../src/main/inpainting/codexRepairComposite";
 import type { Raster } from "../src/main/pipeline/codexTypesettingPixelSampling";
 
 function canvas(value = 245): Raster {
@@ -28,6 +31,20 @@ function region() {
 }
 
 describe("generated background differences", () => {
+  it("holds a repair when the generated background is transparent inside the erase box", () => {
+    const original = canvas();
+    const image = canvas();
+    image.data.fill(0);
+    expect(() =>
+      compositeCodexRepair(
+        original,
+        image,
+        { x: 15, y: 15, w: 65, h: 50 },
+        region(),
+        "paint",
+      ),
+    ).toThrow(CodexRepairGeometryError);
+  });
   it("ignores tiny tone changes while retaining a black glyph removal", () => {
     const original = canvas(),
       generated = canvas(240);

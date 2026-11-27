@@ -14,13 +14,17 @@ import type { AppSettings } from "../../shared/settingsTypes";
 import { startCodexImageSession } from "../codexImageSession";
 import type { CodexAppServerClient } from "../codexAppServerClient";
 import { generateCodexErasedCrop } from "../pipeline/codexTypesettingImageRequest";
-import { compositeCodexRepair } from "./codexRepairComposite";
 import {
+  compositeCodexRepair,
+  type CodexRepairGeometryError,
+} from "./codexRepairComposite";
+import {
+  applyCodexRepairTiles,
   planCodexRepairTiles,
   prepareCodexRepairMask,
   prepareCodexErasureTargets,
 } from "./codexRepairTiles";
-import { isolateMaskToWindow } from "./imageRaster";
+import { cropBitmapFromPage, isolateMaskToWindow } from "./imageRaster";
 import { expandWindowMaskToPage } from "./inpaintingWindowMask";
 import { expandRect, type PixelRect } from "./maskGeometry";
 import type {
@@ -166,9 +170,12 @@ async function inpaintCodexWindow(
   const decoded = nativeImage.createFromBuffer(output);
   if (decoded.isEmpty())
     throw new Error("Codex 원문 제거 결과를 읽지 못했습니다.");
-  const { candidate, aspectMismatch, proportionalCrop } =
-    prepareCodexRepairFrames(decoded, rect);
   const original = PNG.sync.read(crop.toPNG());
+  const { candidate, aspectMismatch, crops } = prepareCodexRepairFrames(
+    decoded,
+    crop,
+    mask.permission,
+  );
   const erase = {
     x: Math.max(0, window.x - rect.x),
     y: Math.max(0, window.y - rect.y),
@@ -186,7 +193,7 @@ async function inpaintCodexWindow(
     mask.permission,
     request.mode,
     mask.core,
-    { proportionalCrop, selection: mask.selection },
+    { crops, selection: mask.selection },
   );
   await recordRepair(
     directory,
@@ -338,6 +345,17 @@ async function inpaintWindows(
   request: Request,
   options: Parameters<InpaintingEngine["inpaint"]>[5],
 ) {
+  // Pattern pages account for unchanged blocks individually. Brush edits and
+  // single-window callers still publish their entire request atomically.
+  const partial =
+    request.mode === "region" &&
+    request.windows.length > 1 &&
+    options?.requirePixelChange === false;
+  const bounds = request.windows.map(
+    (window, index) => options?.windowMasks?.[index]?.bounds ?? window,
+  );
+  let firstHeld: CodexRepairGeometryError | undefined;
+  let completed = false;
   for (const [index, window] of request.windows.entries()) {
     request.signal.throwIfAborted();
     const attemptId = randomUUID();
@@ -352,19 +370,35 @@ async function inpaintWindows(
       join(directory, `tiles-${attemptId}-${index}.json`),
       JSON.stringify({ window, tiles }),
     );
-    for (const [tileIndex, tile] of tiles.entries()) {
-      request.signal.throwIfAborted();
-      await inpaintCodexWindow(
-        client,
-        directory,
-        {
-          ...owned,
-          tileBounds: tiles.length > 1 ? tile.writeBounds : undefined,
-        },
-        window,
-        `${attemptId}-${index}-${tileIndex}`,
-        tile.cropBounds,
-      );
-    }
+    const held = await applyCodexRepairTiles(
+      owned,
+      tiles,
+      partial
+        ? {
+            bounds,
+            index,
+            // A single-tile rejection occurs before the first page write.
+            before:
+              tiles.length > 1
+                ? cropBitmapFromPage(owned.bitmap, owned.width, bounds[index])
+                : undefined,
+          }
+        : undefined,
+      (tile, tileIndex) =>
+        inpaintCodexWindow(
+          client,
+          directory,
+          {
+            ...owned,
+            tileBounds: tiles.length > 1 ? tile.writeBounds : undefined,
+          },
+          window,
+          `${attemptId}-${index}-${tileIndex}`,
+          tile.cropBounds,
+        ),
+    );
+    if (held) firstHeld ??= held;
+    else if (tiles.length) completed = true;
   }
+  if (firstHeld && !completed) throw firstHeld;
 }

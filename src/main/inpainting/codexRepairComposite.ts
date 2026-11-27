@@ -8,18 +8,17 @@ import { dilateBinaryMaskDisk } from "./patternMaskMorphology";
 import { codexRepairDifference } from "./codexRepairDifference";
 import { matchCodexRepairTone } from "./codexRepairTone";
 
-/** No model calls: align one generated result and preserve unchanged source pixels. */
-export function compositeCodexRepair(
+export class CodexRepairGeometryError extends Error {}
+
+type RepairCrop = { image: Raster; framing: string; bounds: PixelRect };
+
+function registerRepairFrame(
   original: Raster,
   candidate: Raster,
   erase: PixelRect,
   permission: Uint8Array,
   mode: "region" | "paint",
-  paintedCore?: Uint8Array,
-  {
-    proportionalCrop,
-    selection,
-  }: { proportionalCrop?: () => Raster; selection?: Uint8Array } = {},
+  crops?: Iterable<RepairCrop>,
 ) {
   function align(image: Raster) {
     const alignmentMask =
@@ -41,25 +40,50 @@ export function compositeCodexRepair(
       ),
     };
   }
-  let { alignmentMask, registration } = align(candidate);
-  let framing = "resize";
-  if (proportionalCrop && !registration.accepted) {
-    const image = proportionalCrop();
-    const recovered = align(image);
-    // Cropping can remove context. Require the existing independent edge checks
-    // against the source before accepting this alternative framing.
-    if (recovered.registration.accepted) {
-      candidate = image;
-      ({ alignmentMask, registration } = recovered);
-      framing = "center-crop";
+  const initial = align(candidate);
+  if (crops && !initial.registration.accepted) {
+    for (const crop of crops) {
+      const recovered = align(crop.image);
+      if (!recovered.registration.accepted) continue;
+      return {
+        ...recovered,
+        image: crop.image,
+        framing: crop.framing,
+        cropBounds: crop.bounds,
+      };
     }
   }
+  return {
+    ...initial,
+    image: candidate,
+    framing: "resize",
+    cropBounds: undefined,
+  };
+}
+
+/** No model calls: align one generated result and preserve unchanged source pixels. */
+export function compositeCodexRepair(
+  original: Raster,
+  candidate: Raster,
+  erase: PixelRect,
+  permission: Uint8Array,
+  mode: "region" | "paint",
+  paintedCore?: Uint8Array,
+  {
+    crops,
+    selection,
+  }: { crops?: Iterable<RepairCrop>; selection?: Uint8Array } = {},
+) {
+  const { image, alignmentMask, registration, framing, cropBounds } =
+    registerRepairFrame(original, candidate, erase, permission, mode, crops);
   if (!registration.supported || !registration.opaque)
-    throw new Error("Codex 결과가 선택 영역을 완전히 덮지 못했습니다.");
+    throw new CodexRepairGeometryError(
+      "Codex 결과가 선택 영역을 완전히 덮지 못했습니다.",
+    );
   const aligned = { ...original, data: Buffer.from(original.data) };
   compositeRegisteredPatch(
     aligned,
-    candidate,
+    image,
     { x: 0, y: 0, w: original.width, h: original.height },
     { x: 0, y: 0 },
     registration.transform,
@@ -83,5 +107,12 @@ export function compositeCodexRepair(
       );
     }
   }
-  return { output, registration, difference, tone: tone.curves, framing };
+  return {
+    output,
+    registration,
+    difference,
+    tone: tone.curves,
+    framing,
+    cropBounds,
+  };
 }

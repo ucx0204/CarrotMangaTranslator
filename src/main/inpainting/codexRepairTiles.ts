@@ -1,5 +1,6 @@
 import { dilateBinaryMaskDisk } from "./patternMaskMorphology";
-import type { InpaintingEngine } from "./inpaintingEngine";
+import { CodexRepairGeometryError } from "./codexRepairComposite";
+import type { CodexRepairRequest, InpaintingEngine } from "./inpaintingEngine";
 import type { CodexErasureTarget } from "../application/codexTypesettingContracts";
 import { bboxOverlapRatio } from "../../shared/geometry";
 import {
@@ -99,4 +100,40 @@ export function prepareCodexErasureTargets(
         y: target.bounds.y - cropBounds.y,
       },
     }));
+}
+
+/** Roll back earlier tiles of a held block before the next block reads this page. */
+export async function applyCodexRepairTiles(
+  request: CodexRepairRequest,
+  tiles: ContextTile[],
+  partial: { bounds: PixelRect[]; index: number; before?: Buffer } | undefined,
+  apply: (tile: ContextTile, index: number) => Promise<void>,
+) {
+  try {
+    for (const [tileIndex, tile] of tiles.entries()) {
+      request.signal.throwIfAborted();
+      await apply(tile, tileIndex);
+    }
+  } catch (error) {
+    request.signal.throwIfAborted();
+    if (!partial || !(error instanceof CodexRepairGeometryError)) throw error;
+    const { bounds, index, before } = partial;
+    const area = bounds[index];
+    // The page counts modified pixels per block. A shared write area could
+    // otherwise cause a rejected block to be reported as completed.
+    if (
+      bounds.some((peer, i) => i !== index && bboxOverlapRatio(area, peer) > 0)
+    )
+      throw error;
+    if (before) {
+      for (let y = 0; y < area.h; y++)
+        before.copy(
+          request.bitmap,
+          ((area.y + y) * request.width + area.x) * 4,
+          y * area.w * 4,
+          (y + 1) * area.w * 4,
+        );
+    }
+    return error;
+  }
 }

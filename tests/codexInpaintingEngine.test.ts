@@ -4,6 +4,14 @@ import { tmpdir } from "node:os";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PNG } from "pngjs";
+import { nativeImage } from "electron";
+import {
+  Raster,
+  reportedRepairImages,
+  independentBlockImages,
+} from "./codexInpaintingFixtures";
+import { prepareCodexRepairFrames } from "../src/main/inpainting/codexRepairFraming";
+import { inpaintPatternPage } from "../src/main/inpainting/patternPage";
 import {
   createCodexInpaintingEngine,
   acquireCodexInpaintingEngine,
@@ -636,97 +644,319 @@ it("rejects a painted feather overlap with redaction before sending any image", 
   expect(fixture.bitmap.equals(fixture.before)).toBe(true);
 });
 
-/** Native-image boundary double; the real Electron decoder is also exercised by the local smoke. */
-class Raster {
-  constructor(
-    readonly data: Buffer,
-    readonly width: number,
-    readonly height: number,
-  ) {}
-  isEmpty() {
-    return false;
-  }
-  toBitmap() {
-    return Buffer.from(this.data);
-  }
-  toPNG() {
-    const png = new PNG({ width: this.width, height: this.height });
-    png.data = this.data;
-    return PNG.sync.write(png);
-  }
-  toDataURL() {
-    return `data:image/png;base64,${this.toPNG().toString("base64")}`;
-  }
-  getSize() {
-    return { width: this.width, height: this.height };
-  }
-  resize(size: { width: number; height: number }) {
-    const data = Buffer.alloc(size.width * size.height * 4);
-    for (let y = 0; y < size.height; y++)
-      for (let x = 0; x < size.width; x++) {
-        const offset =
-          (Math.floor((y * this.height) / size.height) * this.width +
-            Math.floor((x * this.width) / size.width)) *
-          4;
-        this.data.copy(data, (y * size.width + x) * 4, offset, offset + 4);
-      }
-    return new Raster(data, size.width, size.height);
-  }
-  crop(rect: { x: number; y: number; width: number; height: number }) {
-    expect(rect.x + rect.width).toBeLessThanOrEqual(this.width);
-    expect(rect.y + rect.height).toBeLessThanOrEqual(this.height);
-    const data = Buffer.alloc(rect.width * rect.height * 4);
-    for (let y = 0; y < rect.height; y++) {
-      const start = ((y + rect.y) * this.width + rect.x) * 4;
-      this.data.copy(data, y * rect.width * 4, start, start + rect.width * 4);
-    }
-    return new Raster(data, rect.width, rect.height);
-  }
-}
+it.each([
+  {
+    x: 50,
+    y: 0,
+    extraW: 100,
+    extraH: 0,
+    framing: "center-crop",
+    mode: "paint",
+  },
+  {
+    x: 0,
+    y: 0,
+    extraW: 100,
+    extraH: 0,
+    framing: "matched-crop",
+    mode: "region",
+  },
+  {
+    x: 100,
+    y: 0,
+    extraW: 100,
+    extraH: 0,
+    framing: "matched-crop",
+    mode: "paint",
+  },
+  {
+    x: 0,
+    y: 0,
+    extraW: 0,
+    extraH: 120,
+    framing: "matched-crop",
+    mode: "paint",
+  },
+  {
+    x: 0,
+    y: 120,
+    extraW: 0,
+    extraH: 120,
+    framing: "matched-crop",
+    mode: "region",
+  },
+  {
+    x: 0,
+    y: 21,
+    extraW: 0,
+    extraH: 120,
+    framing: "matched-crop",
+    mode: "region",
+  },
+] as const)(
+  "recovers $mode erasure with the image at ($x, $y) in one generation",
+  async ({ x, y, extraW, extraH, framing, mode }) => {
+    const fixture = await setup();
+    const generate = fixture.turn.getMockImplementation();
+    if (!generate) throw new Error("Missing generator");
+    fixture.turn.mockImplementation(async (request) => {
+      const response = await generate(request);
+      const source = PNG.sync.read(
+        Buffer.from(JSON.parse(response.text).result, "base64"),
+      );
+      const padded = new PNG({
+        width: source.width + extraW,
+        height: source.height + extraH,
+      });
+      padded.data.fill(64);
+      PNG.bitblt(source, padded, 0, 0, source.width, source.height, x, y);
+      return {
+        ...response,
+        text: JSON.stringify({
+          result: PNG.sync.write(padded).toString("base64"),
+        }),
+      };
+    });
+    await fixture.engine.inpaint(
+      fixture.bitmap,
+      192,
+      160,
+      fixture.mask,
+      [fixture.window],
+      { codexMaskMode: mode },
+    );
+    const exact = await setup();
+    await exact.engine.inpaint(
+      exact.bitmap,
+      192,
+      160,
+      exact.mask,
+      [exact.window],
+      { codexMaskMode: mode },
+    );
+    expect(exact.bitmap.equals(exact.before)).toBe(false);
+    expect(fixture.bitmap).toEqual(exact.bitmap);
+    expect(fixture.turn).toHaveBeenCalledTimes(1);
+    const file = (await readdir(fixture.directory)).find((name) =>
+      name.startsWith("splice-"),
+    );
+    if (!file) throw new Error("Missing splice record");
+    const audit = JSON.parse(
+      await readFile(join(fixture.directory, file), "utf8"),
+    );
+    expect(audit).toMatchObject({
+      framing,
+      cropBounds: { x, y, w: 121, h: 126 },
+      registration: { accepted: true },
+    });
+  },
+);
 
-it("recovers a centered image with extra margins in one generation", async () => {
+it.each([
+  "duplicate",
+  "no context",
+  "transparent context",
+  "wrong colors",
+  "central match",
+] as const)("offers no extra crop with %s", (reason) => {
+  const width = 40,
+    height = 28;
+  const original = new PNG({ width, height });
+  for (let i = 0; i < width * height; i++) {
+    original.data[i * 4] = (i % width) * 6;
+    original.data[i * 4 + 1] = Math.floor(i / width) * 8;
+    original.data[i * 4 + 2] = (i % 13) * 15;
+    original.data[i * 4 + 3] = 255;
+  }
+  const generated = new PNG({ width: width * 3, height });
+  generated.data.fill(reason === "transparent context" ? 0 : 255);
+  if (reason === "duplicate") {
+    PNG.bitblt(original, generated, 0, 0, width, height, 0, 0);
+    PNG.bitblt(original, generated, 0, 0, width, height, width * 2, 0);
+  } else if (reason === "central match")
+    PNG.bitblt(original, generated, 0, 0, width, height, width, 0);
+  const permission = new Uint8Array(width * height).fill(
+    Number(reason === "no context"),
+  );
+  const frames = prepareCodexRepairFrames(
+    nativeImage.createFromBuffer(PNG.sync.write(generated)),
+    nativeImage.createFromBuffer(PNG.sync.write(original)),
+    permission,
+  );
+  expect([...frames.crops].map((crop) => crop.framing)).toEqual([
+    "center-crop",
+  ]);
+});
+
+it.each([1, 1.04])(
+  "erases the selected ink at the reported 131×231 / 1208×1302 dimensions (width factor %s)",
+  async (factor) => {
+    const fixture = await setup();
+    const {
+      width,
+      height,
+      window,
+      mask,
+      artwork,
+      ink,
+      generated,
+      contentWidth,
+    } = reportedRepairImages(factor);
+    fixture.turn.mockImplementationOnce(async (request) => {
+      expect(request.imageGenerationSize).toBe("624x1104");
+      return {
+        threadId: "189",
+        turnId: "189",
+        itemId: "189",
+        text: JSON.stringify({
+          result: PNG.sync.write(generated).toString("base64"),
+        }),
+      };
+    });
+    const bitmap = Buffer.from(ink.data);
+    await fixture.engine.inpaint(bitmap, width, height, mask, [window], {
+      codexMaskMode: "region",
+    });
+    const at = (100 * width + 63) * 4;
+    expect(Math.abs(bitmap[at] - artwork.data[at])).toBeLessThan(12);
+    expect(fixture.turn).toHaveBeenCalledOnce();
+    for (let i = 0; i < mask.length; i++)
+      if (
+        !mask[i] &&
+        !bitmap
+          .subarray(i * 4, i * 4 + 4)
+          .equals(ink.data.subarray(i * 4, i * 4 + 4))
+      )
+        throw new Error(`Changed protected pixel ${i}`);
+    const auditFile = (await readdir(fixture.directory)).find((name) =>
+      name.startsWith("splice-"),
+    );
+    if (!auditFile) throw new Error("Missing splice record");
+    expect(
+      JSON.parse(await readFile(join(fixture.directory, auditFile), "utf8")),
+    ).toMatchObject({
+      framing: "matched-crop",
+      cropBounds: { w: contentWidth, h: generated.height },
+      registration: { accepted: true },
+    });
+  },
+);
+
+it("rejects an off-center crop with a recognizable picture but a redrawn splice boundary", async () => {
   const fixture = await setup();
+  for (let y = 0; y < 160; y++)
+    for (let x = 0; x < 192; x++) {
+      const at = y * 192 + x;
+      if (!fixture.mask[at]) {
+        const tone = Math.round(
+          155 + 48 * Math.sin(x / 7 + y / 13) + 37 * Math.cos(y / 8 - x / 11),
+        );
+        fixture.bitmap.fill(tone, at * 4, at * 4 + 3);
+      }
+    }
+  const before = Buffer.from(fixture.bitmap);
   const generate = fixture.turn.getMockImplementation();
   if (!generate) throw new Error("Missing generator");
-  fixture.turn.mockImplementation(async (request) => {
+  fixture.turn.mockImplementationOnce(async (request) => {
     const response = await generate(request);
-    const source = PNG.sync.read(
+    const cleaned = PNG.sync.read(
       Buffer.from(JSON.parse(response.text).result, "base64"),
     );
-    const padded = new PNG({
-      width: source.width + 100,
-      height: source.height,
+    const wrong = new PNG({
+      width: cleaned.width + 100,
+      height: cleaned.height,
     });
-    padded.data.fill(64);
-    PNG.bitblt(source, padded, 0, 0, source.width, source.height, 50, 0);
+    wrong.data.fill(255);
+    // An invented dark bar crosses the splice into the selected lettering.
+    for (let y = 34; y < 90; y++)
+      for (let x = 38; x < 59; x++) {
+        const at = (y * cleaned.width + x) * 4;
+        cleaned.data.fill(12, at, at + 3);
+      }
+    PNG.bitblt(cleaned, wrong, 0, 0, cleaned.width, cleaned.height, 0, 0);
     return {
       ...response,
       text: JSON.stringify({
-        result: PNG.sync.write(padded).toString("base64"),
+        result: PNG.sync.write(wrong).toString("base64"),
       }),
     };
   });
-  await fixture.engine.inpaint(fixture.bitmap, 192, 160, fixture.mask, [
-    fixture.window,
-  ]);
-  const exact = await setup();
-  await exact.engine.inpaint(exact.bitmap, 192, 160, exact.mask, [
-    exact.window,
-  ]);
-  expect(fixture.bitmap).toEqual(exact.bitmap);
-  expect(fixture.turn).toHaveBeenCalledTimes(1);
-  const file = (await readdir(fixture.directory)).find((name) =>
-    name.startsWith("splice-"),
-  );
-  if (!file) throw new Error("Missing splice record");
-  const audit = JSON.parse(
-    await readFile(join(fixture.directory, file), "utf8"),
-  );
-  expect(audit).toMatchObject({
-    framing: "center-crop",
-    registration: { accepted: true },
-  });
+  await expect(
+    fixture.engine.inpaint(
+      fixture.bitmap,
+      192,
+      160,
+      fixture.mask,
+      [fixture.window],
+      { featherPx: 0 },
+    ),
+  ).rejects.toThrow("원본 경계");
+  expect(fixture.turn).toHaveBeenCalledOnce();
+  expect(fixture.bitmap.equals(before)).toBe(true);
 });
+
+it.each(["partial", "all rejected", "provider failure"] as const)(
+  "accounts for independent Codex blocks on the page (%s)",
+  async (outcome) => {
+    const fixture = await setup();
+    const { width, height, source, blocks } = independentBlockImages();
+    const sourceFile = join(fixture.directory, "three-blocks.png");
+    const sourceBytes = PNG.sync.write(source);
+    await writeFile(sourceFile, sourceBytes);
+    let calls = 0;
+    fixture.turn.mockImplementation(async (request) => {
+      calls++;
+      if (outcome === "provider failure" && calls === 3)
+        throw new Error("service unavailable");
+      const refs = request.input.filter((item) => item.type === "image");
+      const decode = (url: string) =>
+        PNG.sync.read(Buffer.from(url.split(",")[1], "base64"));
+      let image: PNG = decode(refs[0].url);
+      if (outcome === "all rejected" || calls === 3) {
+        image = new PNG({ width: 89, height: 75 });
+        for (let at = 0; at < image.data.length; at += 4)
+          image.data[at + 3] = 255;
+      } else {
+        const mask = decode(refs[1].url);
+        for (let at = 0; at < image.data.length; at += 4)
+          if (mask.data[at]) image.data.fill(255, at, at + 4);
+      }
+      return {
+        threadId: "page",
+        turnId: String(calls),
+        itemId: String(calls),
+        text: JSON.stringify({
+          result: PNG.sync.write(image).toString("base64"),
+        }),
+      };
+    });
+    const result = inpaintPatternPage(
+      { ...makePage(), imagePath: sourceFile, width, height, blocks },
+      { inpaintingEngine: fixture.engine },
+    );
+    if (outcome === "partial") {
+      const { page, erasedBlockIds, incompleteBlockIds } = await result;
+      expect(erasedBlockIds).toEqual(["0", "2"]);
+      expect(incompleteBlockIds).toEqual(["1"]);
+      if (!page.inpaintedImagePath) throw new Error("Missing partial image");
+      const output = PNG.sync.read(await readFile(page.inpaintedImagePath));
+      for (let y = 77; y < 104; y++)
+        expect(
+          output.data
+            .subarray(y * width * 4, (y + 1) * width * 4)
+            .equals(source.data.subarray(y * width * 4, (y + 1) * width * 4)),
+        ).toBe(true);
+      expect(calls).toBe(4);
+    } else {
+      await expect(result).rejects.toThrow(
+        outcome === "all rejected" ? "원본 경계" : "service unavailable",
+      );
+      expect(calls).toBe(3);
+    }
+    expect((await readFile(sourceFile)).equals(sourceBytes)).toBe(true);
+  },
+  45_000,
+);
 
 it.each([false, true])(
   "validates geometry after resizing a different ImageGen aspect ratio (%s)",
