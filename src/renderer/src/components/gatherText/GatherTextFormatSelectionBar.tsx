@@ -1,7 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button";
-import { GatherTextDirectFormatModal } from "./GatherTextDirectFormatModal";
 import type { GatherTextFormatSelection } from "./useGatherTextFormatSelection";
 
 export function GatherTextFormatSelectionBar({
@@ -43,9 +42,6 @@ export function GatherTextFormatSelectionBar({
           {t("gatherText.exitSelectionMode")}
         </Button>
       </div>
-      {selection.isFormatModalOpen ? (
-        <GatherTextDirectFormatModal selection={selection} />
-      ) : null}
     </div>
   );
 }

@@ -12448,6 +12448,28 @@
         "pct": 80
       }
     },
+    "src/renderer/src/components/gatherText/GatherTextFormatSelectionBar.tsx": {
+      "lines": {
+        "covered": 0,
+        "total": 3,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 4,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 1,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 8,
+        "pct": 0
+      }
+    },
     "src/renderer/src/components/gatherText/GatheredPageList.tsx": {
       "lines": {
         "covered": 22,

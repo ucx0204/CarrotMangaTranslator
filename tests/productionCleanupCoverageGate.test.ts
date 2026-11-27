@@ -595,7 +595,8 @@ describe("production cleanup coverage floor gate", () => {
     // RX 7600 support adds the original measured Windows OCR policy floor.
     // FLUX modes register the original constants, crop tiling and window preparation floors.
     // Local Gemma streaming reuses the existing bounded body reader.
-    expect(scope.existing).toHaveLength(880);
+    // The gathered-text edit toolbar now launches its editor outside the overview.
+    expect(scope.existing).toHaveLength(881);
     // Includes global chat, shared actions, OpenCode help, MCP event streams, shared
     // translation instructions and image budget; inherited floors remain unchanged.
     // inherited floors remain unchanged.

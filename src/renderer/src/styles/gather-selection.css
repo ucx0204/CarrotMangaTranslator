@@ -127,6 +127,19 @@
   scrollbar-gutter: stable;
 }
 
+/* On short windows, let the preview scroll away with the controls. */
+@media (max-height: 520px) {
+  .gather-direct-editor-body {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .gather-direct-editor-controls-scroll {
+    flex: none;
+    overflow: visible;
+  }
+}
+
 .gather-direct-preset-bar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);

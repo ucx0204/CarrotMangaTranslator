@@ -5,10 +5,22 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { GatherTextModal } from "../src/renderer/src/components/GatherTextModal";
+import { FontsProvider } from "../src/renderer/src/fonts/FontsProvider";
+import { DEFAULT_BLOCK_FONT_ID } from "../src/shared/blockFontCatalog";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 const gatewayMocks = {
+  getFontLibrary: async () => ({
+    customFonts: [],
+    preferences: {
+      hiddenIds: [],
+      favoriteIds: [],
+      orderedIds: [],
+      defaultFontId: DEFAULT_BLOCK_FONT_ID,
+    },
+  }),
+  onFontLibraryChanged: () => () => undefined,
   importReviewText: vi.fn(),
 };
 
@@ -70,6 +82,56 @@ describe("gather text modal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "텍스트 일괄 편집" }));
     expect(onOpenBatchEdit).toHaveBeenCalledOnce();
+  });
+
+  it("opens the format editor outside the overview and returns to its selection", async () => {
+    const onApply = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <FontsProvider>
+        <GatherTextModal
+          chapter={CHAPTER}
+          page={PAGE}
+          onApplyFormat={onApply}
+          onClose={onClose}
+        />
+      </FontsProvider>,
+    );
+    fireEvent.click(screen.getByRole("radio", { name: "번역문만" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "서식 바꿀 블록 선택" }),
+    );
+    const block = screen.getByRole("checkbox", { name: /안녕/ });
+    fireEvent.click(block);
+    const edit = screen.getByRole("button", { name: "선택한 블록 서식 편집" });
+    const overview = screen.getByRole("dialog");
+    edit.focus();
+    fireEvent.click(edit);
+    const editor = await screen.findByRole("dialog", {
+      name: "선택한 블록 서식 편집",
+    });
+    expect(overview.contains(editor)).toBe(false);
+    expect(screen.getAllByRole("dialog")).toEqual([editor]);
+
+    fireEvent.click(screen.getByRole("button", { name: "굵게" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onApply).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(edit);
+
+    fireEvent.click(edit);
+    expect(
+      screen.getByRole("button", { name: "적용" }).hasAttribute("disabled"),
+    ).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "굵게" }));
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+    expect(onApply).toHaveBeenCalledExactlyOnceWith({
+      targets: [{ pageId: PAGE.id, blockId: BLOCK.id }],
+      patch: { bold: true },
+    });
+    expect(screen.getAllByRole("dialog")).toEqual([overview]);
+    expect((block as HTMLInputElement).checked).toBe(true);
+    expect(document.activeElement).toBe(edit);
   });
 
   it("uses the latest chapter callback when a review import finishes", async () => {

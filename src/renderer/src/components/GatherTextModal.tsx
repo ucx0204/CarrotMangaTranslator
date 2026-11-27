@@ -14,6 +14,7 @@ import { GatheredPageList } from "./gatherText/GatheredPageList";
 import type { GatherTextModalProps } from "./gatherText/gatherTextTypes";
 import { useGatherTextModalModel } from "./gatherText/useGatherTextModalModel";
 import { GatherTextFormatSelectionBar } from "./gatherText/GatherTextFormatSelectionBar";
+import { GatherTextDirectFormatModal } from "./gatherText/GatherTextDirectFormatModal";
 import { useEventCallback } from "../hooks/useEventCallback";
 
 export function GatherTextModal({
@@ -53,7 +54,7 @@ export function GatherTextModal({
       : undefined,
     readingDirection,
   });
-  return (
+  const overview = (
     <Modal
       title={t("gatherText.title")}
       size="lg"
@@ -76,6 +77,15 @@ export function GatherTextModal({
         onOpenBatchEdit={onOpenBatchEdit}
       />
     </Modal>
+  );
+  const selection = model.formatSelection;
+  return (
+    <>
+      <div hidden={selection?.isFormatModalOpen}>{overview}</div>
+      {selection?.isFormatModalOpen ? (
+        <GatherTextDirectFormatModal selection={selection} />
+      ) : null}
+    </>
   );
 }
 
