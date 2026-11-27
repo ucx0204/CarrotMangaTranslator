@@ -1,14 +1,18 @@
 import {
   FLUX_INPAINT_MULTIPLE,
+  FLUX_LIGHT_MAX_PIXELS,
   FLUX_METAL_TILE_SIZE_PX,
 } from "./fluxEngineConstants";
 import { buildLocalMask, maskBoundsInRect } from "./imageRaster";
 import {
   alignRectToMultiple,
   expandRect,
+  mergeMaskIntoPage,
+  rectsTouchOrOverlap,
   rectHasMask,
   resolveContextTiles,
   resolveFluxProcessSize,
+  unionRects,
   type PixelRect,
 } from "./maskGeometry";
 
@@ -22,6 +26,108 @@ export type FluxPreparedCrop = {
   validationMask: Uint8Array;
   writeBounds: PixelRect;
 };
+
+export type FluxCropInput = Pick<
+  FluxPreparedCrop,
+  "localMask" | "paddedBounds" | "processSize"
+> & { workerMaxPixels?: number };
+
+export type FluxLightWindow = {
+  crop: FluxPreparedCrop;
+  model: PixelRect;
+  protectedBounds: PixelRect;
+  speechBubble: boolean;
+};
+
+export function protectedFluxLightBounds(
+  modelInput: PixelRect,
+  composite: PixelRect,
+  constraint: PixelRect | undefined,
+  page: { width: number; height: number },
+  featherPx: number,
+) {
+  return unionRects(
+    modelInput,
+    constraint ?? expandRect(composite, page.width, page.height, featherPx),
+  );
+}
+
+/** Consecutive owners may share a prediction only if every write area stays independent. */
+export function canPackFluxLightWindow(
+  peers: FluxLightWindow[],
+  next: FluxLightWindow,
+  page: { width: number; height: number },
+  options: { contextPx: number; maskPaddingPx: number; maxPixels: number },
+): boolean {
+  if (
+    peers.some(
+      (peer) =>
+        peer.speechBubble !== next.speechBubble ||
+        rectsTouchOrOverlap(peer.protectedBounds, next.protectedBounds),
+    )
+  )
+    return false;
+  const members = [...peers, next];
+  const model = members.map((m) => m.model).reduce(unionRects);
+  const margin = 2 * (options.contextPx + options.maskPaddingPx);
+  const maxSide = Math.sqrt(FLUX_LIGHT_MAX_PIXELS);
+  if (model.w + margin > maxSide || model.h + margin > maxSide) return false;
+  const bounds = packedCropBounds(members, page);
+  // Background lettering can cross fine screentones. A shared field must
+  // retain native detail there, even if the light budget has room to resize.
+  const pixels = bounds.w * bounds.h;
+  return (
+    bounds.w <= maxSide &&
+    bounds.h <= maxSide &&
+    pixels <= options.maxPixels &&
+    (next.speechBubble || pixels <= largestMemberPixels(members))
+  );
+}
+
+function largestMemberPixels(members: FluxLightWindow[]): number {
+  return Math.max(
+    ...members.map(
+      ({ crop }) => crop.processSize.width * crop.processSize.height,
+    ),
+  );
+}
+
+function packedCropBounds(
+  members: FluxLightWindow[],
+  page: { width: number; height: number },
+) {
+  return alignRectToMultiple(
+    members.map((m) => m.crop.paddedBounds).reduce(unionRects),
+    page.width,
+    page.height,
+    FLUX_INPAINT_MULTIPLE,
+  );
+}
+
+export function packFluxLightInputs(
+  members: FluxLightWindow[],
+  page: { width: number; height: number },
+): FluxCropInput {
+  const bounds = packedCropBounds(members, page);
+  const mask = new Uint8Array(bounds.w * bounds.h);
+  for (const { crop } of members) {
+    const rect = crop.paddedBounds;
+    mergeMaskIntoPage(
+      mask,
+      bounds.w,
+      { ...rect, x: rect.x - bounds.x, y: rect.y - bounds.y },
+      crop.localMask,
+    );
+  }
+  return {
+    localMask: mask,
+    paddedBounds: bounds,
+    processSize: { width: bounds.w, height: bounds.h },
+    // Share the page-space context without requesting a larger latent image
+    // than the biggest single prediction this group replaces.
+    workerMaxPixels: largestMemberPixels(members),
+  };
+}
 
 export function prepareFluxWindowCrops(options: {
   contextPx: number;

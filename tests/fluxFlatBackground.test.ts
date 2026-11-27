@@ -72,6 +72,38 @@ describe("FLUX flat background correction", () => {
     }
   });
 
+  it("restores the verified interior of a caption surrounded by a different solid colour", () => {
+    for (const paper of [18, 241]) {
+      const f = outlinedBubble([paper, paper, paper]);
+      for (let i = 3; i < f.generated.length; i += 4) f.generated[i] = 255;
+      for (let y = 0; y < f.height; y++)
+        for (let x = 0; x < f.width; x++)
+          if (x < 20 || x >= 40 || y < 20 || y >= 40)
+            f.source.fill(
+              255 - paper,
+              (y * f.width + x) * 4,
+              (y * f.width + x) * 4 + 3,
+            );
+      const context = Buffer.from(f.generated);
+      restoreFluxFlatBackground({ ...f, nativeFlux: true }, context);
+      const center = (30 * f.width + 30) * 4;
+      expect([...f.generated.subarray(center, center + 4)]).toEqual([
+        paper,
+        paper,
+        paper,
+        255,
+      ]);
+      expect(context[center]).toBe(255 - paper);
+      expect(f.generated[0]).toBe(120);
+      // The same uniform surrounding panel is not evidence for removing interior artwork.
+      f.source[(26 * f.width + 30) * 4] = 255 - paper;
+      for (let i = 0; i < f.generated.length; i += 4)
+        f.generated.fill(120, i, i + 3);
+      restoreFluxFlatBackground({ ...f, nativeFlux: true }, context);
+      expect(f.generated[center]).toBe(120);
+    }
+  });
+
   it("refuses patterned or gradient balloon interiors even with flat exterior strips", () => {
     for (const pattern of ["tone", "gradient"]) {
       const f = outlinedBubble();
@@ -84,6 +116,25 @@ describe("FLUX flat background correction", () => {
       restoreFluxFlatBackground(f);
       expect(f.generated).toEqual(before);
     }
+  });
+
+  it("recovers a verified gray caption ramp in the final FLUX image while retaining the worker context", () => {
+    const f = outlinedBubble();
+    for (let y = 0; y < f.height; y++)
+      for (let x = 0; x < f.width; x++) {
+        const at = (y * f.width + x) * 4;
+        const inside = x >= 20 && x < 40 && y >= 20 && y < 40;
+        const ink = x >= 28 && x < 31 && y >= 28 && y < 32;
+        const value = ink ? 13 : inside ? 150 + (x - 20) * 3 : 29;
+        f.source.fill(value, at, at + 3);
+        f.source[at + 3] = 255;
+        f.generated[at + 3] = 255;
+      }
+    const context = Buffer.from(f.generated);
+    restoreFluxFlatBackground({ ...f, nativeFlux: true }, context);
+    expect(f.generated[(30 * f.width + 29) * 4]).toBe(177);
+    expect(context[(30 * f.width + 29) * 4]).toBe(29);
+    expect(f.generated[(19 * f.width + 29) * 4]).toBe(120);
   });
 
   it("rejects one-sided interior evidence", () => {

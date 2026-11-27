@@ -106,6 +106,7 @@ export function createFluxEngine(
           getWorker,
           height,
           isolateWindowMasks: light || backend === "metal-native",
+          packLightWindows: light,
           cropStrategy,
           mask,
           runOptions: resolvedRunOptions,

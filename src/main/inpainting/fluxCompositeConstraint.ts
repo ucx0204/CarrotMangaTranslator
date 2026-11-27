@@ -1,3 +1,4 @@
+import type { PixelRect } from "./maskGeometry";
 import type { FluxPreparedCrop } from "./fluxCropTiling";
 import { compositeFluxOutput } from "./imageRaster";
 import type { InpaintingWindowMask } from "./inpaintingEngine";
@@ -6,31 +7,52 @@ import {
   type ExclusiveInpaintingWindowMasks,
 } from "./inpaintingWindowMask";
 
-export function compositeConstrainedFluxOutput(options: {
-  bitmap: Buffer;
+export function prepareFluxComposite(options: {
   compositeConstraints?: Array<InpaintingWindowMask | null>;
   compositeMasks?: InpaintingWindowMask[];
   coreWindowMasks?: InpaintingWindowMask[];
-  crop: FluxPreparedCrop;
   effectiveMask: Uint8Array;
+  useGeneratedAlpha?: boolean;
   featherPx: number;
-  generated: Buffer;
   height: number;
   index: number;
   width: number;
   windowMask?: ExclusiveInpaintingWindowMasks;
-}): void {
+}) {
   const masks = resolveFluxCompositeMasks(options);
-  compositeFluxOutput(
-    options.bitmap,
-    options.generated,
-    masks.core,
-    options.width,
-    options.crop.paddedBounds,
-    options.featherPx,
-    options.crop.writeBounds,
-    masks.constraint,
-  );
+  return (bitmap: Buffer, generated: Buffer, crop: FluxPreparedCrop) =>
+    compositeFluxOutput(
+      bitmap,
+      generated,
+      masks.core,
+      options.width,
+      crop.paddedBounds,
+      options.featherPx,
+      masks.bounds
+        ? intersectFeatheredBounds(
+            crop.writeBounds,
+            masks.bounds,
+            options.featherPx,
+          )
+        : crop.writeBounds,
+      masks.constraint,
+      options.useGeneratedAlpha,
+    );
+}
+
+function intersectFeatheredBounds(
+  write: PixelRect,
+  core: PixelRect,
+  feather: number,
+): PixelRect {
+  const x = Math.max(write.x, core.x - feather);
+  const y = Math.max(write.y, core.y - feather);
+  return {
+    x,
+    y,
+    w: Math.max(0, Math.min(write.x + write.w, core.x + core.w + feather) - x),
+    h: Math.max(0, Math.min(write.y + write.h, core.y + core.h + feather) - y),
+  };
 }
 
 function resolveFluxCompositeMasks(options: {
@@ -42,7 +64,11 @@ function resolveFluxCompositeMasks(options: {
   index: number;
   width: number;
   windowMask?: ExclusiveInpaintingWindowMasks;
-}): { core: Uint8Array; constraint?: Uint8Array } {
+}): {
+  core: Uint8Array;
+  constraint?: Uint8Array;
+  bounds?: InpaintingWindowMask["bounds"];
+} {
   const constraint = options.compositeConstraints?.[options.index] ?? null;
   if (!options.compositeConstraints && !options.compositeMasks) {
     return { core: options.effectiveMask };
@@ -57,6 +83,7 @@ function resolveFluxCompositeMasks(options: {
     );
   }
   return {
+    bounds: coreWindow.bounds,
     core: expandWindowMaskToPage(coreWindow, options.width, options.height),
     ...(constraint
       ? {

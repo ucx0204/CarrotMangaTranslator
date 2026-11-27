@@ -43,6 +43,7 @@ export type FluxInpaintRunnerArgs = {
   };
   height: number;
   isolateWindowMasks: boolean;
+  packLightWindows?: boolean;
   modelMaskIsTypography?: boolean;
   cropStrategy: FluxCropStrategy;
   mask: Uint8Array;

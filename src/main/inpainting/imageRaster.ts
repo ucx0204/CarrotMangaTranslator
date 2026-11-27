@@ -124,7 +124,9 @@ export function compositeFluxOutput(
   featherPx: number,
   writeBounds: PixelRect = rect,
   compositeConstraint?: Uint8Array,
+  useGeneratedAlpha = false,
 ): void {
+  const channels = useGeneratedAlpha ? 4 : 3;
   const startX = clamp(writeBounds.x - rect.x, 0, rect.w);
   const startY = clamp(writeBounds.y - rect.y, 0, rect.h);
   const endX = clamp(writeBounds.x + writeBounds.w - rect.x, startX, rect.w);
@@ -150,22 +152,14 @@ export function compositeFluxOutput(
       }
       const targetOffset = (pageY * pageWidth + pageX) * 4;
       const sourceOffset = (y * rect.w + x) * 4;
-      bitmap[targetOffset] = blendByte(
-        bitmap[targetOffset] ?? 0,
-        generated[sourceOffset] ?? 0,
-        alpha,
-      );
-      bitmap[targetOffset + 1] = blendByte(
-        bitmap[targetOffset + 1] ?? 0,
-        generated[sourceOffset + 1] ?? 0,
-        alpha,
-      );
-      bitmap[targetOffset + 2] = blendByte(
-        bitmap[targetOffset + 2] ?? 0,
-        generated[sourceOffset + 2] ?? 0,
-        alpha,
-      );
-      bitmap[targetOffset + 3] = 255;
+      for (let channel = 0; channel < channels; channel++) {
+        bitmap[targetOffset + channel] = blendByte(
+          bitmap[targetOffset + channel] ?? 0,
+          generated[sourceOffset + channel] ?? 0,
+          alpha,
+        );
+      }
+      if (!useGeneratedAlpha) bitmap[targetOffset + 3] = 255;
     }
   }
 }
@@ -259,9 +253,6 @@ function maskSoftAlphaAt(
     y,
     Math.max(1, featherPx),
   );
-  if (!Number.isFinite(bestDistanceSq)) {
-    return 0;
-  }
   return clamp(1 - Math.sqrt(bestDistanceSq) / Math.max(1, featherPx), 0, 1);
 }
 
@@ -272,53 +263,25 @@ function findNearestMaskDistanceSq(
   y: number,
   radius: number,
 ): number {
-  let bestDistanceSq = Number.POSITIVE_INFINITY;
-  for (let dy = -radius; dy <= radius; dy += 1) {
-    for (let dx = -radius; dx <= radius; dx += 1) {
-      const distanceSq = dx * dx + dy * dy;
-      if (
-        shouldUseMaskDistance(mask, width, x + dx, y + dy, distanceSq, {
-          bestDistanceSq,
-          radius,
-        })
-      ) {
-        bestDistanceSq = distanceSq;
-      }
+  // Exactly on the radius the blend weight is zero. Clipping each scanline
+  // also prevents the final column from wrapping into the next row.
+  let bestDistanceSq = radius * radius;
+  const left = Math.max(0, x - radius),
+    right = Math.min(width - 1, x + radius);
+  const top = Math.max(0, y - radius),
+    bottom = Math.min(Math.ceil(mask.length / width) - 1, y + radius);
+  for (let row = top; row <= bottom; row++) {
+    const dySq = (row - y) ** 2;
+    if (dySq >= bestDistanceSq) continue;
+    const offset = row * width;
+    for (let col = left; col <= right; col++) {
+      if (!mask[offset + col]) continue;
+      const distanceSq = dySq + (col - x) ** 2;
+      if (distanceSq === 1) return 1;
+      bestDistanceSq = Math.min(bestDistanceSq, distanceSq);
     }
   }
   return bestDistanceSq;
-}
-
-function shouldUseMaskDistance(
-  mask: Uint8Array,
-  width: number,
-  x: number,
-  y: number,
-  distanceSq: number,
-  limits: { bestDistanceSq: number; radius: number },
-): boolean {
-  return (
-    distanceSq <= limits.radius * limits.radius &&
-    distanceSq < limits.bestDistanceSq &&
-    maskHasValueAt(mask, width, x, y)
-  );
-}
-
-function maskHasValueAt(
-  mask: Uint8Array,
-  width: number,
-  x: number,
-  y: number,
-): boolean {
-  const index = y * width + x;
-  return (
-    x >= 0 &&
-    x < width &&
-    y >= 0 &&
-    index >= 0 &&
-    index < mask.length &&
-    Boolean(mask[index])
-  );
 }
 
 function dilateMaskSquare(

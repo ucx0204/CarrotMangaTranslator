@@ -78,7 +78,11 @@ export async function inpaintDrawnPatternPage(
   await runDrawnPatternInpainting(input, engine, options, page.imagePath);
   // Padding/context may guide inference, but cannot authorize extra final pixels.
   restoreHiddenPixels(beforeBitmap, input.bitmap, boundary);
-  const blocksErased = countChangedComponents(beforeBitmap, input);
+  const blocksErased = countChangedComponents(
+    beforeBitmap,
+    input,
+    engine.model === "flux-klein",
+  );
   const blocksIncomplete = input.components.length - blocksErased;
   if (blocksErased === 0) {
     return { page, blocksErased: 0, blocksIncomplete };
@@ -222,13 +226,20 @@ function resolveOwnedWindowMasks(
 function countChangedComponents(
   beforeBitmap: Buffer,
   input: DrawnPatternInput,
+  includeAlpha: boolean,
 ): number {
   return input.components.filter(
     (component) =>
-      measureWindowMaskedRegionChange(beforeBitmap, input.bitmap, input.width, {
-        bounds: component.rect,
-        data: component.data,
-      }).changedPixels > 0,
+      measureWindowMaskedRegionChange(
+        beforeBitmap,
+        input.bitmap,
+        input.width,
+        {
+          bounds: component.rect,
+          data: component.data,
+        },
+        includeAlpha,
+      ).changedPixels > 0,
   ).length;
 }
 

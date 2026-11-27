@@ -1,5 +1,6 @@
 import type { InpaintingWindowMask } from "./inpaintingEngine";
 import { projectWindowMask } from "./bubbleLayoutConstraintMask";
+import { restoreVerifiedFluxCaptionGradient } from "./fluxCaptionGradient";
 import { expandRect, type PixelRect } from "./maskGeometry";
 import { dilateBinaryMaskDisk } from "./patternMaskMorphology";
 import { maskComponents } from "./rasterMasks";
@@ -13,6 +14,7 @@ type FlatBackgroundInput = {
   width: number;
   height: number;
   speechBubble?: boolean;
+  nativeFlux?: boolean;
   core?: InpaintingWindowMask;
 };
 
@@ -22,7 +24,10 @@ type FlatBackgroundInput = {
  * Textured/edge-crossing regions keep the generated pixels.
  * The existing compositor still owns all page writes and feathering.
  */
-export function restoreFluxFlatBackground(input: FlatBackgroundInput): void {
+export function restoreFluxFlatBackground(
+  input: FlatBackgroundInput,
+  contextGenerated?: Buffer,
+): void {
   const constraint = input.constraint;
   if (!constraint) return;
   for (const component of maskComponents(
@@ -39,12 +44,34 @@ export function restoreFluxFlatBackground(input: FlatBackgroundInput): void {
       },
       data: component.data,
     };
-    const color =
-      surroundingFlatColor(input, mask, constraint) ??
-      interiorFlatColor(input, mask) ??
-      ownedRimFlatColor(input, mask);
-    if (color) paintCandidate(input, mask, color);
+    const exterior = surroundingFlatColor(input, mask, constraint);
+    if (exterior && contextGenerated)
+      paintCandidate({ ...input, generated: contextGenerated }, mask, exterior);
+    // A solid panel surrounding a balloon can be a completely different colour
+    // from its paper. Only the verified inside colour belongs in the final edit.
+    restoreFinalPaper(input, mask, component.area, exterior);
   }
+}
+
+function restoreFinalPaper(
+  input: FlatBackgroundInput,
+  mask: InpaintingWindowMask,
+  area: number,
+  exterior: number[] | null,
+) {
+  const exteriorUnsupported =
+    exterior &&
+    input.nativeFlux &&
+    input.speechBubble &&
+    input.core &&
+    !hasDominantPaperColor(input, mask, exterior, area);
+  const color =
+    (exteriorUnsupported ? null : exterior) ??
+    interiorFlatColor(input, mask) ??
+    ownedRimFlatColor(input, mask);
+  if (color) paintCandidate(input, mask, color);
+  else if (exteriorUnsupported && input.core)
+    restoreVerifiedFluxCaptionGradient(input, mask, input.core);
 }
 
 /** A clipped balloon's outside ring can contain its inked outline or artwork.
@@ -200,22 +227,29 @@ function surroundingFlatColor(
 }
 
 function flatSampleColor(channels: number[][]): number[] | null {
-  const color = channels.map(
-    (channel) => channel.sort((a, b) => a - b)[Math.floor(channel.length / 2)],
-  );
-  return channels.every((channel, c) => isFlatChannel(channel, color[c]))
-    ? color
-    : null;
-}
-
-function isFlatChannel(channel: number[], median: number): boolean {
-  let squares = 0;
-  for (const value of channel) {
-    const delta = Math.abs(value - median);
-    if (delta > 24) return false;
-    squares += delta * delta;
+  const color: number[] = [];
+  for (const channel of channels) {
+    const histogram = new Uint32Array(256);
+    let low = 255,
+      high = 0;
+    for (const value of channel) {
+      low = Math.min(low, value);
+      high = Math.max(high, value);
+      if (high - low > 48) return null;
+      histogram[value]++;
+    }
+    let median = low,
+      count = histogram[low];
+    while (count <= Math.floor(channel.length / 2))
+      count += histogram[++median];
+    if (median - low > 24 || high - median > 24) return null;
+    let squares = 0;
+    for (let value = low; value <= high; value++)
+      squares += histogram[value] * (value - median) ** 2;
+    if (squares > 25 * channel.length) return null;
+    color.push(median);
   }
-  return squares / channel.length <= 25;
+  return color;
 }
 
 function paintCandidate(
@@ -231,7 +265,9 @@ function paintCandidate(
       if (!mask.data[y * mask.bounds.w + x] || cx < 0 || cx >= input.crop.w)
         continue;
       const offset = (cy * input.crop.w + cx) * 4;
-      for (let c = 0; c < 3; c++) input.generated[offset + c] = color[c];
+      const alpha = input.nativeFlux ? input.generated[offset + 3] : 255;
+      for (let c = 0; c < 3; c++)
+        input.generated[offset + c] = Math.min(alpha, color[c]);
     }
   }
 }

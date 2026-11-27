@@ -1,3 +1,11 @@
+import {
+  createCoordinateBitmap,
+  createFakeNativeImage,
+  createCopyWorkerScript,
+  createTileCaptureWorkerScript,
+  createMaskCaptureWorkerScript,
+  createMaskChangingWorkerScript,
+} from "./fluxEngineFixtures";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,6 +30,210 @@ afterEach(() => {
 });
 
 describe("Flux inpainting engine change detection", () => {
+  it("shares a light prediction across nearby independent owners and preserves each write boundary", async () => {
+    vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
+    const { createFluxEngine } =
+      await import("../src/main/inpainting/fluxEngine");
+    const width = 512,
+      height = 400;
+    const windowMask = (x: number, y: number, w: number, h: number) => ({
+      bounds: { x, y, w, h },
+      data: new Uint8Array(w * h).fill(1),
+    });
+    const owners = [140, 204, 275, 337].map((x) => windowMask(x, 182, 12, 10));
+    const cores = owners.map(({ bounds }) =>
+      windowMask(bounds.x + 2, bounds.y + 2, 5, 5),
+    );
+    const constraints = owners.map(({ bounds }) =>
+      windowMask(bounds.x, bounds.y, 10, 10),
+    );
+    const bitmap = createCoordinateBitmap(width, height);
+    for (let i = 0; i < bitmap.length; i += 4) {
+      bitmap[i] = (Math.floor(i / 4) % 7) * 31 + 32;
+    }
+    const outputs: Buffer[] = [];
+    for (const fluxMode of ["normal", "light"] as const) {
+      const root = createTempDir("mgt-flux-pack-");
+      const capture = join(root, "count");
+      const worker = join(root, "worker.cjs");
+      writeFileSync(worker, createMaskChangingWorkerScript(capture));
+      const engine = createFluxEngine({
+        fluxMode,
+        runRootDir: root,
+        diagnostics: createTestDiagnostics(),
+        launch: {
+          backend: "rocm-native",
+          executable: process.execPath,
+          args: [worker],
+          runtimePath: root,
+          label: "test",
+        },
+      });
+      const result = Buffer.from(bitmap);
+      try {
+        await engine.inpaint(
+          result,
+          width,
+          height,
+          new Uint8Array(width * height),
+          owners.map((m) => m.bounds),
+          {
+            speechBubbleWindows: [true, true, true, false],
+            windowMasks: owners,
+            compositeMasks: cores,
+            compositeConstraints: constraints,
+            compositeFeatherPx: [0, 3, 1, 2],
+            requirePixelChange: true,
+          },
+        );
+      } finally {
+        await engine.dispose();
+      }
+      expect(Number(readFileSync(capture, "utf8"))).toBe(
+        fluxMode === "light" ? 2 : 4,
+      );
+      outputs.push(result);
+    }
+    expect(outputs[0].equals(outputs[1])).toBe(true);
+    for (const { bounds } of cores) {
+      expect(
+        outputs[1][(bounds.y * width + bounds.x) * 4],
+        String(bounds.x),
+      ).toBe(0);
+    }
+    const allowed = new Uint8Array(width * height);
+    for (const { bounds } of constraints)
+      for (let y = bounds.y; y < bounds.y + bounds.h; y++)
+        allowed.fill(1, y * width + bounds.x, y * width + bounds.x + bounds.w);
+    expect(
+      outputs[1].every((v, i) => allowed[Math.floor(i / 4)] || v === bitmap[i]),
+    ).toBe(true);
+  });
+
+  it("reports an unchanged owner individually even when its neighbour was erased in the same prediction", async () => {
+    const images = createFakeNativeImage();
+    vi.doMock("electron", () => ({ nativeImage: images }));
+    const { runFluxInpaint } =
+      await import("../src/main/inpainting/fluxEngineRunner");
+    const width = 90,
+      height = 64;
+    const owners = [15, 55].map((x) => ({
+      bounds: { x, y: 27, w: 6, h: 6 },
+      data: new Uint8Array(36).fill(1),
+    }));
+    for (const [speechBubbleWindows, contextPx, expectedCalls] of [
+      [[true, true], 16, 1],
+      [[false, false], 96, 1],
+      [[false, false], 16, 2],
+      [undefined, 16, 2],
+    ] as Array<[boolean[] | undefined, number, number]>) {
+      const diagnostics = { warn: vi.fn() };
+      const bitmap = createCoordinateBitmap(width, height);
+      let calls = 0;
+      await runFluxInpaint(
+        {
+          bitmap,
+          width,
+          height,
+          mask: new Uint8Array(width * height),
+          windows: owners.map((owner) => owner.bounds),
+          runRootDir: createTempDir("mgt-flux-owner-change-"),
+          packLightWindows: true,
+          isolateWindowMasks: true,
+          cropStrategy: "native",
+          runOptions: {
+            windowMasks: owners,
+            compositeMasks: owners,
+            speechBubbleWindows,
+            contextPx,
+            maskPaddingPx: 0,
+            featherPx: 0,
+            requirePixelChange: true,
+          },
+          getWorker: () => ({
+            inpaint: async (request) => {
+              calls++;
+              const src = images.createFromBuffer(readFileSync(request.input));
+              const output = src.toBitmap();
+              const mask = images
+                .createFromBuffer(readFileSync(request.mask))
+                .toBitmap();
+              for (let i = 0; i < output.length; i += 4) {
+                if (mask[i] && output[i] < 40) output[i + 2] = 0;
+              }
+              writeFileSync(
+                request.output,
+                images.createFromBitmap(output, src.getSize()).toPNG(),
+              );
+            },
+          }),
+        },
+        diagnostics,
+      );
+      expect(calls).toBe(expectedCalls);
+      expect(diagnostics.warn).toHaveBeenCalledWith(
+        "Flux inpainting left one or more masked crops effectively unchanged",
+        {
+          eligibleWindows: 2,
+          processedWindows: 2,
+          unchangedStats: [{ crop: 2, changedRatio: 0, meanDelta: 0 }],
+        },
+      );
+    }
+  });
+
+  it("keeps overlapping boundaries, over-budget unions and mixed speech hints in separate light requests", async () => {
+    const { canPackFluxLightWindow, packFluxLightInputs } =
+      await import("../src/main/inpainting/fluxCropTiling");
+    const member = (x: number) => {
+      const model = { x, y: 150, w: 16, h: 16 };
+      const paddedBounds = { x: x - 112, y: 38, w: 240, h: 240 };
+      return {
+        model,
+        protectedBounds: model,
+        speechBubble: true,
+        crop: {
+          paddedBounds,
+          writeBounds: paddedBounds,
+          processSize: { width: 240, height: 240 },
+          localMask: new Uint8Array(0),
+          validationMask: new Uint8Array(0),
+        },
+      };
+    };
+    const a = member(200),
+      limit = member(344);
+    const page = { width: 800, height: 600 };
+    const options = { contextPx: 96, maskPaddingPx: 16, maxPixels: 384 * 384 };
+    expect(canPackFluxLightWindow([a], limit, page, options)).toBe(true);
+    expect(packFluxLightInputs([a, limit], page).workerMaxPixels).toBe(
+      240 * 240,
+    );
+    expect(canPackFluxLightWindow([a], member(345), page, options)).toBe(false);
+    expect(
+      canPackFluxLightWindow(
+        [a],
+        { ...limit, speechBubble: false },
+        page,
+        options,
+      ),
+    ).toBe(false);
+    expect(
+      canPackFluxLightWindow(
+        [a],
+        { ...limit, protectedBounds: a.model },
+        page,
+        options,
+      ),
+    ).toBe(false);
+    expect(
+      canPackFluxLightWindow([a], limit, page, {
+        ...options,
+        maxPixels: 256 * 256,
+      }),
+    ).toBe(false);
+  });
+
   it("leaves a selected window alone when all its model ink belongs to another crop", async () => {
     const { prepareFluxWindowCrops } =
       await import("../src/main/inpainting/fluxCropTiling");
@@ -51,6 +263,48 @@ describe("Flux inpainting engine change detection", () => {
     expect(tile.paddedBounds).toEqual(options.window);
     expect(tile.localMask.some(Boolean)).toBe(true);
   });
+  it("retains the Qwen reference context for brush strokes and balloon-edge reading", async () => {
+    const { prepareFluxWindowGroups } =
+      await import("../src/main/inpainting/fluxWindowPreparation");
+    const width = 576,
+      height = 576;
+    const mask = new Uint8Array(width * height);
+    mask[288 * width + 288] = 1;
+    const bitmap = Buffer.alloc(width * height * 4);
+    for (const [hint, expectedWidth] of [
+      ["brush", 160],
+      ["balloon-edge-reading", 576],
+    ] as const) {
+      const [group] = [
+        ...prepareFluxWindowGroups(
+          {
+            width,
+            height,
+            mask,
+            bitmap,
+            sourceBitmap: bitmap,
+            contextBitmap: bitmap,
+            windows: [{ x: 288, y: 288, w: 1, h: 1 }],
+            isolateWindowMasks: false,
+            cropStrategy: "worker-resize",
+            getWorker: vi.fn(),
+            runDir: "",
+            options: {
+              contextPx: 160,
+              featherPx: 0,
+              maskPaddingPx: 0,
+              maxPixels: width * height,
+            },
+            runOptions: { illustratedTitleWindows: [hint] },
+          },
+          [0],
+          false,
+        ),
+      ];
+      expect(group.members[0].crops[0].paddedBounds.w).toBe(expectedWidth);
+    }
+  });
+
   it("restores framed paper without feeding the correction into the next worker input", async () => {
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
     const { createFluxEngine } =
@@ -182,6 +436,47 @@ describe("Flux inpainting engine change detection", () => {
       expect(bitmap[(27 * width + x) * 4]).toBe(214);
     expect(bitmap[(27 * width + 24) * 4]).toBe(24);
   });
+
+  it.each(["native", "resize"] as const)(
+    "rejects a wrong-size FLUX %s result before writing the page",
+    async (cropStrategy) => {
+      const images = createFakeNativeImage();
+      vi.doMock("electron", () => ({ nativeImage: images }));
+      const { runFluxInpaint } =
+        await import("../src/main/inpainting/fluxEngineRunner");
+      const width = 80,
+        height = 64,
+        bitmap = createCoordinateBitmap(width, height);
+      const before = Buffer.from(bitmap);
+      await expect(
+        runFluxInpaint({
+          width,
+          height,
+          bitmap,
+          mask: new Uint8Array(width * height).fill(1),
+          windows: [{ x: 20, y: 20, w: 10, h: 10 }],
+          cropStrategy,
+          isolateWindowMasks: false,
+          runOptions: {},
+          runRootDir: createTempDir("mgt-flux-output-dimensions-"),
+          getWorker: () => ({
+            inpaint: async ({ output }) => {
+              writeFileSync(
+                output,
+                images
+                  .createFromBitmap(Buffer.alloc(16 * 16 * 4, 255), {
+                    width: 16,
+                    height: 16,
+                  })
+                  .toPNG(),
+              );
+            },
+          }),
+        }),
+      ).rejects.toThrow("크기");
+      expect(bitmap.equals(before)).toBe(true);
+    },
+  );
 
   it("rejects mismatched or out-of-page priority cores before assigning ownership", async () => {
     const { buildExclusivePaddedWindowMasks } =
@@ -887,6 +1182,32 @@ describe("Flux inpainting engine change detection", () => {
     );
   });
 
+  it("counts black ink erased to transparent in crop and per-block FLUX validation", async () => {
+    const { measureMaskedRegionChange, measureWindowMaskedRegionChange } =
+      await import("../src/main/inpainting/fluxChangeStats");
+    const before = Buffer.alloc(32),
+      after = Buffer.alloc(32);
+    before[7] = 255;
+    const mask = Uint8Array.from([0, 1, 1, 0, 0, 0, 0, 0]);
+    const owner = {
+      bounds: { x: 1, y: 0, w: 2, h: 1 },
+      data: Uint8Array.of(1, 1),
+    };
+    for (const includeAlpha of [true, false]) {
+      const expected = {
+        changedPixels: includeAlpha ? 1 : 0,
+        maskedPixels: 2,
+        meanDelta: includeAlpha ? 127.5 : 0,
+      };
+      expect(
+        measureMaskedRegionChange(before, after, mask, includeAlpha),
+      ).toMatchObject(expected);
+      expect(
+        measureWindowMaskedRegionChange(before, after, 4, owner, includeAlpha),
+      ).toMatchObject(expected);
+    }
+  });
+
   it("does not treat small real pixel changes as a true no-op", async () => {
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
 
@@ -918,232 +1239,4 @@ function createTestDiagnostics() {
     info: vi.fn(),
     warn: vi.fn(),
   };
-}
-
-function createCopyWorkerScript(capturePath?: string): string {
-  return `
-const fs = require("node:fs");
-const readline = require("node:readline");
-const rl = readline.createInterface({ input: process.stdin });
-rl.on("line", (line) => {
-  const request = JSON.parse(line);
-  if (request.type === "shutdown") {
-    process.exit(0);
-  }
-  ${
-    capturePath
-      ? `
-  const maskFile = fs.readFileSync(request.mask);
-  const newline = maskFile.indexOf(10);
-  const maskBitmap = maskFile.subarray(newline + 1);
-  let activeMaskPixels = 0;
-  for (let offset = 0; offset < maskBitmap.length; offset += 4) {
-    if (maskBitmap[offset] > 0) activeMaskPixels += 1;
-  }
-  fs.writeFileSync(${JSON.stringify(capturePath)}, JSON.stringify({
-    maskPadding: request.mask_padding,
-    activeMaskPixels,
-  }));
-  `
-      : ""
-  }
-  fs.copyFileSync(request.input, request.output);
-  process.stdout.write(JSON.stringify({ id: request.id, ok: true }) + "\\n");
-});
-`;
-}
-
-function createTileCaptureWorkerScript(capturePath: string): string {
-  return `
-const fs = require("node:fs");
-const readline = require("node:readline");
-const rl = readline.createInterface({ input: process.stdin });
-rl.on("line", (line) => {
-  const request = JSON.parse(line);
-  if (request.type === "shutdown") {
-    process.exit(0);
-  }
-  const input = fs.readFileSync(request.input);
-  const newline = input.indexOf(10);
-  const header = JSON.parse(input.subarray(0, newline).toString("utf8"));
-  const requests = fs.existsSync(${JSON.stringify(capturePath)})
-    ? JSON.parse(fs.readFileSync(${JSON.stringify(capturePath)}, "utf8"))
-    : [];
-  requests.push({
-    width: header.width,
-    height: header.height,
-    maxPixels: request.max_pixels,
-    steps: request.steps,
-  });
-  fs.writeFileSync(${JSON.stringify(capturePath)}, JSON.stringify(requests));
-  fs.copyFileSync(request.input, request.output);
-  process.stdout.write(JSON.stringify({ id: request.id, ok: true }) + "\\n");
-});
-`;
-}
-
-function createMaskCaptureWorkerScript(capturePath: string): string {
-  return `
-const fs = require("node:fs");
-const readline = require("node:readline");
-const rl = readline.createInterface({ input: process.stdin });
-rl.on("line", (line) => {
-  const request = JSON.parse(line);
-  if (request.type === "shutdown") {
-    process.exit(0);
-  }
-  const inputFile = fs.readFileSync(request.input);
-  const inputNewline = inputFile.indexOf(10);
-  const inputHeader = JSON.parse(inputFile.subarray(0, inputNewline).toString("utf8"));
-  const inputBitmap = inputFile.subarray(inputNewline + 1);
-  const originX = inputBitmap[0];
-  const originY = inputBitmap[1];
-  const maskFile = fs.readFileSync(request.mask);
-  const newline = maskFile.indexOf(10);
-  const maskBitmap = maskFile.subarray(newline + 1);
-  const activePixels = [];
-  for (let offset = 0; offset < maskBitmap.length; offset += 4) {
-    if (maskBitmap[offset] === 0) continue;
-    const pixel = offset / 4;
-    activePixels.push(
-      String(originX + (pixel % inputHeader.width)) + "," +
-      String(originY + Math.floor(pixel / inputHeader.width)),
-    );
-  }
-  const requests = fs.existsSync(${JSON.stringify(capturePath)})
-    ? JSON.parse(fs.readFileSync(${JSON.stringify(capturePath)}, "utf8"))
-    : [];
-  requests.push({ activePixels, speechBubble: request.speech_bubble,
-    inputHash: require("node:crypto").createHash("sha256").update(inputFile).digest("hex") });
-  fs.writeFileSync(${JSON.stringify(capturePath)}, JSON.stringify(requests));
-  fs.copyFileSync(request.input, request.output);
-  process.stdout.write(JSON.stringify({ id: request.id, ok: true }) + "\\n");
-});
-`;
-}
-
-function createMaskChangingWorkerScript(capturePath: string): string {
-  return `
-const fs = require("node:fs");
-const readline = require("node:readline");
-const rl = readline.createInterface({ input: process.stdin });
-rl.on("line", (line) => {
-  const request = JSON.parse(line);
-  if (request.type === "shutdown") {
-    process.exit(0);
-  }
-  const inputFile = fs.readFileSync(request.input);
-  const inputNewline = inputFile.indexOf(10);
-  const inputBitmap = Buffer.from(inputFile.subarray(inputNewline + 1));
-  const maskFile = fs.readFileSync(request.mask);
-  const maskNewline = maskFile.indexOf(10);
-  const maskBitmap = maskFile.subarray(maskNewline + 1);
-  for (let offset = 0; offset < maskBitmap.length; offset += 4) {
-    if (maskBitmap[offset] === 0) continue;
-    inputBitmap[offset] = 0;
-    inputBitmap[offset + 1] = 0;
-    inputBitmap[offset + 2] = 0;
-  }
-  fs.writeFileSync(
-    request.output,
-    Buffer.concat([inputFile.subarray(0, inputNewline + 1), inputBitmap]),
-  );
-  const requestCount = fs.existsSync(${JSON.stringify(capturePath)})
-    ? Number(fs.readFileSync(${JSON.stringify(capturePath)}, "utf8"))
-    : 0;
-  fs.writeFileSync(${JSON.stringify(capturePath)}, String(requestCount + 1));
-  process.stdout.write(JSON.stringify({ id: request.id, ok: true }) + "\\n");
-});
-`;
-}
-
-function createCoordinateBitmap(width: number, height: number): Buffer {
-  const bitmap = Buffer.alloc(width * height * 4);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const offset = (y * width + x) * 4;
-      bitmap[offset] = x;
-      bitmap[offset + 1] = y;
-      bitmap[offset + 2] = 180;
-      bitmap[offset + 3] = 255;
-    }
-  }
-  return bitmap;
-}
-
-function createFakeNativeImage(): {
-  createFromBitmap: (
-    bitmap: Buffer,
-    size: { width: number; height: number },
-  ) => FakeImage;
-  createFromBuffer: (buffer: Buffer) => FakeImage;
-  createFromPath: () => FakeImage;
-} {
-  return {
-    createFromBitmap: (bitmap, size) =>
-      new FakeImage(Buffer.from(bitmap), size.width, size.height),
-    createFromBuffer: (buffer) => FakeImage.fromBuffer(buffer),
-    createFromPath: () => FakeImage.empty(),
-  };
-}
-
-class FakeImage {
-  static empty(): FakeImage {
-    return new FakeImage(Buffer.alloc(0), 0, 0, true);
-  }
-
-  static fromBuffer(buffer: Buffer): FakeImage {
-    const newline = buffer.indexOf(10);
-    if (newline < 0) {
-      return FakeImage.empty();
-    }
-    const header = JSON.parse(buffer.subarray(0, newline).toString("utf8")) as {
-      width: number;
-      height: number;
-    };
-    return new FakeImage(
-      Buffer.from(buffer.subarray(newline + 1)),
-      header.width,
-      header.height,
-    );
-  }
-
-  constructor(
-    private readonly bitmap: Buffer,
-    private readonly width: number,
-    private readonly height: number,
-    private readonly empty = false,
-  ) {}
-
-  isEmpty(): boolean {
-    return this.empty;
-  }
-
-  resize(size: { width: number; height: number }): FakeImage {
-    if (size.width === this.width && size.height === this.height) {
-      return this;
-    }
-    return new FakeImage(
-      Buffer.alloc(size.width * size.height * 4, 0),
-      size.width,
-      size.height,
-      this.empty,
-    );
-  }
-
-  getSize(): { width: number; height: number } {
-    return { width: this.width, height: this.height };
-  }
-
-  toBitmap(): Buffer {
-    return Buffer.from(this.bitmap);
-  }
-
-  toPNG(): Buffer {
-    const header = Buffer.from(
-      `${JSON.stringify({ width: this.width, height: this.height })}\n`,
-      "utf8",
-    );
-    return Buffer.concat([header, this.bitmap]);
-  }
 }

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { nativeImage } from "electron";
-import type { FluxPreparedCrop } from "./fluxCropTiling";
+import type { FluxCropInput, FluxPreparedCrop } from "./fluxCropTiling";
 import {
   maskBoundsInRect,
   readGeneratedBitmap,
@@ -95,14 +95,17 @@ async function constrainFinishedPrint(
 }
 
 export function readFluxWindowCandidates(
-  path: string,
+  input: string | Buffer,
   args: FluxWindowProcessArgs,
-  crop: FluxPreparedCrop["paddedBounds"],
+  crop: FluxPreparedCrop,
   nativePaper: boolean,
 ) {
-  return readFluxCropCandidates(path, {
+  return readFluxCropCandidates(input, {
     source: args.sourceBitmap,
-    crop,
+    crop: crop.paddedBounds,
+    expected:
+      args.cropStrategy === "worker-resize" ? undefined : crop.processSize,
+    nativeFlux: args.cropStrategy !== "worker-resize",
     constraint: args.runOptions.compositeConstraints?.[args.index] ?? null,
     speechBubble: args.runOptions.speechBubbleWindows?.[args.index],
     registeredLettering:
@@ -115,7 +118,7 @@ export function readFluxWindowCandidates(
 }
 
 export async function readFluxCropCandidates(
-  path: string,
+  input: string | Buffer,
   options: {
     source: Buffer;
     crop: FluxPreparedCrop["paddedBounds"];
@@ -124,27 +127,30 @@ export async function readFluxCropCandidates(
     height: number;
     speechBubble?: boolean;
     registeredLettering?: boolean;
+    expected?: { width: number; height: number };
+    nativeFlux?: boolean;
     core?: InpaintingWindowMask;
     nativePaper?: boolean;
   },
 ): Promise<{ generated: Buffer; contextGenerated: Buffer }> {
-  const contextGenerated = await readGeneratedBitmap(
-    path,
-    options.crop.w,
-    options.crop.h,
-  );
+  const contextGenerated =
+    typeof input === "string"
+      ? await readGeneratedBitmap(
+          input,
+          options.crop.w,
+          options.crop.h,
+          options.expected,
+        )
+      : input;
   if (options.nativePaper)
     return { generated: contextGenerated, contextGenerated };
-  restoreFluxFlatBackground({
-    ...options,
-    speechBubble: false,
-    generated: contextGenerated,
-  });
   const generated = options.speechBubble
     ? Buffer.from(contextGenerated)
     : contextGenerated;
-  if (options.speechBubble)
-    restoreFluxFlatBackground({ ...options, generated });
+  restoreFluxFlatBackground(
+    { ...options, generated },
+    options.speechBubble ? contextGenerated : undefined,
+  );
   return {
     // The illustrated lettering edit has already registered outlines against
     // the original. Its enclosed white shapes can be leaves or garment folds.
@@ -170,7 +176,7 @@ export function resolveFluxCropPaths(
 
 export async function writeFluxCropInputs(
   paths: { inputPath: string; maskPath: string },
-  crop: FluxPreparedCrop,
+  crop: FluxCropInput,
   cropBitmap: Buffer,
 ): Promise<void> {
   await writePngFromBitmap(

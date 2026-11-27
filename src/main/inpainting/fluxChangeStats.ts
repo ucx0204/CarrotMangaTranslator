@@ -22,6 +22,7 @@ export function measureMaskedRegionChange(
   before: Buffer,
   after: Buffer,
   mask: Uint8Array,
+  includeAlpha = false,
 ): MaskedRegionChangeStats {
   let maskedPixels = 0;
   let changedPixels = 0;
@@ -36,10 +37,7 @@ export function measureMaskedRegionChange(
       continue;
     }
     const offset = pixel * 4;
-    const delta =
-      Math.abs((before[offset] ?? 0) - (after[offset] ?? 0)) +
-      Math.abs((before[offset + 1] ?? 0) - (after[offset + 1] ?? 0)) +
-      Math.abs((before[offset + 2] ?? 0) - (after[offset + 2] ?? 0));
+    const delta = pixelDelta(before, after, offset, includeAlpha);
     maskedPixels += 1;
     totalDelta += delta;
     if (delta >= 8) {
@@ -62,6 +60,7 @@ export function measureWindowMaskedRegionChange(
     bounds: { x: number; y: number; w: number; h: number };
     data: Uint8Array;
   },
+  includeAlpha = false,
 ): MaskedRegionChangeStats {
   const { bounds, data } = windowMask;
   const pageHeight = Math.floor(
@@ -79,7 +78,7 @@ export function measureWindowMaskedRegionChange(
       const pageX = bounds.x + localX;
       if (pageX < 0 || pageX >= pageWidth) continue;
       const offset = (pageY * pageWidth + pageX) * 4;
-      const delta = pixelRgbDelta(before, after, offset);
+      const delta = pixelDelta(before, after, offset, includeAlpha);
       maskedPixels += 1;
       totalDelta += delta;
       if (delta >= 8) changedPixels += 1;
@@ -93,10 +92,16 @@ export function measureWindowMaskedRegionChange(
   };
 }
 
-function pixelRgbDelta(before: Buffer, after: Buffer, offset: number): number {
+function pixelDelta(
+  before: Buffer,
+  after: Buffer,
+  offset: number,
+  includeAlpha: boolean,
+): number {
   return (
     Math.abs((before[offset] ?? 0) - (after[offset] ?? 0)) +
     Math.abs((before[offset + 1] ?? 0) - (after[offset + 1] ?? 0)) +
-    Math.abs((before[offset + 2] ?? 0) - (after[offset + 2] ?? 0))
+    Math.abs((before[offset + 2] ?? 0) - (after[offset + 2] ?? 0)) +
+    (includeAlpha ? Math.abs(before[offset + 3] - after[offset + 3]) : 0)
   );
 }

@@ -1,33 +1,30 @@
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { clamp } from "../../shared/bboxNormalization";
 import { safeCleanup } from "../safeCleanup";
+import { throwIfAborted } from "./fluxAssets/errors";
 import {
-  FLUX_INPAINT_CONTEXT_PX,
   FLUX_INPAINT_STEPS,
-  FLUX_INPAINT_FEATHER_PX,
-  FLUX_INPAINT_MASK_PADDING_PX,
-  FLUX_INPAINT_MAX_PIXELS,
   FLUX_RUNNER_MASK_PADDING_PX,
 } from "./fluxEngineConstants";
 import {
-  readFluxCropCandidates,
   readFluxWindowCandidates,
   resolveFluxCropPaths,
   matchIllustratedCrop,
   writeFluxCropInputs,
 } from "./fluxCropIO";
-import { cropBitmapFromPage } from "./imageRaster";
+import { cropBitmapFromPage, readGeneratedBitmap } from "./imageRaster";
 import { isWindowMaskFullyOwnedByEarlierWindow } from "./inpaintingWindowMask";
-import { compositeConstrainedFluxOutput } from "./fluxCompositeConstraint";
+import { prepareFluxComposite } from "./fluxCompositeConstraint";
 import {
   areWhitePrintCropsRestored,
   overlappingPrintOrder,
   reconcileOverlappingPrint,
 } from "./qwenOverlappingPrint";
 import {
-  prepareFluxWindow,
+  prepareFluxWindowGroups,
+  resolveFluxInpaintOptions,
   prepareFluxWindowMasks,
+  type PreparedFluxWindow,
 } from "./fluxWindowPreparation";
 import {
   isMaskedRegionEffectivelyUnchanged,
@@ -38,14 +35,12 @@ import { logInpaintingRuntimeWarn } from "./inpaintingRuntimeLogger";
 import { reportFluxInpaintSummary } from "./fluxInpaintSummary";
 import { assertFluxMaskContracts } from "./fluxMaskContracts";
 import type { PixelRect } from "./maskGeometry";
-import type { FluxPreparedCrop } from "./fluxCropTiling";
+import type { FluxCropInput } from "./fluxCropTiling";
 import type {
   FluxInpaintDiagnostics,
   FluxInpaintRunnerArgs,
-  FluxInpaintRunOptions,
   FluxWindowProcessArgs,
   FluxWindowProcessResult,
-  ResolvedFluxInpaintOptions,
 } from "./fluxEngineRunnerTypes";
 
 export type { FluxInpaintDiagnostics } from "./fluxEngineRunnerTypes";
@@ -60,6 +55,7 @@ export async function runFluxInpaint(
     getWorker,
     height,
     isolateWindowMasks,
+    packLightWindows = false,
     modelMaskIsTypography,
     cropStrategy,
     mask,
@@ -90,23 +86,26 @@ export async function runFluxInpaint(
   );
   await mkdir(runDir, { recursive: true });
   try {
-    const summary = await processFluxWindows({
-      bitmap,
-      sourceBitmap: Buffer.from(bitmap),
-      contextBitmap: Buffer.from(bitmap),
-      getWorker,
-      height,
-      isolateWindowMasks,
-      cropStrategy,
-      mask,
-      options,
-      runDir,
-      runOptions,
-      compositeMasks,
-      windowMasks,
-      width,
-      windows,
-    });
+    const summary = await processFluxWindows(
+      {
+        bitmap,
+        sourceBitmap: Buffer.from(bitmap),
+        contextBitmap: Buffer.from(bitmap),
+        getWorker,
+        height,
+        isolateWindowMasks,
+        cropStrategy,
+        mask,
+        options,
+        runDir,
+        runOptions,
+        compositeMasks,
+        windowMasks,
+        width,
+        windows,
+      },
+      packLightWindows,
+    );
     reportFluxInpaintSummary(
       summary,
       diagnostics,
@@ -117,37 +116,11 @@ export async function runFluxInpaint(
   }
 }
 
-function resolveFluxInpaintOptions(
-  runOptions: FluxInpaintRunOptions,
-): ResolvedFluxInpaintOptions {
-  return {
-    featherPx: clamp(
-      Math.round(runOptions.featherPx ?? FLUX_INPAINT_FEATHER_PX),
-      0,
-      48,
-    ),
-    contextPx: clamp(
-      Math.round(runOptions.contextPx ?? FLUX_INPAINT_CONTEXT_PX),
-      16,
-      256,
-    ),
-    maskPaddingPx: clamp(
-      Math.round(runOptions.maskPaddingPx ?? FLUX_INPAINT_MASK_PADDING_PX),
-      0,
-      64,
-    ),
-    maxPixels: clamp(
-      Math.round(runOptions.maxPixels ?? FLUX_INPAINT_MAX_PIXELS),
-      256 * 256,
-      1536 * 1536,
-    ),
-  };
-}
-
 async function processFluxWindows(
   args: Omit<FluxWindowProcessArgs, "index" | "window"> & {
     windows: PixelRect[];
   },
+  packLightWindows: boolean,
 ): Promise<import("./fluxInpaintSummary").FluxInpaintSummary> {
   const summary: import("./fluxInpaintSummary").FluxInpaintSummary = {
     coveredWindows: 0,
@@ -156,33 +129,44 @@ async function processFluxWindows(
     unchangedStats: [],
     unchangedWindows: 0,
   };
-  for (const index of overlappingPrintOrder(
-    args.runOptions,
-    args.windows.length,
+  const order = overlappingPrintOrder(args.runOptions, args.windows.length);
+  for (const { members, input } of prepareFluxWindowGroups(
+    args,
+    order,
+    packLightWindows,
   )) {
-    const window = args.windows[index];
-    throwIfAborted(args.runOptions.signal);
-    const result = await processFluxWindow({ ...args, index, window });
-    if (!result.eligible) {
-      if (result.covered) {
-        summary.coveredWindows += 1;
-      }
-      continue;
-    }
-    summary.processedWindows += 1;
-    if (result.unchanged && result.unchangedStats) {
-      summary.unchangedWindows += 1;
-      summary.unchangedStats.push(result.unchangedStats);
+    const shared = input
+      ? await generateSharedCrop(members[0].args, input)
+      : undefined;
+    for (const member of members) {
+      throwIfAborted(args.runOptions.signal);
+      recordWindowResult(summary, await processFluxWindow(member, shared));
     }
   }
   return summary;
 }
 
-async function processFluxWindow(
+function recordWindowResult(
+  summary: import("./fluxInpaintSummary").FluxInpaintSummary,
+  result: FluxWindowProcessResult,
+) {
+  if (!result.eligible) {
+    if (result.covered) summary.coveredWindows++;
+    return;
+  }
+  summary.processedWindows++;
+  if (result.unchanged && result.unchangedStats) {
+    summary.unchangedWindows++;
+    summary.unchangedStats.push(result.unchangedStats);
+  }
+}
+
+async function generateFluxCrop(
   args: FluxWindowProcessArgs,
-): Promise<FluxWindowProcessResult> {
+  crop: FluxCropInput,
+  tileIndex: number,
+) {
   const {
-    bitmap,
     contextBitmap,
     getWorker,
     index,
@@ -192,7 +176,62 @@ async function processFluxWindow(
     runOptions,
     width,
   } = args;
-  const { crops, effectiveMask } = prepareFluxWindowForProcessing(args);
+  throwIfAborted(runOptions.signal);
+  const paths = resolveFluxCropPaths(runDir, index, tileIndex);
+  const cropBitmap = cropBitmapFromPage(
+    contextBitmap,
+    width,
+    crop.paddedBounds,
+  );
+  await writeFluxCropInputs(paths, crop, cropBitmap);
+  const result = await getWorker().inpaint(
+    {
+      input: paths.inputPath,
+      mask: paths.maskPath,
+      output: paths.outputPath,
+      steps: runOptions.steps ?? FLUX_INPAINT_STEPS.normal,
+      strength: 1,
+      maxPixels: ["native", "native-tiled"].includes(cropStrategy)
+        ? Math.min(
+            options.maxPixels,
+            crop.workerMaxPixels ??
+              crop.processSize.width * crop.processSize.height,
+          )
+        : options.maxPixels,
+      maskPadding: FLUX_RUNNER_MASK_PADDING_PX,
+      speechBubble: runOptions.speechBubbleWindows?.[index],
+      ...(runOptions.illustratedTitleWindows?.[index]
+        ? { illustratedTitle: runOptions.illustratedTitleWindows[index] }
+        : {}),
+    },
+    runOptions.signal,
+  );
+  return { output: paths.outputPath, nativePaper: result === "native-paper" };
+}
+
+async function generateSharedCrop(
+  args: FluxWindowProcessArgs,
+  crop: FluxCropInput,
+) {
+  const { output, nativePaper } = await generateFluxCrop(args, crop, 0);
+  const bounds = crop.paddedBounds;
+  return {
+    bitmap: await readGeneratedBitmap(
+      output,
+      bounds.w,
+      bounds.h,
+      crop.processSize,
+    ),
+    bounds,
+    nativePaper,
+  };
+}
+
+async function processFluxWindow(
+  { args, crops, effectiveMask, featherPx }: PreparedFluxWindow,
+  shared?: Awaited<ReturnType<typeof generateSharedCrop>>,
+): Promise<FluxWindowProcessResult> {
+  const { bitmap, index, runOptions, width } = args;
   if (crops.length === 0) {
     return {
       covered: isWindowMaskFullyOwnedByEarlierWindow(
@@ -204,130 +243,52 @@ async function processFluxWindow(
   }
   if (areWhitePrintCropsRestored(args, crops))
     return { covered: true, eligible: false };
-  const changeStats: MaskedRegionChangeStats[] = [];
-  for (const [tileIndex, crop] of crops.entries()) {
-    throwIfAborted(runOptions.signal);
-    const paths = resolveFluxCropPaths(runDir, index, tileIndex);
-    const cropBitmap = cropBitmapFromPage(
-      contextBitmap,
-      width,
-      crop.paddedBounds,
-    );
-    await writeFluxCropInputs(paths, crop, cropBitmap);
-    const workerResult = await getWorker().inpaint(
-      {
-        input: paths.inputPath,
-        mask: paths.maskPath,
-        output: paths.outputPath,
-        steps: runOptions.steps ?? FLUX_INPAINT_STEPS.normal,
-        strength: 1,
-        maxPixels: ["native", "native-tiled"].includes(cropStrategy)
-          ? Math.min(
-              options.maxPixels,
-              crop.processSize.width * crop.processSize.height,
-            )
-          : options.maxPixels,
-        maskPadding: FLUX_RUNNER_MASK_PADDING_PX,
-        speechBubble: runOptions.speechBubbleWindows?.[index],
-        ...(runOptions.illustratedTitleWindows?.[index]
-          ? { illustratedTitle: runOptions.illustratedTitleWindows[index] }
-          : {}),
-      },
-      runOptions.signal,
-    );
-    const candidates = await readFluxWindowCandidates(
-      paths.outputPath,
-      args,
-      crop.paddedBounds,
-      workerResult === "native-paper",
-    );
-    const stats = measureMaskedRegionChange(
-      cropBitmapFromPage(bitmap, width, crop.paddedBounds),
-      candidates.generated,
-      crop.validationMask,
-    );
-    if (stats.maskedPixels > 0) changeStats.push(stats);
-    compositeFluxCandidates(args, crop, effectiveMask, candidates);
-  }
-  return summarizeFluxWindowChange(changeStats, index);
-}
-
-function compositeFluxCandidates(
-  args: FluxWindowProcessArgs,
-  crop: FluxPreparedCrop,
-  effectiveMask: Uint8Array,
-  candidates: Awaited<ReturnType<typeof readFluxCropCandidates>>,
-): void {
-  const { index, options, runOptions } = args;
-  const common = {
+  const composite = prepareFluxComposite({
+    useGeneratedAlpha: args.cropStrategy !== "worker-resize",
     effectiveMask,
     width: args.width,
     height: args.height,
-    crop,
-    featherPx: resolveCompositeFeatherPx(runOptions, options, index),
+    featherPx,
     index,
     windowMask: args.windowMasks?.[index],
     coreWindowMasks: runOptions.windowMasks,
     compositeMasks: args.compositeMasks,
     compositeConstraints: runOptions.compositeConstraints,
-  };
-  // Keep post-generation paper correction out of subsequent model inputs.
-  // The established native/outer-ring composite remains their context.
-  compositeConstrainedFluxOutput({
-    ...common,
-    bitmap: args.contextBitmap,
-    generated: candidates.contextGenerated,
   });
-  matchIllustratedCrop(args, crop, candidates.generated);
-  compositeConstrainedFluxOutput({
-    ...common,
-    bitmap: args.bitmap,
-    generated: candidates.generated,
-  });
-  reconcileOverlappingPrint(args, crop, candidates.generated);
-}
-
-function resolveCompositeFeatherPx(
-  runOptions: FluxInpaintRunOptions,
-  options: ResolvedFluxInpaintOptions,
-  index: number,
-): number {
-  return clamp(
-    Math.round(runOptions.compositeFeatherPx?.[index] ?? options.featherPx),
-    0,
-    48,
-  );
-}
-
-function prepareFluxWindowForProcessing({
-  height,
-  index,
-  isolateWindowMasks,
-  mask,
-  options,
-  runOptions,
-  cropStrategy,
-  width,
-  window,
-  windowMasks,
-}: FluxWindowProcessArgs) {
-  const hint = runOptions.illustratedTitleWindows?.[index];
-  return prepareFluxWindow({
-    cropOptions:
-      hint === "brush"
-        ? { ...options, contextPx: Math.min(options.contextPx, 72) }
-        : hint === "balloon-edge-reading"
-          ? { ...options, contextPx: Math.max(512, options.contextPx) }
-          : options,
-    isolatedReference: String(hint).startsWith("jacket:"),
-    height,
-    isolateWindowMasks: isolateWindowMasks || !!runOptions.compositeConstraints,
-    mask,
-    cropStrategy,
-    width,
-    window,
-    windowMask: windowMasks?.[index],
-  });
+  const changeStats: MaskedRegionChangeStats[] = [];
+  for (const [tileIndex, crop] of crops.entries()) {
+    throwIfAborted(runOptions.signal);
+    const { output, nativePaper } = shared
+      ? {
+          output: cropBitmapFromPage(shared.bitmap, shared.bounds.w, {
+            ...crop.paddedBounds,
+            x: crop.paddedBounds.x - shared.bounds.x,
+            y: crop.paddedBounds.y - shared.bounds.y,
+          }),
+          nativePaper: shared.nativePaper,
+        }
+      : await generateFluxCrop(args, crop, tileIndex);
+    const candidates = await readFluxWindowCandidates(
+      output,
+      args,
+      crop,
+      nativePaper,
+    );
+    const stats = measureMaskedRegionChange(
+      cropBitmapFromPage(bitmap, width, crop.paddedBounds),
+      candidates.generated,
+      crop.validationMask,
+      args.cropStrategy !== "worker-resize",
+    );
+    if (stats.maskedPixels > 0) changeStats.push(stats);
+    throwIfAborted(runOptions.signal);
+    // Later crops use the inference context before final paper corrections.
+    composite(args.contextBitmap, candidates.contextGenerated, crop);
+    matchIllustratedCrop(args, crop, candidates.generated);
+    composite(bitmap, candidates.generated, crop);
+    reconcileOverlappingPrint(args, crop, candidates.generated);
+  }
+  return summarizeFluxWindowChange(changeStats, index);
 }
 
 function summarizeFluxWindowChange(
@@ -387,12 +348,6 @@ async function cleanupFluxRunDir(runDir: string): Promise<void> {
   await safeCleanup("remove Flux inpainting run directory", () =>
     rm(runDir, { recursive: true, force: true }),
   );
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) {
-    throw new DOMException("Aborted", "AbortError");
-  }
 }
 
 function assertMaskedRegionHasPixels(

@@ -596,7 +596,8 @@ describe("production cleanup coverage floor gate", () => {
     // FLUX modes register the original constants, crop tiling and window preparation floors.
     // Local Gemma streaming reuses the existing bounded body reader.
     // The gathered-text edit toolbar now launches its editor outside the overview.
-    expect(scope.existing).toHaveLength(881);
+    // FLUX alpha-only erasure now uses the original masked-change statistics owner.
+    expect(scope.existing).toHaveLength(882);
     // Includes global chat, shared actions, OpenCode help, MCP event streams, shared
     // translation instructions and image budget; inherited floors remain unchanged.
     // inherited floors remain unchanged.
@@ -634,7 +635,8 @@ describe("production cleanup coverage floor gate", () => {
     // Native layout and Qwen CPU inference add six process and worker modules.
     // Ruled page headers and the measured scan palette have separate coverage records.
     // Sparse layout transfer and measured paper, ink, and sound restoration.
-    expect(scope.added).toHaveLength(1750);
+    // Constrained FLUX captions add a verified gradient reconstruction.
+    expect(scope.added).toHaveLength(1751);
     expect(scope.deleted).toHaveLength(12);
   });
 });

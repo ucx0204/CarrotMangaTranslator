@@ -340,7 +340,13 @@ function resolvePatternPixelChanges(
       throw new Error("Pattern validation block binding is incomplete.");
     return {
       blockId,
-      ...measureWindowMaskedRegionChange(before, after, width, windowMask),
+      ...measureWindowMaskedRegionChange(
+        before,
+        after,
+        width,
+        windowMask,
+        engine?.model === "flux-klein",
+      ),
     };
   });
   const unchangedTargets = stats.filter((item) => item.changedPixels <= 0);
