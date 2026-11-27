@@ -3,7 +3,6 @@ import { withImageRedactionReview } from "./jobs/imageRedactionReview";
 import { registerImageRedactionCrop } from "./imageRedactionContext";
 import type { MangaPage } from "../shared/libraryTypes";
 import type { JobFailureGuidance } from "../shared/jobTypes";
-import { isJapaneseLanguageCode } from "../shared/translationLanguages";
 import { tMain } from "./i18n";
 import {
   startAnalysisEndpointSession,
@@ -216,10 +215,7 @@ async function runWholePagePipelineWithDependencies(
 
   const modelPages = pages.filter((page) => !reusableCheckpoints.has(page.id));
   const filtered = filterPagesByOcrText(modelPages, ocrHintsByPageId, {
-    allowNoTextSkip:
-      !options.acquirePage &&
-      !collectPageContext &&
-      allowOcrNoTextSkip(run.baseOptions),
+    allowNoTextSkip: !options.acquirePage && !collectPageContext,
     ocrPipeline: run.baseOptions.ocrPipeline,
   });
   filtered.pageIndexById = buildPageIndexById(pages);
@@ -488,11 +484,6 @@ function emitPagesReadyWithoutModel(
   emitFinalizing(context, message);
 }
 
-/** OCR "텍스트 없음" 스킵은 일본어 원문에서만 허용한다. */
-function allowOcrNoTextSkip(baseOptions: { sourceLanguage?: string }): boolean {
-  return isJapaneseLanguageCode(baseOptions.sourceLanguage);
-}
-
 function createPipelineWarnings(signal: AbortSignal) {
   const collector = createWarningCollector();
   throwIfAborted(signal);
@@ -560,12 +551,13 @@ async function prepareWholePageRun(
     }),
   );
   throwIfAborted(signal);
-  const reusableCheckpoints = resolveReusableTranslationCheckpoints(
+  const reusableCheckpoints = await resolveReusableTranslationCheckpoints(
     pages,
     options.translationCheckpoints,
     run.baseOptions,
     blockMode,
     (message, details) => dependencies.diagnostics.warn(message, details),
+    options,
   );
   const modelPages = pages.filter((page) => !reusableCheckpoints.has(page.id));
   const ocrHintsByPageId = options.preparedOcrHints

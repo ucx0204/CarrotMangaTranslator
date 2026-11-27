@@ -5,10 +5,7 @@ import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { tMain } from "./localization";
 import { prunePromptWorkContextForBudget } from "../../shared/workContextBudget";
-import {
-  buildNoTextCompletedPage,
-  isJapaneseCumulativeNoTextRequest,
-} from "./noText";
+import { buildNoTextCompletedPage, isCumulativeNoTextPage } from "./noText";
 import {
   buildKeepBlocksCompletedPage,
   shouldKeepExistingBlocks,
@@ -275,17 +272,6 @@ export async function preparePageResult({
     pageOptions,
   });
   const items = applyGlossaryOmissionsToOverlayItems(parsed.items, pageOptions);
-  if (isJapaneseCumulativeNoTextRequest(pageOptions, result.requestBody)) {
-    return {
-      kind: "ready",
-      result: {
-        kind: "no-text",
-        page: buildNoTextCompletedPage(pageWithEffectReview),
-        warnings: parsed.warnings,
-        pageContext: parsed.pageContext,
-      },
-    };
-  }
   if (items.length === 0) {
     const emptyResult = buildEmptyItemsResult(
       pageWithEffectReview,
@@ -509,7 +495,10 @@ function buildEmptyItemsResult(
       warnings: [],
     };
   }
-  if (isRequestNoTextDetected(result.requestBody)) {
+  if (
+    isCumulativeNoTextPage(pageOptions, result.requestBody) ||
+    isRequestNoTextDetected(result.requestBody)
+  ) {
     return {
       kind: "no-text",
       page: buildNoTextCompletedPage(page, {

@@ -4,10 +4,7 @@ import {
   SOUND_EFFECT_REVIEW_CONTRACT_VERSION,
 } from "../../shared/soundEffectReview";
 import type { TranslationOptions } from "../appSettings";
-import {
-  isJapaneseCumulativeNoTextRequest,
-  isRequestNoTextDetected,
-} from "./noText";
+import { isCumulativeNoTextPage, isRequestNoTextDetected } from "./noText";
 import { extractPageContextResponse } from "./pageContextResponse";
 import { tMain } from "./localization";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
@@ -124,22 +121,31 @@ export function parsePageResponse({
   warnings: string[];
 } {
   const extracted = extractPageContextResponse(result.outputText);
+  if (isCumulativeNoTextPage(pageOptions, result.requestBody)) {
+    return {
+      items: [],
+      pageContext: extracted.pageContext && {
+        visualSummary: extracted.pageContext.visualSummary,
+        glossary: [],
+        characters: [],
+      },
+      warnings: buildPageContextWarnings(page, pageOptions, extracted.status),
+    };
+  }
   const contextOnlyKeepBlocks =
     pageOptions.keepBlocksMode &&
     pageOptions.collectPageContext &&
     extracted.status === "parsed" &&
     !extracted.overlayText.trim();
-  const parsedItems =
-    contextOnlyKeepBlocks ||
-    isJapaneseCumulativeNoTextRequest(pageOptions, result.requestBody)
-      ? []
-      : parseOverlayItems(
-          runtime,
-          result,
-          page,
-          pageOptions,
-          extracted.overlayText,
-        );
+  const parsedItems = contextOnlyKeepBlocks
+    ? []
+    : parseOverlayItems(
+        runtime,
+        result,
+        page,
+        pageOptions,
+        extracted.overlayText,
+      );
   return {
     items: markFixedBlockFallbacksForReview(parsedItems, result.requestBody),
     pageContext: extracted.pageContext,

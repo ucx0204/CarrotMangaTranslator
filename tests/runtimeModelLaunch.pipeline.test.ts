@@ -350,6 +350,22 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
     });
   });
 
+  it.each([
+    {
+      hints: [{ id: 1, label: "text", x1: 10, y1: 10, x2: 50, y2: 50 }],
+      textEvidenceCount: 0,
+    },
+    { hints: [], textEvidenceCount: 1 },
+  ])(
+    "keeps contradictory prepass evidence eligible for visual reading",
+    async (evidence) => {
+      const result = await collectOcrBboxHints({
+        ocrBboxResult: { ...evidence, noTextDetected: true },
+      });
+      expect(result.noTextDetected).toBe(false);
+    },
+  );
+
   it("does not skip model analysis when OCR found geometry without readable Japanese transcript", async () => {
     const noEvidence = await collectOcrBboxHints({
       ocrBboxHints: [{ id: 1, label: "text", x1: 10, y1: 20, x2: 80, y2: 90 }],
@@ -378,29 +394,33 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
     });
   });
 
-  it("returns a synthetic empty overlay instead of calling a model for no-text OCR pages", async () => {
-    const result = await requestTranslation(
-      { baseUrl: "http://127.0.0.1:1" },
-      {
-        label: "blank-page",
-        sourceLanguage: "ja",
-        modelProvider: "gemma",
-        imageWidth: 1000,
-        imageHeight: 1000,
-        ocrBboxHints: [],
-      },
-    );
+  it.each(["ja", "en", "zh-Hans", "auto"])(
+    "completes confirmed empty %s pages without contacting a model",
+    async (sourceLanguage) => {
+      const result = await requestTranslation(
+        { baseUrl: "http://127.0.0.1:1" },
+        {
+          label: "blank-page",
+          sourceLanguage,
+          ocrQualityMode: "full",
+          modelProvider: "gemma",
+          imageWidth: 1000,
+          imageHeight: 1000,
+          ocrBboxHints: [],
+        },
+      );
 
-    expect(JSON.parse(result.outputText)).toEqual({ items: [] });
-    expect(result.rawResponse).toMatchObject({
-      skipped: true,
-      reason: "ocr-no-text",
-    });
-    expect(result.requestBody).toMatchObject({
-      noTextDetected: true,
-      ocrTextEvidenceCount: 0,
-    });
-  });
+      expect(JSON.parse(result.outputText)).toEqual({ items: [] });
+      expect(result.rawResponse).toMatchObject({
+        skipped: true,
+        reason: "ocr-no-text",
+      });
+      expect(result.requestBody).toMatchObject({
+        noTextDetected: true,
+        ocrTextEvidenceCount: 0,
+      });
+    },
+  );
 
   it("weights OCR GPU install batches so one completed download does not imply half the install is done", () => {
     const ranges = resolveOcrInstallBatchProgressRanges(

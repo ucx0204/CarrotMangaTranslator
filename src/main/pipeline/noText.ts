@@ -1,12 +1,15 @@
 import type { MangaPage } from "../../shared/libraryTypes";
-import { isJapaneseLanguageCode } from "../../shared/translationLanguages";
 import type { TranslationOptions } from "../appSettings";
-import type { OcrBboxResult, RequestSummary, TranslationResult } from "./types";
+import type { RequestSummary, TranslationResult } from "./types";
 
 export function isOcrResultNoTextDetected(
-  result: OcrBboxResult | null | undefined,
+  result: TranslationOptions["ocrBboxResult"] | null,
 ): boolean {
-  return Boolean(result?.noTextDetected);
+  return (
+    result?.noTextDetected === true &&
+    result.hints?.length === 0 &&
+    (result.textEvidenceCount ?? 0) === 0
+  );
 }
 
 export function isRequestNoTextDetected(
@@ -19,14 +22,20 @@ export function isRequestNoTextDetected(
   );
 }
 
-export function isJapaneseCumulativeNoTextRequest(
-  options: Pick<TranslationOptions, "collectPageContext" | "sourceLanguage">,
+export function isCumulativeNoTextPage(
+  options: Pick<
+    TranslationOptions,
+    "collectPageContext" | "ocrBboxResult" | "regionCropMode" | "keepBlocksMode"
+  >,
   requestBody: TranslationResult["requestBody"],
 ): boolean {
   return (
     Boolean(options.collectPageContext) &&
-    isJapaneseLanguageCode(options.sourceLanguage) &&
-    isRequestNoTextDetected(requestBody)
+    !options.regionCropMode &&
+    !options.keepBlocksMode &&
+    (options.ocrBboxResult
+      ? isOcrResultNoTextDetected(options.ocrBboxResult)
+      : isRequestNoTextDetected(requestBody))
   );
 }
 
@@ -37,6 +46,7 @@ export function buildNoTextCompletedPage(
   return {
     ...page,
     blocks: options.keepBlocks ? page.blocks : [],
+    blockOrder: options.keepBlocks ? page.blockOrder : undefined,
     analysisStatus: "completed",
     lastError: undefined,
     updatedAt: new Date().toISOString(),

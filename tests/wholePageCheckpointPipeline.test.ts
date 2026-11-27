@@ -30,6 +30,46 @@ afterEach(async () => {
 });
 
 describe("whole page translation checkpoints", () => {
+  it.each(["cached", "prepared"] as const)(
+    "discards older invented items on resume when %s OCR confirms an empty page",
+    async (source) => {
+      const page = makePage("page-a", "silent.webp");
+      const options = basePipelineOptions([page], []);
+      const empty = {
+        hints: [],
+        noTextDetected: true,
+        textEvidenceCount: 0,
+        diagnostics: [],
+      };
+      const pipeline = await loadPipeline({
+        sourceLanguage: "zh-Hans",
+        ocrHintsByImagePath: new Map([[page.imagePath, empty]]),
+      });
+      const checkpoints = new Map<string, PreparedTranslationCheckpoint>();
+      await pipeline.runWholePagePipeline({
+        ...options,
+        skipOcrPrepass: true,
+        onPagePrepared: async (checkpoint) => {
+          checkpoints.set(page.id, checkpoint);
+          return true;
+        },
+      });
+      expect(checkpoints.get(page.id)?.prepared.kind).toBe("translated");
+      if (source === "cached") await pipeline.runWholePagePipeline(options);
+      const resumed = await pipeline.runWholePagePipeline({
+        ...options,
+        preparedOcrHints:
+          source === "prepared" ? new Map([[page.id, empty]]) : undefined,
+        translationCheckpoints: checkpoints,
+      });
+      expect(resumed.pages[0]).toMatchObject({
+        analysisStatus: "completed",
+        blocks: [],
+      });
+      expect(pipeline.runtime.startEndpointSession).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("does not reuse a kept-block checkpoint that discarded sound translations", async () => {
     const page = makePage("page-a", "001.png");
     let checkpoint: PreparedTranslationCheckpoint | undefined;

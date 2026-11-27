@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isOcrResultNoTextDetected } from "../src/main/pipeline/noText";
+import { makePage as makePageWithBlocks } from "./inpaintingSelectionJobFixtures";
+import {
+  buildNoTextCompletedPage,
+  isCumulativeNoTextPage,
+  isOcrResultNoTextDetected,
+} from "../src/main/pipeline/noText";
 import { applyOcrCandidateGeometryLocks } from "../src/main/pipeline/overlayOcrGeometryLocks";
 import { buildRecognitionSourceLines } from "../src/main/pipeline/overlayOcrSourceLineGeometry";
 import type { MangaPage } from "../src/shared/libraryTypes";
@@ -36,6 +41,53 @@ describe("OCR candidate geometry locks", () => {
       }),
     ).toBe(false);
     expect(isOcrResultNoTextDetected(null)).toBe(false);
+    expect(
+      isOcrResultNoTextDetected({ noTextDetected: true, hints: [{ id: 1 }] }),
+    ).toBe(false);
+    expect(
+      isOcrResultNoTextDetected({
+        noTextDetected: true,
+        hints: [],
+        textEvidenceCount: 1,
+      }),
+    ).toBe(false);
+  });
+
+  it("honors an explicit empty pass from older OCR results without a count", () => {
+    expect(isOcrResultNoTextDetected({ hints: [], noTextDetected: true })).toBe(
+      true,
+    );
+    expect(isOcrResultNoTextDetected({ hints: [] })).toBe(false);
+  });
+
+  it("uses the runtime OCR result when no cumulative prepass was supplied", () => {
+    const options = { collectPageContext: true };
+    const summary = { noTextDetected: true };
+    expect(isCumulativeNoTextPage(options, summary)).toBe(true);
+    expect(isCumulativeNoTextPage(options, {})).toBe(false);
+    expect(
+      isCumulativeNoTextPage({ ...options, regionCropMode: true }, summary),
+    ).toBe(false);
+    expect(
+      isCumulativeNoTextPage({ ...options, keepBlocksMode: true }, summary),
+    ).toBe(false);
+  });
+
+  it("retains the user's blocks and reading order when completing in keep mode", () => {
+    const original = makePageWithBlocks("keep", "keep.png");
+    original.blockOrder = original.blocks.map((block) => block.id).reverse();
+    expect(original.blockOrder.length).toBeGreaterThan(0);
+    expect(
+      buildNoTextCompletedPage(original, { keepBlocks: true }),
+    ).toMatchObject({
+      blocks: original.blocks,
+      blockOrder: original.blockOrder,
+      analysisStatus: "completed",
+    });
+    expect(buildNoTextCompletedPage(original)).toMatchObject({
+      blocks: [],
+      blockOrder: undefined,
+    });
   });
 
   it("locks a model item only to its matching candidate id", () => {

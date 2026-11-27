@@ -19,7 +19,9 @@ import type { MangaPage } from "../src/shared/libraryTypes";
 
 const languageProfile =
   require("../src/main/runtime/simple-page-language-profile.cjs") as {
-    allowOcrNoTextDetectedSkip: (options?: Record<string, unknown>) => boolean;
+    isDefaultJapaneseToKoreanProfile: (profile: {
+      isDefaultJapaneseToKorean: boolean;
+    }) => boolean;
     resolvePromptLanguageProfile: (options?: Record<string, unknown>) => {
       sourceCode: string;
       targetCode: string;
@@ -159,6 +161,9 @@ describe("runtime prompt language profile", () => {
       sourceLanguage: "ja",
     });
     expect(defaultProfile.isDefaultJapaneseToKorean).toBe(true);
+    expect(
+      languageProfile.isDefaultJapaneseToKoreanProfile(defaultProfile),
+    ).toBe(true);
     expect(defaultProfile.sourceKey).toBe("jp");
     expect(defaultProfile.targetKey).toBe("ko");
 
@@ -166,6 +171,9 @@ describe("runtime prompt language profile", () => {
       sourceLanguage: "en",
       targetLanguage: "zh-Hans",
     });
+    expect(languageProfile.isDefaultJapaneseToKoreanProfile(generic)).toBe(
+      false,
+    );
     expect(generic.sourceKey).toBe("source");
     expect(generic.targetKey).toBe("target");
     expect(generic.sourceName).toBe("English");
@@ -196,22 +204,6 @@ describe("runtime prompt language profile", () => {
         `${language.code}:${language.promptName}`,
       );
     }
-  });
-
-  it("allows the OCR no-text skip only for Japanese source pages", () => {
-    expect(languageProfile.allowOcrNoTextDetectedSkip({})).toBe(false);
-    expect(
-      languageProfile.allowOcrNoTextDetectedSkip({ sourceLanguage: "ja" }),
-    ).toBe(true);
-    expect(
-      languageProfile.allowOcrNoTextDetectedSkip({ sourceLanguage: "ja-JP" }),
-    ).toBe(true);
-    expect(
-      languageProfile.allowOcrNoTextDetectedSkip({ sourceLanguage: "en" }),
-    ).toBe(false);
-    expect(
-      languageProfile.allowOcrNoTextDetectedSkip({ sourceLanguage: "zh-Hans" }),
-    ).toBe(false);
   });
 });
 
@@ -377,16 +369,13 @@ describe("automatic source language", () => {
     ).toBe("ko");
     expect(resolveLanguage("auto").labelKo).toBe("자동");
   });
-  it("keeps runtime profiles aligned and never skips unread auto-language pages", () => {
+  it("keeps automatic source language aligned with the runtime profile", () => {
     const pair = resolveLanguagePair({ sourceLanguage: "auto" });
     const runtime = languageProfile.resolvePromptLanguageProfile({});
     expect(runtime.sourceCode).toBe(pair.source.code);
     expect(runtime.sourceName).toBe(pair.source.promptName);
     expect(runtime.sourceKey).toBe("source");
     expect(runtime.isDefaultJapaneseToKorean).toBe(false);
-    expect(
-      languageProfile.allowOcrNoTextDetectedSkip({ sourceLanguage: "auto" }),
-    ).toBe(false);
   });
   it("asks vision models to detect mixed source languages without a fixed reading direction", () => {
     const prompts = require("../src/main/runtime/simple-page-prompts.cjs");

@@ -22,6 +22,8 @@ import type { PreparedTranslationCheckpoint } from "./preparedTranslationCheckpo
 import type { AnalysisEndpointSession } from "./endpointSession";
 
 import { throwIfAborted } from "./failure";
+import { isOcrResultNoTextDetected } from "./noText";
+import { getOcrHintsCachePath, readCachedOcrHints } from "./ocrHintsCache";
 
 type PreparedRun = Awaited<ReturnType<typeof prepareAnalysisRun>>;
 
@@ -36,13 +38,14 @@ export function requireTranslationEndpoint(
   return endpoint;
 }
 
-export function resolveReusableTranslationCheckpoints(
+export async function resolveReusableTranslationCheckpoints(
   pages: readonly MangaPage[],
   candidates: PipelineOptions["translationCheckpoints"],
   baseOptions: PreparedRun["baseOptions"],
   blockMode: PipelineOptions["blockMode"],
   warn: (message: string, details?: Record<string, unknown>) => void,
-): ReadonlyMap<string, PreparedTranslationCheckpoint> {
+  ocrInput?: CheckpointOcrInput,
+): Promise<ReadonlyMap<string, PreparedTranslationCheckpoint>> {
   const reusable = new Map<string, PreparedTranslationCheckpoint>();
   if (!candidates?.size) return reusable;
   for (const page of pages) {
@@ -55,16 +58,60 @@ export function resolveReusableTranslationCheckpoints(
       targetLanguage: baseOptions.targetLanguage,
       blockMode,
     });
-    if (compatibility.reusable) {
-      reusable.set(page.id, checkpoint);
+    if (!compatibility.reusable) {
+      warn("Translation checkpoint promoted to restart", {
+        pageId: page.id,
+        reason: compatibility.reason,
+      });
       continue;
     }
-    warn("Translation checkpoint promoted to restart", {
-      pageId: page.id,
-      reason: compatibility.reason,
-    });
+    if (
+      await checkpointConflictsWithEmptyOcr(
+        checkpoint,
+        page,
+        baseOptions,
+        ocrInput,
+      )
+    ) {
+      warn("Translation checkpoint promoted to restart", {
+        pageId: page.id,
+        reason: "ocr-no-text",
+      });
+      continue;
+    }
+    reusable.set(page.id, checkpoint);
   }
   return reusable;
+}
+
+type CheckpointOcrInput = Pick<
+  PipelineOptions,
+  "runPaths" | "skipOcrPrepass" | "preparedOcrHints" | "regionContext"
+>;
+
+// Older versions could save translated items even when the matching OCR pass found no dialogue.
+async function checkpointConflictsWithEmptyOcr(
+  checkpoint: PreparedTranslationCheckpoint,
+  page: MangaPage,
+  baseOptions: PreparedRun["baseOptions"],
+  input?: CheckpointOcrInput,
+): Promise<boolean> {
+  if (
+    !input ||
+    input.skipOcrPrepass ||
+    input.regionContext ||
+    checkpoint.blockMode !== "auto" ||
+    checkpoint.prepared.kind !== "translated"
+  )
+    return false;
+  if (input.preparedOcrHints)
+    return isOcrResultNoTextDetected(input.preparedOcrHints.get(page.id));
+  const cached = await readCachedOcrHints(
+    getOcrHintsCachePath(input.runPaths, page),
+    page,
+    baseOptions,
+  );
+  return isOcrResultNoTextDetected(cached?.result);
 }
 
 export function restoreTranslationCheckpointForRun({

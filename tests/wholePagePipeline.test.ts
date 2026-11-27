@@ -240,97 +240,60 @@ describe("whole page pipeline", () => {
     expect(runtime.disposeEndpoint).toHaveBeenCalledTimes(1);
   });
 
-  it("skips model calls when OCR prepass reports no text", async () => {
-    const page = makePage("page-a", "001.png");
-    const requestTranslation = vi.fn();
-    const startEndpointSession = vi.fn();
-    const onPagesComplete = vi.fn();
-    const events: JobEvent[] = [];
-    const { runWholePagePipeline, runtime } = await loadPipeline({
-      ocrHintsByImagePath: new Map([
-        [
-          page.imagePath,
-          {
-            hints: [],
-            diagnostics: [],
-            noTextDetected: true,
-            textEvidenceCount: 0,
-          },
-        ],
-      ]),
-      requestTranslation,
-      startEndpointSession,
-    });
+  it.each(["ja", "en-US", "zh-Hans", "auto"])(
+    "skips model calls when OCR detects no dialogue for %s",
+    async (sourceLanguage) => {
+      const page = makePage("page-a", "001.png");
+      const requestTranslation = vi.fn();
+      const startEndpointSession = vi.fn();
+      const onPagesComplete = vi.fn();
+      const events: JobEvent[] = [];
+      const { runWholePagePipeline, runtime } = await loadPipeline({
+        sourceLanguage,
+        ocrHintsByImagePath: new Map([
+          [
+            page.imagePath,
+            {
+              hints: [],
+              diagnostics: [],
+              noTextDetected: true,
+              textEvidenceCount: 0,
+            },
+          ],
+        ]),
+        requestTranslation,
+        startEndpointSession,
+      });
 
-    const result = await runWholePagePipeline({
-      ...basePipelineOptions([page], events),
-      onPagesComplete,
-    });
+      const result = await runWholePagePipeline({
+        ...basePipelineOptions([page], events),
+        onPagesComplete,
+      });
 
-    expect(startEndpointSession).not.toHaveBeenCalled();
-    expect(requestTranslation).not.toHaveBeenCalled();
-    expect(runtime.collectOcrHintsBatch).toHaveBeenCalledOnce();
-    expect(runtime.collectOcrHintsBatch.mock.calls[0]?.[0]).toEqual([
-      expect.objectContaining({
-        imagePath: page.imagePath,
-        label: "ocr-page-1",
-        ocrPageIndex: 1,
-        ocrPageTotal: 1,
-      }),
-    ]);
-    expect(onPagesComplete).toHaveBeenCalledWith([
-      expect.objectContaining({ id: page.id, blocks: [] }),
-    ]);
-    expect(result.pages[0]).toMatchObject({
-      id: page.id,
-      analysisStatus: "completed",
-      blocks: [],
-    });
-    expect(events.map((event) => event.phase)).toEqual(
-      expect.arrayContaining(["ocr_preparing", "page_done", "finalizing"]),
-    );
-  });
-
-  it("still calls the model for non-Japanese pages when OCR reports no text", async () => {
-    const page = makePage("page-a", "001.png");
-    const requestTranslation = vi.fn().mockResolvedValue({
-      ...successTranslationResult(),
-      requestBody: { noTextDetected: true },
-    });
-    const startEndpointSession = vi.fn(async () => ({
-      handle: {
-        baseUrl: "http://127.0.0.1:39281",
-        child: null,
-        startedByScript: false,
-      },
-      dispose: vi.fn(async () => undefined),
-    }));
-    const { runWholePagePipeline } = await loadPipeline({
-      sourceLanguage: "en-US",
-      ocrHintsByImagePath: new Map([
-        [
-          page.imagePath,
-          {
-            hints: [],
-            diagnostics: [],
-            noTextDetected: true,
-            textEvidenceCount: 0,
-          },
-        ],
-      ]),
-      requestTranslation,
-      startEndpointSession,
-    });
-
-    const result = await runWholePagePipeline({
-      ...basePipelineOptions([page], []),
-      collectPageContext: true,
-    });
-
-    expect(startEndpointSession).toHaveBeenCalledTimes(1);
-    expect(requestTranslation).toHaveBeenCalledTimes(1);
-    expect(result.pages[0]?.blocks).toHaveLength(1);
-  });
+      expect(startEndpointSession).not.toHaveBeenCalled();
+      expect(requestTranslation).not.toHaveBeenCalled();
+      expect(runtime.collectOcrHintsBatch).toHaveBeenCalledOnce();
+      expect(runtime.collectOcrHintsBatch.mock.calls[0]?.[0]).toEqual([
+        expect.objectContaining({
+          imagePath: page.imagePath,
+          label: "ocr-page-1",
+          ocrPageIndex: 1,
+          ocrPageTotal: 1,
+        }),
+      ]);
+      expect(onPagesComplete).toHaveBeenCalledWith([
+        expect.objectContaining({ id: page.id, blocks: [] }),
+      ]);
+      expect(result.pages[0]).toMatchObject({
+        id: page.id,
+        analysisStatus: "completed",
+        blocks: [],
+      });
+      expect(events.map((event) => event.phase)).toEqual(
+        expect.arrayContaining(["ocr_preparing", "page_done", "finalizing"]),
+      );
+    },
+  );
 
   it("feeds a successful page context into the next canonical chapter page", async () => {
     const firstPage = makePage("page-a", "005.png");
@@ -538,52 +501,60 @@ describe("whole page pipeline", () => {
     expect(workContext.storyMemory.pages).toEqual([]);
   });
 
-  it("calls the model for a cumulative no-text page and stores its visual summary", async () => {
-    const page = makePage("page-a", "001.png");
-    const requestTranslation = vi.fn().mockResolvedValue({
-      outputText:
-        'not a valid translation record\n<page-context>{"visualSummary":"인물이 말없이 빈 방을 둘러본다.","glossary":[],"characters":[]}</page-context>',
-      rawResponse: {},
-      requestBody: { noTextDetected: true },
-    });
-    const workContext = {
-      workId: "work-a",
-      chapterId: "chapter-a",
-      styleGuide: makeStyleGuide(),
-      storyMemory: { ...makeStoryMemory(), pages: [] },
-      recentPageCount: 6,
-    };
-    const { runWholePagePipeline } = await loadPipeline({
-      ocrHintsByImagePath: new Map([
-        [
-          page.imagePath,
-          {
-            hints: [],
-            diagnostics: [],
-            noTextDetected: true,
-            textEvidenceCount: 0,
-          },
-        ],
-      ]),
-      requestTranslation,
-    });
+  it.each([
+    ["ja", "not a valid translation record"],
+    ["en", successTranslationResult().outputText],
+    ["zh-Hans", successTranslationResult().outputText],
+  ])(
+    "retains only visual context for an OCR-empty %s page",
+    async (sourceLanguage, overlay) => {
+      const page = makePage("page-a", "001.png");
+      const requestTranslation = vi.fn().mockResolvedValue({
+        outputText: `${overlay}\n<page-context>{"visualSummary":"인물이 말없이 빈 방을 둘러본다.","glossary":[{"source":"Lucas","target":"루카스","category":"character"}],"characters":[]}</page-context>`,
+        rawResponse: {},
+        requestBody: {},
+      });
+      const workContext = {
+        workId: "work-a",
+        chapterId: "chapter-a",
+        styleGuide: makeStyleGuide(),
+        storyMemory: { ...makeStoryMemory(), pages: [] },
+        recentPageCount: 6,
+      };
+      const { runWholePagePipeline, runtime } = await loadPipeline({
+        sourceLanguage,
+        ocrHintsByImagePath: new Map([
+          [
+            page.imagePath,
+            {
+              hints: [],
+              diagnostics: [],
+              noTextDetected: true,
+              textEvidenceCount: 0,
+            },
+          ],
+        ]),
+        requestTranslation,
+      });
 
-    const result = await runWholePagePipeline({
-      ...basePipelineOptions([page], []),
-      collectPageContext: true,
-      workContext,
-    });
+      const result = await runWholePagePipeline({
+        ...basePipelineOptions([page], []),
+        collectPageContext: true,
+        workContext,
+      });
 
-    expect(requestTranslation).toHaveBeenCalledTimes(1);
-    expect(result.pages[0]).toMatchObject({
-      analysisStatus: "completed",
-      blocks: [],
-    });
-    expect(workContext.storyMemory.pages[0]).toMatchObject({
-      pageId: page.id,
-      visualSummary: "인물이 말없이 빈 방을 둘러본다.",
-    });
-  });
+      expect(requestTranslation).toHaveBeenCalledTimes(1);
+      expect(runtime.saveWorkStyleGuide).not.toHaveBeenCalled();
+      expect(result.pages[0]).toMatchObject({
+        analysisStatus: "completed",
+        blocks: [],
+      });
+      expect(workContext.storyMemory.pages[0]).toMatchObject({
+        pageId: page.id,
+        visualSummary: "인물이 말없이 빈 방을 둘러본다.",
+      });
+    },
+  );
 
   it("replaces stale snapshots for a standard no-text prepass page", async () => {
     const page = makePage("page-a", "001.png");

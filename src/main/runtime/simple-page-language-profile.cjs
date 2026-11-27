@@ -211,26 +211,6 @@ function isDefaultJapaneseToKoreanProfile(profile) {
   return Boolean(profile && profile.isDefaultJapaneseToKorean);
 }
 
-/**
- * @param {{ sourceLanguage?: unknown } | null | undefined} [options]
- * @returns {boolean}
- */
-function isJapaneseSourceLanguage(options = {}) {
-  return isJapaneseLanguageCode(options?.sourceLanguage);
-}
-
-/**
- * OCR가 "텍스트 없음"이라고 답했을 때 모델 호출을 생략해도 되는지.
- * 일본어 원문에서만 안전한 최적화다. 다른 언어는 OCR 언어 지원이 검증되기
- * 전까지 false negative가 더 위험하므로 항상 모델을 호출한다.
- *
- * @param {{ sourceLanguage?: unknown } | null | undefined} [options]
- * @returns {boolean}
- */
-function allowOcrNoTextDetectedSkip(options = {}) {
-  return isJapaneseSourceLanguage(options);
-}
-
 /** @param {unknown} value @param {string} fallback @returns {string} */
 function normalizeSourceLanguageCode(value, fallback) {
   return String(value ?? "")
@@ -241,11 +221,9 @@ function normalizeSourceLanguageCode(value, fallback) {
 }
 
 module.exports = {
-  allowOcrNoTextDetectedSkip,
   getBaseLanguageCode,
   isDefaultJapaneseToKoreanProfile,
   isJapaneseLanguageCode,
-  isJapaneseSourceLanguage,
   isKoreanLanguageCode,
   normalizeLanguageCode,
   resolvePromptLanguageName,

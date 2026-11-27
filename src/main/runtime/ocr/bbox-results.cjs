@@ -30,9 +30,11 @@ function createOcrBboxResults(dependencies) {
 
   /** @param {unknown[]} hints @param {OcrBboxResultOptions} options */
   function resolveNoTextDetected(hints, options) {
-    return typeof options.noTextDetected === "boolean"
-      ? options.noTextDetected
-      : hints.length === 0;
+    return (
+      hints.length === 0 &&
+      (options.textEvidenceCount ?? 0) === 0 &&
+      options.noTextDetected !== false
+    );
   }
 
   /** @param {unknown[]} hints @param {OcrBboxResultOptions} options */

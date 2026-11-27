@@ -26,9 +26,6 @@ export function filterPagesByOcrText(
     ocrPipeline?: import("../appSettings").TranslationOptions["ocrPipeline"];
   } = {},
 ): FilteredPages {
-  // OCR "텍스트 없음" 프리패스 스킵은 일본어 원문 전용 최적화다. 다른 원문
-  // 언어에서는 OCR false negative가 페이지를 통째로 비워버리므로 항상 모델
-  // 호출 대상에 포함한다.
   const allowNoTextSkip = options.allowNoTextSkip ?? true;
   const pageIndexById = buildPageIndexById(pages);
   const completedPagesById = new Map<string, MangaPage>();

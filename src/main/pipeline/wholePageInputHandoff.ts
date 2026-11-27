@@ -1,5 +1,4 @@
 import type { MangaPage } from "../../shared/libraryTypes";
-import { isJapaneseLanguageCode } from "../../shared/translationLanguages";
 import { preparePageOcrHints } from "./pageOcrPreparation";
 import { resolveReusableTranslationCheckpoints } from "./wholePageCheckpointFlow";
 import {
@@ -69,7 +68,7 @@ export async function refreshWholePageInput(
   if (!options.acquirePage) return original;
   const page = await options.acquirePage(original.id);
   options.signal.throwIfAborted();
-  const reusable = resolveReusableTranslationCheckpoints(
+  const reusable = await resolveReusableTranslationCheckpoints(
     [page],
     checkpoints,
     options.run.baseOptions,
@@ -102,9 +101,7 @@ export async function completeHandedOffNoTextPage(
   options: InputOptions,
 ): Promise<MangaPage | undefined> {
   const filtered = filterPagesByOcrText([page], options.ocrHintsByPageId, {
-    allowNoTextSkip:
-      !options.collectPageContext &&
-      isJapaneseLanguageCode(options.run.baseOptions.sourceLanguage),
+    allowNoTextSkip: !options.collectPageContext,
     ocrPipeline: options.run.baseOptions.ocrPipeline,
   });
   const entry = filtered.prepassNoTextPages[0];

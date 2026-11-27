@@ -98,6 +98,7 @@ describe("whole page input handoff parity", () => {
     const requestTranslation = vi.fn();
     const order: string[] = [];
     const pipeline = await loadPipeline({
+      sourceLanguage: "zh-Hans",
       ocrHintsByImagePath: new Map([
         [
           page.imagePath,

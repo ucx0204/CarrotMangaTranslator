@@ -8,8 +8,8 @@
  */
 
 const {
-  allowOcrNoTextDetectedSkip,
   isJapaneseLanguageCode,
+  resolvePromptLanguageProfile,
 } = require("../simple-page-language-profile.cjs");
 const { readOcrCandidateText } = require("../prompts/ocr-text.cjs");
 const { isCommonSemanticOcrMode } = require("../semantic-ocr/candidates.cjs");
@@ -52,23 +52,31 @@ function shouldSkipModelRequest(result, options) {
   // A user-selected crop and a detector-owned SFX crop are themselves strong
   // visual evidence. OCR may fail on stylized or tiny glyphs, so these paths
   // must always let the vision model inspect the supplied pixels.
-  if (options.regionCropMode || options.soundEffectTranslationMode) {
+  if (
+    options.regionCropMode ||
+    options.soundEffectTranslationMode ||
+    options.keepBlocksMode
+  ) {
     return false;
   }
-  const textEvidenceCount = Number(result.textEvidenceCount);
-  const semanticZeroEvidence =
-    isCommonSemanticOcrMode(options) &&
-    isJapaneseLanguageCode(options.sourceLanguage) &&
-    Number.isFinite(textEvidenceCount) &&
-    textEvidenceCount === 0 &&
-    Number(options.ocrTranscriptEvidenceCount) === 0;
+  if (result.noTextDetected) return !options.collectPageContext;
   return (
-    semanticZeroEvidence ||
-    (!options.collectPageContext &&
-      result.noTextDetected &&
-      (!Array.isArray(result.hints) || result.hints.length === 0) &&
-      allowOcrNoTextDetectedSkip(options))
+    isCommonSemanticOcrMode(options) && options.ocrGeometryOnlyMode === true
   );
 }
 
-module.exports = { createPromptOptions, shouldSkipModelRequest };
+/** @param {TranslationRequestOptions} options */
+function buildVisualContextPrompts(options) {
+  const { targetName } = resolvePromptLanguageProfile(options);
+  return {
+    systemPrompt:
+      "Describe only what is visible on this dialogue-free page. Leave a blank page's visual summary empty. Do not infer speech, names, or off-page events.",
+    promptText: `Return only <page-context>{"visualSummary":"...","glossary":[],"characters":[]}</page-context>. Write the visual summary in ${targetName}.`,
+  };
+}
+
+module.exports = {
+  createPromptOptions,
+  buildVisualContextPrompts,
+  shouldSkipModelRequest,
+};

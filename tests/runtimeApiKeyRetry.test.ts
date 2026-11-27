@@ -488,6 +488,51 @@ describe("runtime API key retry policy", () => {
     });
   });
 
+  it("requests only a visual summary for a cumulative page with confirmed empty OCR", async () => {
+    const outputDir = createTempDir("empty-visual-context-");
+    const imagePath = join(outputDir, "silent.png");
+    writeFileSync(imagePath, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const trailer =
+      '<page-context>{"visualSummary":"산이 보인다.","glossary":[],"characters":[]}</page-context>';
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: trailer } }] }),
+        ),
+      );
+    vi.stubGlobal("fetch", fetch);
+    const result = await requestTranslation(
+      { baseUrl: "https://provider.invalid/v1" },
+      {
+        modelProvider: "openai-api",
+        apiBaseUrl: "https://provider.invalid/v1",
+        apiModel: "vision-model",
+        apiKey: "test",
+        imagePath,
+        outputDir,
+        imageWidth: 100,
+        imageHeight: 100,
+        sourceLanguage: "ja",
+        targetLanguage: "ko",
+        collectPageContext: true,
+        ocrQualityMode: "full",
+        ocrBboxHints: [],
+        maxTokens: 256,
+      },
+    );
+    expect(fetch).toHaveBeenCalledOnce();
+    const sent = JSON.parse(fetch.mock.calls[0]?.[1].body);
+    expect(JSON.stringify(sent.messages)).toContain(
+      "Describe only what is visible",
+    );
+    expect(result.requestBody).toMatchObject({
+      noTextDetected: true,
+      promptText: expect.stringContaining("Write the visual summary in Korean"),
+    });
+    expect(result.outputText).toBe(trailer);
+  });
+
   it("uses the same rotation policy for page translation", async () => {
     const outputDir = createTempDir("api-key-translation-");
     const imagePath = join(outputDir, "page.png");

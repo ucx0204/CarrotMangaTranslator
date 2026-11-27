@@ -61,6 +61,7 @@ const {
 } = require("./group-only-review-request.cjs");
 const {
   createPromptOptions,
+  buildVisualContextPrompts,
   shouldSkipModelRequest,
 } = require("./translation-ocr-policy.cjs");
 const {
@@ -232,7 +233,7 @@ function createNoTextResult(server, options, ocrBboxResult) {
     options,
     "page_done",
     "페이지 텍스트 없음",
-    `${resolveOcrEngineLabel(options)}에서 일본어 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다.`,
+    `${resolveOcrEngineLabel(options)}에서 텍스트 근거를 찾지 못해 모델 호출을 생략했습니다.`,
   );
   return {
     requestBody: requestSummary,
@@ -243,6 +244,29 @@ function createNoTextResult(server, options, ocrBboxResult) {
       textEvidenceCount: ocrBboxResult.textEvidenceCount,
     },
     outputText: '{"items":[]}',
+  };
+}
+
+/** @param {PromptRequestOptions} options @param {ImageVariant[]} imageVariants @param {boolean} noTextDetected */
+function buildPageRequestPrompts(options, imageVariants, noTextDetected) {
+  if (isSoundEffectTranslationRequest(options)) {
+    return {
+      promptText: buildSoundEffectTranslationPrompt(options, imageVariants),
+      systemPrompt: buildSoundEffectTranslationSystemPrompt(options),
+    };
+  }
+  if (
+    noTextDetected &&
+    options.collectPageContext &&
+    !options.regionCropMode &&
+    !options.keepBlocksMode
+  ) {
+    return buildVisualContextPrompts(options);
+  }
+  return {
+    promptText:
+      options.promptOverrideText || getOverlayPrompt(options, imageVariants),
+    systemPrompt: buildSystemPrompt(options),
   };
 }
 
@@ -260,12 +284,11 @@ async function prepareTranslationRequest(server, options, ocrBboxResult) {
     preparedVariants.imageVariants
   );
   const soundEffectRequest = isSoundEffectTranslationRequest(options);
-  const promptText = soundEffectRequest
-    ? buildSoundEffectTranslationPrompt(options, imageVariants)
-    : options.promptOverrideText || getOverlayPrompt(options, imageVariants);
-  const systemPrompt = soundEffectRequest
-    ? buildSoundEffectTranslationSystemPrompt(options)
-    : buildSystemPrompt(options);
+  const { promptText, systemPrompt } = buildPageRequestPrompts(
+    options,
+    imageVariants,
+    ocrBboxResult.noTextDetected,
+  );
   const requestBody = buildProviderRequestBody(
     options,
     imageVariants,

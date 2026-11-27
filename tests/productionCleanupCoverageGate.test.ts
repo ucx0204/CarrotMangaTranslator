@@ -597,7 +597,7 @@ describe("production cleanup coverage floor gate", () => {
     // Local Gemma streaming reuses the existing bounded body reader.
     // The gathered-text edit toolbar now launches its editor outside the overview.
     // FLUX alpha-only erasure now uses the original masked-change statistics owner.
-    expect(scope.existing).toHaveLength(882);
+    expect(scope.existing).toHaveLength(884);
     // Includes global chat, shared actions, OpenCode help, MCP event streams, shared
     // translation instructions and image budget; inherited floors remain unchanged.
     // inherited floors remain unchanged.

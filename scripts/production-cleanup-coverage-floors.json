@@ -5408,6 +5408,28 @@
         "pct": 73.23
       }
     },
+    "src/main/pipeline/noText.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      }
+    },
     "src/main/pipeline/ocrHints.ts": {
       "lines": {
         "covered": 65,
@@ -6616,6 +6638,28 @@
         "covered": 14,
         "total": 18,
         "pct": 77.77
+      }
+    },
+    "src/main/runtime/ocr/bbox-results.cjs": {
+      "lines": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 23,
+        "total": 30,
+        "pct": 76.66
       }
     },
     "src/main/runtime/ocr/bbox-single-pipeline.cjs": {

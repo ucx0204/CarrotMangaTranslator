@@ -1,42 +1,67 @@
 import { describe, expect, it } from "vitest";
 
-const { shouldSkipModelRequest } =
-  require("../src/main/runtime/transport/translation-request.cjs") as {
-    shouldSkipModelRequest: (
-      result: { noTextDetected: boolean },
-      options: Record<string, unknown>,
-    ) => boolean;
-  };
+const {
+  createPromptOptions,
+  shouldSkipModelRequest,
+} = require("../src/main/runtime/transport/translation-ocr-policy.cjs");
 
-describe("runtime cumulative no-text handling", () => {
-  it("keeps the legacy no-text shortcut outside cumulative mode", () => {
-    expect(
-      shouldSkipModelRequest(
-        { noTextDetected: true },
-        { sourceLanguage: "ja", collectPageContext: false },
-      ),
-    ).toBe(true);
-  });
+const empty = {
+  noTextDetected: true,
+  hints: [],
+  textEvidenceCount: 0,
+  diagnostics: [],
+};
 
-  it("does not skip the image model when cumulative context is requested", () => {
-    expect(
-      shouldSkipModelRequest(
-        { noTextDetected: true },
-        { sourceLanguage: "ja", collectPageContext: true },
-      ),
-    ).toBe(false);
-  });
+function skips(
+  result: {
+    noTextDetected: boolean;
+    hints: unknown[];
+    textEvidenceCount: number;
+  },
+  options: Record<string, unknown>,
+) {
+  return shouldSkipModelRequest(result, createPromptOptions(options, result));
+}
 
-  it("does not let failed OCR suppress a user-selected region crop", () => {
-    expect(
-      shouldSkipModelRequest(
-        { noTextDetected: true },
-        {
+describe("whole-page OCR no-text handling", () => {
+  it.each(["ja", "en", "zh-Hans", "auto"])(
+    "applies confirmed empty OCR to %s dialogue and still collects visual context",
+    (sourceLanguage) => {
+      const options = { sourceLanguage, ocrQualityMode: "full" };
+      expect(skips(empty, options)).toBe(true);
+      expect(skips(empty, { ...options, collectPageContext: true })).toBe(
+        false,
+      );
+      expect(skips({ ...empty, noTextDetected: false }, options)).toBe(false);
+    },
+  );
+
+  it.each(["regionCropMode", "soundEffectTranslationMode", "keepBlocksMode"])(
+    "preserves explicit %s targets",
+    (mode) => {
+      expect(
+        skips(empty, {
           sourceLanguage: "ja",
-          collectPageContext: false,
-          regionCropMode: true,
-        },
-      ),
-    ).toBe(false);
+          ocrQualityMode: "full",
+          [mode]: true,
+        }),
+      ).toBe(false);
+    },
+  );
+
+  it("preserves the Japanese semantic guard for unread geometry and lets other source languages inspect it", () => {
+    const unread = {
+      ...empty,
+      noTextDetected: false,
+      hints: [{ id: 1, label: "text" }],
+    };
+    expect(
+      skips(unread, { sourceLanguage: "ja", ocrQualityMode: "full" }),
+    ).toBe(true);
+    for (const sourceLanguage of ["en", "zh-Hans", "auto"]) {
+      expect(skips(unread, { sourceLanguage, ocrQualityMode: "full" })).toBe(
+        false,
+      );
+    }
   });
 });
