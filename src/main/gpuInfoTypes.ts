@@ -1,3 +1,4 @@
+import type { RuntimeGpuVendor } from "../shared/settingsTypes";
 import type { AmdRocmTarget } from "../shared/settingsTypes";
 
 export type DetectedGpuInfo = {
@@ -7,7 +8,7 @@ export type DetectedGpuInfo = {
   computeCapability: number | null;
   /** Physical NVIDIA identity from the same query as computeCapability. */
   nvidiaUuid?: string;
-  vendor?: "nvidia" | "amd" | "apple" | "unknown";
+  vendor?: RuntimeGpuVendor;
   rocmArch?: string | null;
   rocmTarget?: AmdRocmTarget | null;
   supportsRocm?: boolean;

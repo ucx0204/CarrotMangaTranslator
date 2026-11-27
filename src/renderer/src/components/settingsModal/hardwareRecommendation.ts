@@ -1,3 +1,7 @@
+import {
+  resolveIntelModelSettings,
+  type IntelGpuSupport,
+} from "../../../../shared/intelHardware";
 import { DEFAULT_INPAINTING_MODEL } from "../../../../shared/inpaintingSettingsTypes";
 import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
 import { resolveRecommendedOcrQualityMode } from "../../../../shared/ocrMemoryPolicy";
@@ -17,6 +21,7 @@ import type {
 export type HardwareRecommendationInput = {
   unifiedMemoryMb: number | null;
   gpuMemoryMb?: number | null;
+  intel?: IntelGpuSupport;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
   supportsQwenMetal?: boolean;
@@ -42,6 +47,14 @@ export type HardwareRecommendation = {
 export function resolveHardwareRecommendation(
   props: HardwareRecommendationInput,
 ): HardwareRecommendation {
+  if (props.intel)
+    return {
+      ...resolveIntelModelSettings(props.intel.vulkan, props.gpuMemoryMb),
+      graphicsGpuPreference: "auto",
+      ocrDevice: "cpu",
+      ocrGpuBackend: props.intel.hayaiXpu ? "xpu" : "cuda",
+      ocrQualityMode: "economy",
+    };
   if (props.usesAppleHardware) {
     return {
       fluxBackend: "metal-native",

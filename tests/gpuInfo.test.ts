@@ -181,6 +181,48 @@ describe("GPU info helpers", () => {
     expect(inferAmdRocmTargetFromName("AMD Radeon RX 6800M")).toBe("gfx103X");
   });
 
+  it("rejects Intel and NVIDIA Corporation records and keeps the Radeon on a mixed system", () => {
+    const intel = [
+      "Intel(R) Iris(R) Xe Graphics",
+      "Intel Corporation",
+      "Intel(R) Iris(R) Xe Graphics",
+      "PCI\\VEN_8086&DEV_9A49",
+      "2147483648",
+      "video",
+      "0",
+      "True",
+    ].join("\u001f");
+    const nvidia = [
+      "NVIDIA RTX A6000",
+      "NVIDIA Corporation",
+      "Display",
+      "PCI\\VEN_10DE&DEV_2230",
+      "",
+      "pnp",
+      "0",
+      "True",
+    ].join("\u001f");
+    const misleadingName = [
+      "AMD Radeon Graphics",
+      "",
+      "",
+      "PCI\\VEN_8086&DEV_9A49",
+    ].join("\u001f");
+    expect(
+      parseWindowsAmdGpuLines([
+        intel,
+        nvidia,
+        misleadingName,
+        "Intel Corporation,2147483648",
+      ]),
+    ).toEqual([]);
+    expect(
+      parseWindowsAmdGpuLines([intel, "ATI Radeon HD 5770,1073741824", nvidia]),
+    ).toEqual([
+      expect.objectContaining({ name: "ATI Radeon HD 5770", vendor: "amd" }),
+    ]);
+  });
+
   it("drops disabled adapters and merges duplicate Windows PnP records", () => {
     const separator = "\u001f";
     const deviceId = "PCI\\VEN_1002&DEV_7480&SUBSYS_00000000";

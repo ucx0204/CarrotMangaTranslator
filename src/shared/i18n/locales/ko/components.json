@@ -2178,6 +2178,10 @@
         "xhigh": "매우 높음"
       },
       "ocrDevices": {
+        "xpu": {
+          "label": "Intel XPU",
+          "description": "Intel Arc에서 HayaiOCR을 실행합니다. 첫 실행 때 PyTorch가 장치를 확인합니다."
+        },
         "cuda": {
           "label": "NVIDIA CUDA",
           "description": "NVIDIA GPU에서 OCR을 실행합니다."
@@ -2202,6 +2206,9 @@
         }
       },
       "llamaRuntimes": {
+        "cpu": {
+          "description": "시스템 메모리를 사용해 로컬 모델을 CPU에서 실행합니다."
+        },
         "metal": {
           "label": "Apple Metal",
           "description": "Apple Silicon용 Metal llama.cpp 런타임입니다."
@@ -2246,13 +2253,13 @@
         },
         "vulkan": {
           "label": "Vulkan",
-          "description": "AMD GPU에서 ROCm 대신 Vulkan으로 실행합니다. 최신 그래픽 드라이버가 필요합니다."
+          "description": "최신 그래픽 드라이버로 Intel 또는 AMD GPU에서 Vulkan을 사용합니다."
         }
       },
       "inpaintingModels": {
         "qwen": {
           "label": "Qwen Image 2.1",
-          "description": "Qwen Image 2.1로 선택 영역의 원문을 제거합니다. NVIDIA CUDA, AMD ROCm·Vulkan, Apple Silicon Metal (macOS 26+)을 지원합니다."
+          "description": "NVIDIA CUDA, AMD ROCm, Intel·AMD Vulkan, Apple Silicon Metal(macOS 26+)로 선택 영역의 원문을 제거합니다."
         },
         "aot": {
           "label": "AOT 최소",
@@ -2490,6 +2497,8 @@
     },
     "hardware": {
       "summaryTitle": "자동 감지 GPU와 현재 경로",
+      "intelVulkan": "호환 Intel GPU에서 Vulkan으로 실행합니다. Gemma, HunyuanOCR, FLUX, Qwen에서 사용할 수 있습니다.",
+      "intelCpu": "Vulkan 장치를 찾지 못했습니다. OCR과 원문 제거에는 CPU를 권장합니다.",
       "detectedTitle": "자동 감지 기준 GPU",
       "detectedUnknown": "GPU 정보를 확인하지 못함",
       "memoryValue": "감지 메모리 {{memory}}",

@@ -1,3 +1,4 @@
+import type { IntelGpuSupport } from "../../../../shared/intelHardware";
 import type React from "react";
 import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
 import type {
@@ -53,6 +54,7 @@ export type HardwareSettingsPanelProps = {
   /** Whether AMD officially supports the adapter in the current Windows HIP SDK. */
   supportsFluxZluda?: boolean;
   supportsQwenRocm?: boolean;
+  intel?: IntelGpuSupport;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
   supportsQwenMetal?: boolean;

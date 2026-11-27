@@ -100,7 +100,8 @@ async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
     resolveLlamaRuntimePreflightTimeoutMs(runtime, options),
   );
   assertSuccessfulProbe(serverPath, runtime, result);
-  assertGpuBackedProbe(serverPath, runtime, result);
+  if (runtime.backend !== "cpu")
+    assertGpuBackedProbe(serverPath, runtime, result);
   // The probe itself executes llama-server. Re-hash after it finishes so a
   // process or updater cannot replace a managed binary between the probe and
   // the real server spawn.
@@ -211,7 +212,7 @@ function assertGpuBackedProbe(serverPath, runtime, result) {
 /** @param {unknown} backend */
 function gpuBackendLabel(backend) {
   const normalized = String(backend || "cuda").toLowerCase();
-  if (normalized === "vulkan") return "Vulkan/AMD GPU";
+  if (normalized === "vulkan") return "Vulkan GPU";
   if (normalized === "metal") return "Metal/Apple Silicon GPU";
   if (normalized === "rocm" || normalized === "hip") return "ROCm/HIP GPU";
   return "CUDA GPU";
@@ -239,6 +240,7 @@ function resolveLlamaRuntimePreflightTimeoutMs(runtime = {}, options = {}) {
 
 /** @param {unknown} [backend] */
 function formatLlamaBackendLabel(backend = "cuda") {
+  if (backend === "cpu") return "CPU";
   const normalized = String(backend || "cuda").toLowerCase();
   if (normalized === "vulkan") return "Vulkan";
   if (normalized === "metal") return "Metal";
@@ -250,7 +252,10 @@ function formatLlamaBackendLabel(backend = "cuda") {
 function llamaRuntimeProbeLooksGpuBacked(output, backend = "cuda") {
   const text = String(output || "");
   const normalized = String(backend || "cuda").toLowerCase();
-  if (normalized === "vulkan") return /(vulkan|radeon|amd|gpu)/i.test(text);
+  if (normalized === "vulkan") {
+    // Both pinned llama.cpp builds enumerate physical devices by ordinal.
+    return /\bVulkan\d+\s*:\s*\S|\bggml_vulkan:\s*\d+\s*=\s*\S/i.test(text);
+  }
   if (normalized === "metal") {
     return (
       (/metal/i.test(text) && /(apple|gpu|m[1-9])/i.test(text)) ||

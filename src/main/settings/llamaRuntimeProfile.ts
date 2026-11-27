@@ -49,6 +49,7 @@ export function isNvidiaLlamaRuntimeProfile(profile: string): boolean {
 export function resolveHardwareLlamaRuntimeProfile(
   info: DetectedGpuInfo | null,
 ): LlamaRuntimeProfile {
+  if (info?.vendor === "intel") return info.supportsVulkan ? "vulkan" : "cpu";
   if (info?.vendor === "apple") {
     return "metal";
   }

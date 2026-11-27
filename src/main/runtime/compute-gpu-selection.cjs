@@ -70,6 +70,11 @@ function applyOcrComputeGpuVisibility(env, options, context) {
   if (!context.ocrDevice.startsWith("gpu")) {
     return;
   }
+  if (context.ocrGpuBackend === "xpu") {
+    const index = resolveComputeGpuIndex(options.computeGpuIndex);
+    if (index !== null) env.MGT_HAYAI_XPU_INDEX = String(index);
+    return;
+  }
   applyComputeGpuVisibilityEnv(
     env,
     options.computeGpuIndex,

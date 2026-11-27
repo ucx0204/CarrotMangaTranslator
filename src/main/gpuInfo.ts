@@ -8,11 +8,13 @@ import {
   parseRocmArch,
   resolveAmdRocmTargetFromArch,
 } from "./amdRocmTargets";
+import { queryIntelVulkanGpu } from "./windowsIntelVulkan";
 import { detectAppleGpuInfo } from "./appleGpuInfo";
 import type { DetectedGpuInfo } from "./gpuInfoTypes";
 import {
   buildWindowsAmdGpuQueryCommand,
   parseWindowsAmdGpuLines,
+  parseWindowsIntelGpuLine,
   selectBestAmdGpuInfo,
 } from "./windowsAmdGpuInfo";
 
@@ -47,7 +49,7 @@ async function queryBestGpuInfo(): Promise<DetectedGpuInfo | null> {
   if (apple) return apple;
   const nvidia = await queryNvidiaGpuInfo();
   if (nvidia) return nvidia;
-  return queryAmdGpuInfo();
+  return queryOtherGpuInfo();
 }
 
 export async function queryNvidiaGpuInfo(
@@ -96,15 +98,25 @@ export async function queryNvidiaGpuInfo(
   }
 }
 
-async function queryAmdGpuInfo(): Promise<DetectedGpuInfo | null> {
+async function queryOtherGpuInfo(): Promise<DetectedGpuInfo | null> {
   const rocmCandidates = await queryRocmSmiGpuInfo();
-  const candidates =
-    process.platform === "win32"
-      ? [...(await queryWindowsAmdGpuInfo()), ...rocmCandidates]
-      : rocmCandidates.length > 0
-        ? rocmCandidates
-        : await queryLspciAmdGpuInfo();
-  return selectBestAmdGpuInfo(candidates);
+  if (process.platform === "win32") {
+    const lines = await queryWindowsDisplayGpuLines();
+    const amd = selectBestAmdGpuInfo([
+      ...parseWindowsAmdGpuLines(lines),
+      ...rocmCandidates,
+    ]);
+    if (amd) return amd;
+    const intel = lines
+      .map(parseWindowsIntelGpuLine)
+      .find((info) => info !== null);
+    if (intel) return (await queryIntelVulkanGpu()) ?? intel;
+    return null;
+  }
+  return (
+    selectBestAmdGpuInfo(rocmCandidates) ??
+    selectBestAmdGpuInfo(await queryLspciAmdGpuInfo())
+  );
 }
 
 function parseNvidiaSmiGpuLine(
@@ -135,9 +147,7 @@ function parseNvidiaSmiGpuLine(
   };
 }
 
-async function queryWindowsAmdGpuInfo(): Promise<
-  Array<DetectedGpuInfo | null>
-> {
+async function queryWindowsDisplayGpuLines(): Promise<string[]> {
   try {
     const stdout = await execFileAsync("powershell.exe", [
       "-NoProfile",
@@ -146,7 +156,7 @@ async function queryWindowsAmdGpuInfo(): Promise<
       "-Command",
       buildWindowsAmdGpuQueryCommand(),
     ]);
-    return parseWindowsAmdGpuLines(stdout.split(/\r?\n/));
+    return stdout.split(/\r?\n/);
   } catch (_error) {
     return [];
   }
@@ -170,7 +180,7 @@ async function queryLspciAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
   try {
     const stdout = await execFileAsync("sh", [
       "-lc",
-      "lspci | grep -Ei 'VGA|Display|3D' | grep -Ei 'AMD|ATI|Radeon'",
+      "lspci | grep -Ei 'VGA|Display|3D' | grep -Eiw 'AMD|ATI|Radeon'",
     ]);
     return stdout
       .split(/\r?\n/)
@@ -198,6 +208,7 @@ export function parseRocmSmiGpuLine(line: string): DetectedGpuInfo | null {
   const parts = trimmed
     .split(",")
     .map((part) => part.trim().replace(/^"|"$/g, ""));
+  if (parts.length < 2 || !/^(?:card|gpu)\d+$/i.test(parts[0])) return null;
   const name =
     parts.find((part) => /radeon|instinct|amd/i.test(part)) ||
     parts[1] ||

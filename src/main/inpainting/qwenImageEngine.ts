@@ -277,6 +277,7 @@ async function qwenBackend(
 
 async function detectQwenBackend() {
   const gpu = await detectBestGpuInfo();
+  if (gpu?.vendor === "intel" && gpu.supportsVulkan) return "vulkan";
   if (gpu?.vendor === "amd")
     return resolveNativeRocmGpuSupport(gpu, "qwen") ? "rocm" : "vulkan";
   if (gpu?.vendor === "nvidia") return "cuda";

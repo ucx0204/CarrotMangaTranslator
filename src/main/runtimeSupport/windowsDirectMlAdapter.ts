@@ -23,6 +23,7 @@ const probeResultSchema = z.object({
       luid: z.string().regex(/^[0-9a-f]{16}$/),
       highPerformanceRank: z.number().int().min(0).max(63),
       dedicatedVideoMemory: z.number().nonnegative(),
+      sharedSystemMemory: z.number().nonnegative().optional(),
     }),
   ),
   cudaLuid: z

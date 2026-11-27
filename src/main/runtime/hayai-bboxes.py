@@ -185,7 +185,9 @@ def normalize_batch_item(value: object) -> dict[str, str]:
 def load_runtime(args: argparse.Namespace) -> tuple[Any, Any, Any, torch.device]:
     device, backend = configure_requested_device(args.device)
     configure_torch_for_hayai(backend)
-    if device.type == "cuda":
+    if device.type == "xpu":
+        print(f"[hayai-ocr] using Intel XPU {device}: {torch.xpu.get_device_name(device)}", file=sys.stderr)
+    elif device.type == "cuda":
         print(
             f"[hayai-ocr] using {backend} device {torch.cuda.current_device()}: "
             f"{torch.cuda.get_device_name(torch.cuda.current_device())}",
@@ -225,6 +227,14 @@ def configure_requested_device(device_name: object) -> tuple[torch.device, str]:
     requested_device = str(device_name or "").strip().lower()
     if not requested_device.startswith("gpu"):
         return torch.device("cpu"), "CPU"
+    if os.environ.get("MANGA_TRANSLATOR_OCR_GPU_BACKEND", "").lower() == "xpu":
+        if not torch.xpu.is_available():
+            raise RuntimeError("Intel XPU is unavailable. Update the Intel graphics driver or select HayaiOCR CPU.")
+        index = int(os.environ.get("MGT_HAYAI_XPU_INDEX", resolve_requested_device_index(requested_device)))
+        if not 0 <= index < torch.xpu.device_count():
+            raise RuntimeError(f"HayaiOCR Intel XPU device {index} is unavailable.")
+        torch.xpu.set_device(index)
+        return torch.device(f"xpu:{index}"), "Intel XPU"
     if not torch.cuda.is_available():
         raise RuntimeError(
             "HayaiOCR currently requires a CUDA/HIP GPU, but PyTorch did not expose one. "
@@ -317,7 +327,9 @@ def is_truthy_env(name: str, default: bool = False) -> bool:
 def release_gpu_memory() -> None:
     gc.collect()
     try:
-        if torch.cuda.is_available():
+        if os.environ.get("MANGA_TRANSLATOR_OCR_GPU_BACKEND") == "xpu" and torch.xpu.is_initialized():
+            torch.xpu.empty_cache()
+        elif torch.cuda.is_available():
             torch.cuda.empty_cache()
     except Exception:
         pass

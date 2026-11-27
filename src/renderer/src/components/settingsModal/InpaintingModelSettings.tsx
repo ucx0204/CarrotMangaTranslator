@@ -1,3 +1,4 @@
+import type { IntelGpuSupport } from "../../../../shared/intelHardware";
 import React from "react";
 import { ControlTooltip } from "../ui/ControlTooltip";
 import type { TFunction } from "i18next";
@@ -18,6 +19,7 @@ export type InpaintingModelSettingsProps = {
   usesAppleHardware: boolean;
   supportsQwenMetal?: boolean;
   usesNvidiaHardware: boolean;
+  intel?: IntelGpuSupport;
   usesAmdHardware?: boolean;
 };
 
@@ -54,6 +56,7 @@ function InpaintingModelButton({
   usesAppleHardware,
   usesNvidiaHardware,
   usesAmdHardware,
+  intel,
   supportsQwenMetal,
 }: InpaintingModelSettingsProps & {
   option: (typeof INPAINTING_MODEL_OPTIONS)[number];
@@ -70,7 +73,8 @@ function InpaintingModelButton({
             !(
               (usesAppleHardware && supportsQwenMetal !== false) ||
               usesNvidiaHardware ||
-              usesAmdHardware
+              usesAmdHardware ||
+              intel?.vulkan
             ))
         }
         aria-pressed={inpaintingModel === option.id}

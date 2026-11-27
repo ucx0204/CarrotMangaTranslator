@@ -53,6 +53,7 @@ type GemmaSettingsFieldsProps = Pick<
   | "setModelSource"
   | "setSelectedPreset"
   | "submit"
+  | "intel"
   | "usesAppleHardware"
   | "usesNvidiaHardware"
   | "usesRtx50Hardware"
@@ -69,7 +70,9 @@ export function GemmaSettingsFields(
       ) : (
         <LocalModelFields {...props} />
       )}
-      <GemmaVramTuningFields {...props} />
+      {props.llamaRuntimeProfile !== "cpu" && (
+        <GemmaVramTuningFields {...props} />
+      )}
       <GemmaSamplingFields {...props} />
     </>
   );
@@ -142,6 +145,7 @@ type HuggingFaceModelFieldsProps = Pick<
   | "setAllowUnsafeUnifiedMemory"
   | "setSelectedPreset"
   | "submit"
+  | "intel"
   | "usesAppleHardware"
   | "usesNvidiaHardware"
   | "usesRtx50Hardware"
@@ -228,6 +232,7 @@ function LlamaRuntimeSelector({
   llamaRuntimeProfile,
   setLlamaRuntimeProfile,
   usesAppleHardware,
+  intel,
   usesNvidiaHardware,
   usesRtx50Hardware,
 }: Pick<
@@ -237,6 +242,7 @@ function LlamaRuntimeSelector({
   | "isLlamaRuntimeOptionDisabled"
   | "llamaRuntimeProfile"
   | "setLlamaRuntimeProfile"
+  | "intel"
   | "usesAppleHardware"
   | "usesNvidiaHardware"
   | "usesRtx50Hardware"
@@ -244,7 +250,11 @@ function LlamaRuntimeSelector({
   const { t } = useTranslation("components");
   const visibleRuntimeOptions = LLAMA_RUNTIME_PROFILE_OPTIONS.filter(
     (option) =>
-      usesAppleHardware ? option.id === "metal" : option.id !== "metal",
+      intel
+        ? option.id === "cpu" || (intel.vulkan && option.id === "vulkan")
+        : usesAppleHardware
+          ? option.id === "metal"
+          : option.id !== "metal" && option.id !== "cpu",
   );
   return (
     <div className="settings-field-stack">

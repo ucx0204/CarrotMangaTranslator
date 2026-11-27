@@ -597,7 +597,8 @@ describe("production cleanup coverage floor gate", () => {
     // Local Gemma streaming reuses the existing bounded body reader.
     // The gathered-text edit toolbar now launches its editor outside the overview.
     // FLUX alpha-only erasure now uses the original masked-change statistics owner.
-    expect(scope.existing).toHaveLength(884);
+    // Intel device routing retains the measured runtime, hardware and capability floors.
+    expect(scope.existing).toHaveLength(889);
     // Includes global chat, shared actions, OpenCode help, MCP event streams, shared
     // translation instructions and image budget; inherited floors remain unchanged.
     // inherited floors remain unchanged.
@@ -636,7 +637,7 @@ describe("production cleanup coverage floor gate", () => {
     // Ruled page headers and the measured scan palette have separate coverage records.
     // Sparse layout transfer and measured paper, ink, and sound restoration.
     // Constrained FLUX captions add a verified gradient reconstruction.
-    expect(scope.added).toHaveLength(1751);
+    expect(scope.added).toHaveLength(1753);
     expect(scope.deleted).toHaveLength(12);
   });
 });

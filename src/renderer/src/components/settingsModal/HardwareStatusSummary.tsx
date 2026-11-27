@@ -47,6 +47,15 @@ export function HardwareStatusSummary(
         <strong>
           {props.detectedGpuName || t("settings.hardware.detectedUnknown")}
         </strong>
+        {props.intel && (
+          <small>
+            {t(
+              props.intel.vulkan
+                ? "settings.hardware.intelVulkan"
+                : "settings.hardware.intelCpu",
+            )}
+          </small>
+        )}
         {visibleMemoryMb ? (
           <small>
             {t("settings.hardware.memoryValue", {

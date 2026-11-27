@@ -91,7 +91,11 @@ function buildDraftArgs(options, target) {
     "--spec-draft-ngl",
     // MTP creates a full-length auxiliary context. Let --fit place its
     // layers instead of forcing the entire helper onto a nearly full GPU.
-    isMtp ? "auto" : "all",
+    resolveLlamaRuntimeProfile(options) === "cpu"
+      ? "0"
+      : isMtp
+        ? "auto"
+        : "all",
     "--spec-draft-n-max",
     String(resolveDraftMaxTokens(options)),
   ];
@@ -186,9 +190,10 @@ function configuredSamplingValue(options, key, fallback) {
 
 /** @param {LaunchOptions} options @param {boolean} useBeellama */
 function buildComputeArgs(options, useBeellama) {
+  const cpu = resolveLlamaRuntimeProfile(options) === "cpu";
   const fitArgs = useBeellama
     ? []
-    : options.fitEnabled === false
+    : cpu || options.fitEnabled === false
       ? ["--fit", "off"]
       : [
           "--fit",
@@ -201,25 +206,12 @@ function buildComputeArgs(options, useBeellama) {
           "--fit-ctx",
           String(options.ctx),
         ];
-  const gpuLayerArgs =
-    options.gpuLayers === "fit"
-      ? ["-ngl", "auto"]
-      : ["-ngl", String(options.gpuLayers ?? "all")];
-  const computeGpuIndex =
-    resolveLlamaRuntimeProfile(options) === "metal"
-      ? null
-      : resolveComputeGpuIndex(options.computeGpuIndex);
   const disableMmap = !useBeellama && options.disableMmap === true;
-  const gpuSelectionArgs =
-    computeGpuIndex === null
-      ? []
-      : ["--split-mode", "none", "--main-gpu", String(computeGpuIndex)];
   return [
     ...fitArgs,
-    ...gpuLayerArgs,
-    ...gpuSelectionArgs,
+    ...buildDeviceArgs(options, cpu),
     "-fa",
-    "on",
+    cpu ? "off" : "on",
     "-c",
     String(options.ctx),
     "-b",
@@ -230,10 +222,38 @@ function buildComputeArgs(options, useBeellama) {
     "1",
     ...(useBeellama ? [] : ["--no-cache-prompt", "--no-warmup"]),
     ...(disableMmap ? ["--load-mode", "none"] : []),
-    options.mmprojOffload === true ? "--mmproj-offload" : "--no-mmproj-offload",
+    !cpu && options.mmprojOffload === true
+      ? "--mmproj-offload"
+      : "--no-mmproj-offload",
     "--cache-ram",
     "0",
   ];
+}
+
+/** @param {LaunchOptions} options @param {boolean} cpu */
+function buildDeviceArgs(options, cpu) {
+  if (cpu)
+    return [
+      "--device",
+      "none",
+      "-ngl",
+      "0",
+      "--no-kv-offload",
+      "--no-op-offload",
+    ];
+  const gpuLayerArgs =
+    options.gpuLayers === "fit"
+      ? ["-ngl", "auto"]
+      : ["-ngl", String(options.gpuLayers ?? "all")];
+  const computeGpuIndex =
+    resolveLlamaRuntimeProfile(options) === "metal"
+      ? null
+      : resolveComputeGpuIndex(options.computeGpuIndex);
+  const gpuSelectionArgs =
+    computeGpuIndex === null
+      ? []
+      : ["--split-mode", "none", "--main-gpu", String(computeGpuIndex)];
+  return [...gpuLayerArgs, ...gpuSelectionArgs];
 }
 
 /** @param {string[]} args @param {LaunchOptions} options @param {boolean} enabled */

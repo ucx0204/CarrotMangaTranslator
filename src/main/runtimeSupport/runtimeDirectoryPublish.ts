@@ -1,5 +1,6 @@
+import { renameWithTransientRetry } from "../libraryStore/storage";
 import { randomBytes } from "node:crypto";
-import { access, rename, rm } from "node:fs/promises";
+import { access, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 const WINDOWS_LEGACY_PATH_CEILING = 252;
@@ -19,10 +20,10 @@ export async function replaceDirectoryWithRollback(
   await rm(backupDir, { recursive: true, force: true });
   const movedPrevious = await movePreviousDirectory(outputDir, backupDir);
   try {
-    await rename(stagingDir, outputDir);
+    await renameWithTransientRetry(stagingDir, outputDir);
   } catch (error) {
     if (movedPrevious) {
-      await rename(backupDir, outputDir);
+      await renameWithTransientRetry(backupDir, outputDir);
     }
     throw error;
   }
@@ -75,7 +76,7 @@ async function movePreviousDirectory(
 ): Promise<boolean> {
   try {
     await access(outputDir);
-    await rename(outputDir, backupDir);
+    await renameWithTransientRetry(outputDir, backupDir);
     return true;
   } catch (error) {
     if (getErrorCode(error) === "ENOENT") {

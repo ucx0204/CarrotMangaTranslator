@@ -71,12 +71,9 @@ function availableBackend(
   platform: string,
 ): HunyuanExecution["backend"] {
   if (platform === "darwin" && hardware?.supportsMetal) return "metal";
-  if (platform === "win32" && hardware?.gpuVendor === "nvidia") return "cuda";
-  if (
-    platform === "win32" &&
-    hardware?.gpuVendor === "amd" &&
-    hardware.supportsVulkan
-  )
+  if (platform !== "win32" || !hardware) return "cpu";
+  if (hardware.gpuVendor === "nvidia") return "cuda";
+  if (hardware.supportsVulkan && ["amd", "intel"].includes(hardware.gpuVendor))
     return "vulkan";
   return "cpu";
 }

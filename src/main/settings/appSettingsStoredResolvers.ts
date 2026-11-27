@@ -1,3 +1,9 @@
+import {
+  resolveIntelLlamaRuntime,
+  resolveIntelFluxBackend,
+  supportsIntelHayaiXpu,
+  canUseIntelOcrGpu,
+} from "../../shared/intelHardware";
 import { DEFAULT_INPAINTING_MODEL } from "../../shared/inpaintingSettingsTypes";
 import {
   DEFAULT_GEMMA_MMPROJ_FILE,
@@ -24,6 +30,7 @@ import {
   resolveInpaintingModel,
   resolveKoharuInpaintingBackend,
   resolveNonEmptyString,
+  resolveOcrPipeline,
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
@@ -60,16 +67,19 @@ export function resolveStoredLlamaRuntimeProfile(
     gemma?.llamaRuntimeProfile ?? defaults.gemma.llamaRuntimeProfile,
   );
   const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
+  if (hardwareVendor === "intel")
+    return resolveIntelLlamaRuntime(
+      requested,
+      defaults.runtimeHardware?.supportsVulkan,
+    );
   if (hardwareVendor === "amd" && isNvidiaLlamaRuntimeProfile(requested)) {
     return resolveLlamaRuntimeProfile({}, defaults.gemma.llamaRuntimeProfile);
   }
   if (hardwareVendor === "nvidia" && isAmdLlamaRuntimeProfile(requested)) {
     return resolveLlamaRuntimeProfile({}, defaults.gemma.llamaRuntimeProfile);
   }
-  if (hardwareVendor === "apple" && !isMetalLlamaRuntimeProfile(requested)) {
-    return "metal";
-  }
-  if (hardwareVendor !== "apple" && isMetalLlamaRuntimeProfile(requested)) {
+  if (hardwareVendor === "apple") return "metal";
+  if (isMetalLlamaRuntimeProfile(requested)) {
     return resolveLlamaRuntimeProfile({}, defaults.gemma.llamaRuntimeProfile);
   }
   return requested;
@@ -80,6 +90,7 @@ export function resolveStoredLlamaRocmTarget(
   defaults: AppSettings,
   llamaRuntimeProfile: LlamaRuntimeProfile,
 ): AmdRocmTarget | undefined {
+  if (defaults.runtimeHardware?.gpuVendor === "intel") return undefined;
   const target =
     normalizeAmdRocmTarget(gemma?.llamaRocmTarget) ??
     normalizeAmdRocmTarget(defaults.gemma.llamaRocmTarget);
@@ -116,6 +127,11 @@ export function resolveStoredFluxBackend(
     return "metal-native";
   }
   const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
+  if (hardwareVendor === "intel")
+    return resolveIntelFluxBackend(
+      requested,
+      defaults.runtimeHardware?.supportsVulkan,
+    );
   if (hardwareVendor === "amd") {
     return resolveAmdStoredFluxBackend(requested, defaults);
   }
@@ -129,10 +145,17 @@ export function resolveStoredInpaintingModel(
   inpainting: Record<string, unknown> | null,
   defaults: AppSettings,
 ): InpaintingModel {
-  return resolveInpaintingModel(
+  const model = resolveInpaintingModel(
     inpainting?.model,
     defaults.inpainting?.model ?? DEFAULT_INPAINTING_MODEL,
   );
+  if (
+    model === "qwen-image-2.1" &&
+    defaults.runtimeHardware?.gpuVendor === "intel" &&
+    !defaults.runtimeHardware.supportsVulkan
+  )
+    return "aot-inpainting";
+  return model;
 }
 
 export function resolveStoredKoharuInpaintingBackend(
@@ -143,6 +166,8 @@ export function resolveStoredKoharuInpaintingBackend(
     inpainting?.koharuBackend,
     defaults.inpainting?.koharuBackend ?? "auto",
   );
+  if (defaults.runtimeHardware?.gpuVendor === "intel")
+    return requested === "cpu" ? "cpu" : "auto";
   if (
     process.platform === "darwin" &&
     (requested === "cuda-native" ||
@@ -200,27 +225,59 @@ export function resolveStoredOcrGpuCudaTag(
   return stored;
 }
 
-export function resolveStoredOcrModeSettings(
-  ocr: Record<string, unknown> | null,
-  defaults: AppSettings,
-): {
+type StoredOcrMode = {
   device: OcrDevice;
   gpuBackend: OcrGpuBackend;
   qualityMode: OcrQualityMode;
-} {
-  const requestedDevice = resolveOcrDevice(ocr?.device, defaults.ocr.device);
-  const requestedBackend = resolveOcrGpuBackend(
-    ocr?.gpuBackend,
-    defaults.ocr.gpuBackend ?? "cuda",
+};
+export function resolveStoredOcrModeSettings(
+  ocr: Record<string, unknown> | null,
+  defaults: AppSettings,
+): StoredOcrMode {
+  const requested = {
+    device: resolveOcrDevice(ocr?.device, defaults.ocr.device),
+    gpuBackend: resolveOcrGpuBackend(
+      ocr?.gpuBackend,
+      defaults.ocr.gpuBackend ?? "cuda",
+    ),
+    qualityMode: resolveOcrQualityMode(
+      ocr?.qualityMode,
+      defaults.ocr.qualityMode,
+    ),
+  };
+  if (
+    defaults.runtimeHardware?.gpuVendor !== "intel" &&
+    requested.gpuBackend !== "xpu"
+  )
+    return requested;
+  const pipeline = resolveOcrPipeline(
+    ocr?.pipeline,
+    defaults.ocr.pipeline ?? "hayai",
   );
-  const requestedQuality = resolveOcrQualityMode(
-    ocr?.qualityMode,
-    defaults.ocr.qualityMode,
+  return resolveStoredIntelOcrMode(
+    requested,
+    pipeline,
+    defaults.runtimeHardware,
   );
+}
+
+function resolveStoredIntelOcrMode(
+  requested: StoredOcrMode,
+  pipeline: NonNullable<AppSettings["ocr"]["pipeline"]>,
+  hardware: AppSettings["runtimeHardware"],
+): StoredOcrMode {
+  const xpu =
+    hardware?.gpuVendor === "intel" && supportsIntelHayaiXpu(hardware.gpuName);
+  if (
+    requested.device === "gpu" &&
+    canUseIntelOcrGpu(pipeline, requested.gpuBackend, xpu)
+  )
+    return requested;
   return {
-    device: requestedDevice,
-    gpuBackend: requestedBackend,
-    qualityMode: requestedQuality,
+    device: "cpu",
+    gpuBackend: xpu && pipeline === "hayai" ? "xpu" : "cuda",
+    qualityMode:
+      requested.qualityMode === "full" ? "economy" : requested.qualityMode,
   };
 }
 

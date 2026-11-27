@@ -11,10 +11,9 @@ const prepass = readFileSync(
 
 describe("HayaiOCR managed runner contract", () => {
   it("registers isolated Windows DLL directories before importing PyTorch", () => {
-    const setup = runner.indexOf(
-      "configure_windows_dll_search_path()\n\nimport torch",
+    expect(runner).toMatch(
+      /^configure_windows_dll_search_path\(\)\r?\n\r?\nimport torch$/m,
     );
-    expect(setup).toBeGreaterThan(0);
     expect(runner).toContain("MANGA_TRANSLATOR_OCR_DLL_DIRS");
     expect(runner).toContain("os.add_dll_directory");
   });

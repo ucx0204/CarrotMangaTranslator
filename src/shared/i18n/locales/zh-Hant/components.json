@@ -2178,6 +2178,10 @@
         "xhigh": "非常高"
       },
       "ocrDevices": {
+        "xpu": {
+          "label": "Intel XPU",
+          "description": "在 Intel Arc 上執行 HayaiOCR。首次使用時 PyTorch 會檢查裝置。"
+        },
         "cuda": {
           "label": "NVIDIA CUDA",
           "description": "在 NVIDIA GPU 上執行 OCR。"
@@ -2202,6 +2206,9 @@
         }
       },
       "llamaRuntimes": {
+        "cpu": {
+          "description": "使用系統記憶體，在 CPU 上執行本機模型。"
+        },
         "metal": {
           "label": "Apple Metal",
           "description": "適用於 Apple Silicon 的 Metal llama.cpp 執行環境。"
@@ -2246,13 +2253,13 @@
         },
         "vulkan": {
           "label": "Vulkan",
-          "description": "在 AMD GPU 上使用 Vulkan 取代 ROCm。需要最新的顯示卡驅動程式。"
+          "description": "在 Intel 或 AMD GPU 上使用 Vulkan，需要最新的顯示卡驅動程式。"
         }
       },
       "inpaintingModels": {
         "qwen": {
           "label": "Qwen Image 2.1",
-          "description": "使用 Qwen Image 2.1 移除選取範圍內的原文，支援 NVIDIA CUDA、AMD ROCm 或 Vulkan，以及 Apple Silicon Metal (macOS 26+)。"
+          "description": "使用 NVIDIA CUDA、AMD ROCm、Intel 或 AMD Vulkan，以及 Apple Silicon Metal（macOS 26+）移除選取範圍內的原文。"
         },
         "aot": {
           "label": "AOT 最小",
@@ -2490,6 +2497,8 @@
     },
     "hardware": {
       "summaryTitle": "自動偵測GPU與目前路徑",
+      "intelVulkan": "此 Intel GPU 可透過 Vulkan 執行 Gemma、HunyuanOCR、FLUX 和 Qwen。",
+      "intelCpu": "未偵測到 Vulkan 裝置。建議使用 CPU 進行 OCR 和原文移除。",
       "detectedTitle": "自動偵測依據GPU",
       "detectedUnknown": "無法取得GPU資訊",
       "memoryValue": "偵測到的記憶體 {{memory}}",

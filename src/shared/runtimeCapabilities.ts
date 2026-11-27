@@ -1,3 +1,4 @@
+import type { RuntimeGpuVendor } from "./settingsTypes";
 export type BuildChannel = "stable" | "mac-alpha";
 
 export type RuntimeCapabilities = {
@@ -5,7 +6,7 @@ export type RuntimeCapabilities = {
   platform: string;
   arch: string;
   appleSilicon: boolean;
-  gpuVendor: "nvidia" | "amd" | "apple" | "unknown";
+  gpuVendor: RuntimeGpuVendor;
   gpuName: string | null;
   supportsMetal: boolean;
   unifiedMemoryMb: number | null;

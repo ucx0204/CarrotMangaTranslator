@@ -35,35 +35,23 @@ export function HardwareSettingsPanel(
   );
 }
 
-export function OcrSettingsSection({
-  sourceLanguage,
-  hunyuanOcr,
-  setHunyuanOcr,
-  clearTestState,
-  controlsBusy,
-  ocrDevice,
-  ocrGpuBackend,
-  ocrPipeline,
-  ocrQualityMode,
-  setOcrDevice,
-  setOcrGpuBackend,
-  setOcrPipeline,
-  setOcrQualityMode,
-  supportsOcrRocm,
-  usesAmdOcrContext,
-  usesAppleHardware,
-  usesNvidiaOcrContext,
-}: HardwareSettingsPanelProps): React.JSX.Element {
+export function OcrSettingsSection(
+  props: HardwareSettingsPanelProps,
+): React.JSX.Element {
+  const {
+    sourceLanguage,
+    hunyuanOcr,
+    setHunyuanOcr,
+    clearTestState,
+    controlsBusy,
+    ocrPipeline,
+    setOcrPipeline,
+  } = props;
   const { t } = useTranslation("components");
   return (
     <SettingsSection title={t("settings.hardware.ocrSection")}>
       <div className="settings-subsection-stack">
-        <OcrPipelineSettings
-          clearTestState={clearTestState}
-          controlsBusy={controlsBusy}
-          ocrPipeline={ocrPipeline}
-          setOcrPipeline={setOcrPipeline}
-        />
+        <OcrPipelineSettings {...props} />
         <OcrRecommendation
           sourceLanguage={sourceLanguage}
           pipeline={ocrPipeline}
@@ -74,18 +62,7 @@ export function OcrSettingsSection({
           }}
         />
         {ocrPipeline === "paddle-legacy" ? (
-          <OcrQualitySettings
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            ocrQualityMode={ocrQualityMode}
-            setOcrDevice={setOcrDevice}
-            setOcrGpuBackend={setOcrGpuBackend}
-            setOcrQualityMode={setOcrQualityMode}
-            supportsOcrRocm={supportsOcrRocm}
-            usesAmdOcrContext={usesAmdOcrContext}
-            usesAppleHardware={usesAppleHardware}
-            usesNvidiaOcrContext={usesNvidiaOcrContext}
-          />
+          <OcrQualitySettings {...props} />
         ) : null}
         {ocrPipeline === "hunyuan" ? (
           <HunyuanSettingsFields
@@ -97,19 +74,7 @@ export function OcrSettingsSection({
             }}
           />
         ) : (
-          <OcrDeviceSettings
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            ocrDevice={ocrDevice}
-            ocrGpuBackend={ocrGpuBackend}
-            ocrPipeline={ocrPipeline}
-            setOcrDevice={setOcrDevice}
-            setOcrGpuBackend={setOcrGpuBackend}
-            supportsOcrRocm={supportsOcrRocm}
-            usesAmdOcrContext={usesAmdOcrContext}
-            usesAppleHardware={usesAppleHardware}
-            usesNvidiaOcrContext={usesNvidiaOcrContext}
-          />
+          <OcrDeviceSettings {...props} />
         )}
       </div>
     </SettingsSection>
@@ -227,6 +192,7 @@ function OcrQualitySettings({
   setOcrQualityMode,
   supportsOcrRocm,
   usesAmdOcrContext,
+  intel,
   usesAppleHardware,
   usesNvidiaOcrContext,
 }: Pick<
@@ -238,6 +204,7 @@ function OcrQualitySettings({
   | "setOcrGpuBackend"
   | "setOcrQualityMode"
   | "supportsOcrRocm"
+  | "intel"
   | "usesAmdOcrContext"
   | "usesAppleHardware"
   | "usesNvidiaOcrContext"
@@ -247,7 +214,9 @@ function OcrQualitySettings({
   const visibleQualityOptions = OCR_QUALITY_OPTIONS.filter((option) => {
     if (
       option.id === "full" &&
-      (usesAppleHardware || (usesAmdOcrContext && supportsOcrRocm === false))
+      (intel ||
+        usesAppleHardware ||
+        (usesAmdOcrContext && supportsOcrRocm === false))
     ) {
       return false;
     }
@@ -306,6 +275,7 @@ type OcrDeviceSettingsProps = Pick<
   | "setOcrDevice"
   | "setOcrGpuBackend"
   | "supportsOcrRocm"
+  | "intel"
   | "usesAmdOcrContext"
   | "usesAppleHardware"
   | "usesNvidiaOcrContext"
@@ -316,16 +286,24 @@ function OcrDeviceSettings({
   controlsBusy,
   ocrDevice,
   ocrGpuBackend,
+  ocrPipeline,
   setOcrDevice,
   setOcrGpuBackend,
   supportsOcrRocm,
   usesAmdOcrContext,
+  intel,
   usesAppleHardware,
   usesNvidiaOcrContext,
 }: OcrDeviceSettingsProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const activeOcrOptionId = ocrDevice === "cpu" ? "cpu" : ocrGpuBackend;
-  const visibleOcrOptions = getVisibleOcrOptions(usesAppleHardware);
+  const visibleOcrOptions = intel
+    ? OCR_DEVICE_OPTIONS.filter(
+        (option) =>
+          option.id === "cpu" ||
+          (option.id === "xpu" && intel.hayaiXpu && ocrPipeline === "hayai"),
+      )
+    : getVisibleOcrOptions(usesAppleHardware);
   return (
     <div className="settings-field-stack">
       <span>{t("settings.hardware.ocrDevice")}</span>
@@ -383,7 +361,7 @@ function OcrDeviceSettings({
 function getVisibleOcrOptions(usesAppleHardware: boolean) {
   return usesAppleHardware
     ? OCR_DEVICE_OPTIONS.filter((option) => option.id === "cpu")
-    : OCR_DEVICE_OPTIONS;
+    : OCR_DEVICE_OPTIONS.filter((option) => option.id !== "xpu");
 }
 
 function isOcrOptionDisabled(

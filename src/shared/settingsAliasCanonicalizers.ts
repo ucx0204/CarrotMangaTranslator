@@ -19,6 +19,7 @@ const GEMMA_VRAM_MODE_ALIASES = createAliasMap<GemmaVramMode>([
 ]);
 
 const LLAMA_RUNTIME_PROFILE_ALIASES = createAliasMap<LlamaRuntimeProfile>([
+  ["cpu", ["cpu"]],
   [
     "rtx50",
     ["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3", "cuda13.4"],
@@ -71,6 +72,7 @@ const KOHARU_BACKEND_ALIASES = createAliasMap<KoharuInpaintingBackend>([
 ]);
 
 const OCR_GPU_BACKEND_ALIASES = createAliasMap<OcrGpuBackend>([
+  ["xpu", ["xpu"]],
   ["cuda", ["cuda", "nvidia"]],
   [
     "rocm-transformers",

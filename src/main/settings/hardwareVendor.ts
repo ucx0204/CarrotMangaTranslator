@@ -1,3 +1,4 @@
+import type { RuntimeGpuVendor } from "../../shared/settingsTypes";
 import type { AppSettings } from "../../shared/settingsTypes";
 import {
   isAmdLlamaRuntimeProfile,
@@ -6,11 +7,12 @@ import {
   resolveLlamaRuntimeProfile,
 } from "./llamaRuntimeProfile";
 
-export type HardwareVendor = "amd" | "nvidia" | "apple" | "unknown";
+export type HardwareVendor = RuntimeGpuVendor;
 
 export function inferHardwareVendorFromDefaults(
   defaults: AppSettings,
 ): HardwareVendor {
+  if (defaults.runtimeHardware?.gpuVendor === "intel") return "intel";
   const profile = resolveLlamaRuntimeProfile(
     {},
     defaults.gemma.llamaRuntimeProfile,

@@ -6,6 +6,7 @@ import type {
   AmdRocmTarget,
   FluxBackend,
   FluxMode,
+  InpaintingModel,
   GemmaVramMode,
   LlamaRuntimeProfile,
   ModelProvider,
@@ -24,6 +25,10 @@ import {
   normalizeAmdRocmTarget,
   resolveAmdRocmTargetFromInfo,
 } from "../gpuInfo";
+import {
+  resolveIntelModelSettings,
+  supportsIntelHayaiXpu,
+} from "../../shared/intelHardware";
 import { resolveHardwareLlamaRuntimeProfile } from "./llamaRuntimeProfile";
 import { supportsWindowsRocmOcrGpu } from "./ocrRocmSupport";
 import { resolveNativeRocmGpuSupport } from "./fluxZludaSupport";
@@ -47,6 +52,7 @@ export type HardwareDefaults = {
   llamaRocmTarget?: AmdRocmTarget;
   fluxBackend: FluxBackend;
   fluxMode: FluxMode;
+  inpaintingModel?: InpaintingModel;
 };
 
 type HardwareBaseDefaults = Omit<
@@ -83,6 +89,7 @@ function supportsGemmaDefaults(info: DetectedGpuInfo | null): boolean {
   return (
     hasMinimumGemmaVram(info) &&
     (supportsNvidiaGpuDefaults(info) ||
+      (info?.vendor === "intel" && info.supportsVulkan === true) ||
       supportsAmdGpuDefaults(info) ||
       supportsAppleGpuDefaults(info))
   );
@@ -98,7 +105,11 @@ function hasMinimumGemmaVram(info: DetectedGpuInfo | null): boolean {
 }
 
 function supportsNvidiaGpuDefaults(info: DetectedGpuInfo | null): boolean {
-  if (info?.vendor === "amd" || info?.vendor === "apple") {
+  if (
+    info?.vendor === "intel" ||
+    info?.vendor === "amd" ||
+    info?.vendor === "apple"
+  ) {
     return false;
   }
   return (
@@ -169,13 +180,25 @@ function resolveHardwareBaseDefaults(
   info: DetectedGpuInfo | null,
   pipeline: OcrPipeline,
 ): HardwareBaseDefaults {
+  const base = {
+    ocrGpuCudaTag: resolveHardwareOcrGpuCudaTag(info),
+    llamaRuntimeProfile: resolveHardwareLlamaRuntimeProfile(info),
+  };
+  if (info?.vendor === "intel")
+    return {
+      ...base,
+      ...resolveIntelModelSettings(Boolean(info.supportsVulkan), info.memoryMb),
+      ocrGpuBackend:
+        pipeline === "hayai" && supportsIntelHayaiXpu(info.name)
+          ? "xpu"
+          : "cuda",
+    };
   const llamaRocmTarget = resolveHardwareLlamaRocmTarget(info);
   return {
-    ocrGpuCudaTag: resolveHardwareOcrGpuCudaTag(info),
+    ...base,
     ocrGpuBackend: supportsWindowsRocmOcrGpu(info, pipeline)
       ? "rocm-transformers"
       : "cuda",
-    llamaRuntimeProfile: resolveHardwareLlamaRuntimeProfile(info),
     ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
     fluxBackend: resolveHardwareFluxBackend(info),
     fluxMode: resolveDefaultFluxMode(info?.vendor === "amd", info?.memoryMb),
@@ -302,7 +325,10 @@ function normalizeFiniteNumber(
 function normalizeGpuVendor(
   vendor: DetectedGpuInfo["vendor"],
 ): NonNullable<DetectedGpuInfo["vendor"]> {
-  return vendor === "nvidia" || vendor === "amd" || vendor === "apple"
+  return vendor === "intel" ||
+    vendor === "nvidia" ||
+    vendor === "amd" ||
+    vendor === "apple"
     ? vendor
     : "unknown";
 }

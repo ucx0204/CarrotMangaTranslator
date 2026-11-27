@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
-import { totalmem } from "node:os";
+import { freemem, totalmem } from "node:os";
 import { promisify } from "node:util";
+import { detectBestGpuInfo, type DetectedGpuInfo } from "../gpuInfo";
 import { queryWindowsGpuMemoryAdapters } from "../runtimeSupport/windowsDirectMlAdapter";
 import {
   pollStatus,
@@ -20,7 +21,8 @@ export type QwenNativeBackend = "vulkan" | "rocm" | "metal";
 export function qwenNativeDevice(
   output: string,
   backend: QwenNativeBackend,
-  index = 0,
+  index?: number,
+  preferredName?: string | null,
 ): Device {
   const pattern = {
     vulkan: /^vulkan\d+$/i,
@@ -34,10 +36,16 @@ export function qwenNativeDevice(
       const [key, name] = line.trim().split("\t");
       return name && pattern.test(key) ? [{ key, name: name.trim() }] : [];
     });
-  const selected = devices[index];
+  const preferred =
+    index === undefined && preferredName
+      ? devices.find(
+          (row) => row.name.toLowerCase() === preferredName.toLowerCase(),
+        )
+      : undefined;
+  const selected = preferred ?? devices[index ?? 0];
   if (!selected)
     throw new Error(
-      `Qwen Image 2.1 ${backend} GPU ${index}번을 찾지 못했습니다.`,
+      `Qwen Image 2.1 ${backend} GPU ${index ?? 0}번을 찾지 못했습니다.`,
     );
   return {
     ...selected,
@@ -45,26 +53,38 @@ export function qwenNativeDevice(
   };
 }
 
-async function windowsGpuReader({ name, matchingBoards }: Device) {
+async function windowsGpuReader(
+  { name, matchingBoards }: Device,
+  intel: DetectedGpuInfo | null,
+) {
   // Identical model names can refer to multiple boards. Guard all matching
   // boards, so a namespace/ordinal mismatch can never hide a busy board.
   const adapters = await queryWindowsGpuMemoryAdapters(name);
+  const shared =
+    intel?.vendor === "intel" &&
+    intel.supportsVulkan &&
+    intel.memoryMb === null &&
+    intel.name?.toLowerCase() === name.toLowerCase();
+  const usage = shared ? "SharedUsage" : "DedicatedUsage";
   const physical = new Set<string>();
   const tag = (luid: string) => `luid_0x${luid.slice(0, 8)}_0x${luid.slice(8)}`;
   const ids = adapters.map((a) => tag(a.luid)).join("|");
   const limits = new Map(
-    adapters.map((a) => [tag(a.luid), a.dedicatedVideoMemory / mib]),
+    adapters.map((a) => [
+      tag(a.luid),
+      (shared ? (a.sharedSystemMemory ?? 0) : a.dedicatedVideoMemory) / mib,
+    ]),
   );
   const prefix = [
     "$ErrorActionPreference='Stop'",
     `$ids='(${ids})_phys_\\d+$'`,
-    "$board=@(Get-CimInstance Win32_PerfRawData_GPUPerformanceCounters_GPUAdapterMemory -Property Name,DedicatedUsage | Where-Object { $_.Name -match $ids } | Select-Object Name,DedicatedUsage)",
-    "$alloc=Get-CimInstance Win32_PerfRawData_GPUPerformanceCounters_GPUProcessMemory -Property Name,DedicatedUsage",
+    `$board=@(Get-CimInstance Win32_PerfRawData_GPUPerformanceCounters_GPUAdapterMemory -Property Name,${usage} | Where-Object { $_.Name -match $ids } | Select-Object Name,${usage})`,
+    `$alloc=Get-CimInstance Win32_PerfRawData_GPUPerformanceCounters_GPUProcessMemory -Property Name,${usage}`,
   ];
   return async (own: number, signal: AbortSignal): Promise<Reading[]> => {
     const command = [
       ...prefix,
-      `$pids=@($alloc | ForEach-Object { if ($_.DedicatedUsage -gt 33554432 -and $_.Name -match ('^pid_(\\d+)_'+$ids) -and [int]$Matches[1] -ne ${own}) { [int]$Matches[1] } })`,
+      `$pids=@($alloc | ForEach-Object { if ($_.${usage} -gt 33554432 -and $_.Name -match ('^pid_(\\d+)_'+$ids) -and [int]$Matches[1] -ne ${own}) { [int]$Matches[1] } })`,
       "$peer=if($pids.Count){ Get-CimInstance Win32_Process -Filter (($pids | ForEach-Object { 'ProcessId='+$_ }) -join ' OR ') | Where-Object { $_.Name -match 'flux|comfy|^sd-(cli|server)' -or ($_.Name -match '^python' -and $_.CommandLine -match 'flux|comfyui[\\\\/]main\\.py') } | Select-Object -First 1 }",
       "@{ board=$board; peer=[bool]$peer } | ConvertTo-Json -Compress",
     ].join("\n");
@@ -74,7 +94,7 @@ async function windowsGpuReader({ name, matchingBoards }: Device) {
       { signal, windowsHide: true, timeout: 8000 },
     );
     const result = JSON.parse(stdout) as {
-      board: { Name: string; DedicatedUsage: number }[];
+      board: { Name: string; DedicatedUsage?: number; SharedUsage?: number }[];
       peer: boolean;
     };
     const samples = [...limits].flatMap(([id, total]) => {
@@ -85,9 +105,15 @@ async function windowsGpuReader({ name, matchingBoards }: Device) {
       if (!rows.length && !physical.has(id)) return [];
       physical.add(id);
       const used = rows.length
-        ? rows.reduce((sum, r) => sum + Number(r.DedicatedUsage), 0) / mib
+        ? rows.reduce((sum, r) => sum + Number(r[usage]), 0) / mib
         : NaN;
-      return [{ total, used, peer: result.peer }];
+      return [
+        {
+          total,
+          used: shared ? Math.max(used, total - freemem() / mib) : used,
+          peer: result.peer,
+        },
+      ];
     });
     if (samples.length < matchingBoards)
       throw new Error("Qwen GPU의 물리 메모리 카운터가 없습니다.");
@@ -140,9 +166,16 @@ export async function prepareQwenPlatformGpu(
     windowsHide: true,
     timeout: 30000,
   });
-  const device = qwenNativeDevice(listing.stdout, backend, index);
+  const detected =
+    backend === "vulkan" && /\bIntel\b/i.test(listing.stdout)
+      ? await detectBestGpuInfo()
+      : null;
+  const intel = detected?.vendor === "intel" ? detected : null;
+  const device = qwenNativeDevice(listing.stdout, backend, index, intel?.name);
   const read =
-    backend === "metal" ? metalGpuReading : await windowsGpuReader(device);
+    backend === "metal"
+      ? metalGpuReading
+      : await windowsGpuReader(device, intel);
   const status = async (pid: number, watching: AbortSignal) => {
     const samples = await read(pid, watching);
     const board = samples.map((sample) =>

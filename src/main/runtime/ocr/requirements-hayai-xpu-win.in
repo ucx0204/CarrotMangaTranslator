@@ -1,0 +1,14 @@
+filelock
+typing-extensions>=4.10.0
+setuptools
+sympy>=1.13.3
+networkx>=2.5.1
+jinja2
+fsspec>=0.8.5
+numpy
+pillow
+torch==2.14.1+xpu
+torchvision==0.29.1+xpu
+transformers==5.18.0
+safetensors>=0.6.2
+tokenizers==0.23.2

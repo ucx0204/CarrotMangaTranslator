@@ -15,7 +15,7 @@ type WindowsAmdGpuCandidate = {
 export function buildWindowsAmdGpuQueryCommand(): string {
   return [
     "$sep = [char]31;",
-    "$pattern = 'AMD|Radeon|ATI|Advanced Micro Devices|VEN_1002|V710';",
+    "$pattern = '\\b(?:AMD|Radeon|ATI|Intel|V710)\\b|Advanced Micro Devices|VEN_(?:1002|8086)';",
     "$displayClass = '{4d36e968-e325-11ce-bfc1-08002be10318}';",
     "$isActive = { param($item) $code = $item.ConfigManagerErrorCode; $present = $item.Present; ($null -eq $code -or [int]$code -eq 0) -and ($null -eq $present -or [bool]$present) };",
     "$video = Get-CimInstance Win32_VideoController | Where-Object { (($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ') -match $pattern -and (& $isActive $_) } | ForEach-Object { @($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID, $_.AdapterRAM, 'video', $_.ConfigManagerErrorCode, $_.Present) -join $sep };",
@@ -80,6 +80,7 @@ function parseWindowsAmdGpuCandidate(
   const hardwareText = [rawName, rawCompatibility, rawProcessor, rawPnpDeviceId]
     .filter(Boolean)
     .join(" ");
+  if (!isWindowsDisplayVendor(rawPnpDeviceId, hardwareText, "amd")) return null;
   const name = pickAmdDisplayName(
     rawName,
     rawCompatibility,
@@ -110,6 +111,43 @@ function parseWindowsAmdGpuCandidate(
       supportsVulkan: true,
     },
     pnpDeviceId: rawPnpDeviceId || null,
+  };
+}
+
+function isWindowsDisplayVendor(
+  deviceId: string,
+  description: string,
+  vendor: "amd" | "intel",
+): boolean {
+  const pci = /(?:^|\\)VEN_([a-f0-9]{4})(?:&|$)/i.exec(deviceId);
+  if (pci) return pci[1].toLowerCase() === (vendor === "amd" ? "1002" : "8086");
+  return vendor === "amd"
+    ? /\b(?:AMD|Radeon|ATI|V710|Instinct)\b|Advanced Micro Devices/i.test(
+        description,
+      )
+    : /\bIntel\b/i.test(description);
+}
+
+export function parseWindowsIntelGpuLine(line: string): DetectedGpuInfo | null {
+  const [name, manufacturer, processor, deviceId, , , error, present] =
+    parseWindowsAmdGpuFields(line.trim());
+  if (
+    !isActiveWindowsGpuRecord(error, present) ||
+    !isWindowsDisplayVendor(
+      deviceId,
+      [name, manufacturer, processor].join(" "),
+      "intel",
+    )
+  )
+    return null;
+  // WMI's 32-bit AdapterRAM cannot describe modern dGPUs or shared iGPU heaps reliably.
+  return {
+    name: name || processor || "Intel",
+    vendor: "intel",
+    memoryMb: null,
+    rtxGeneration: null,
+    computeCapability: null,
+    supportsVulkan: false,
   };
 }
 

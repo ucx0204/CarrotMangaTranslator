@@ -74,7 +74,7 @@ function isDefaultGemma4Model(options = {}) {
  */
 function shouldUseBeellamaGemmaLaunch(options = {}) {
   const profile = resolveRuntimeProfile(options);
-  if (["vulkan", "vk", "amd-vulkan"].includes(profile)) {
+  if (["cpu", "vulkan", "vk", "amd-vulkan"].includes(profile)) {
     return false;
   }
   if (!isConfiguredLocalGemma4(options) || isMainlineGemmaModel(options)) {

@@ -370,7 +370,7 @@ export const AppSettingsSchema = z
       .optional(),
     runtimeHardware: z
       .object({
-        gpuVendor: z.enum(["nvidia", "amd", "apple", "unknown"]),
+        gpuVendor: z.enum(["nvidia", "amd", "intel", "apple", "unknown"]),
         gpuName: z.string().max(300).nullable().optional(),
         gpuMemoryMb: z.number().int().positive().nullable().optional(),
         computeCapability: z.number().positive().nullable().optional(),

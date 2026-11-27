@@ -187,6 +187,21 @@ const OCR_BUILTIN_LOCK_CONTRACTS = {
       "repo.radeon.com/rocm",
     ],
   },
+  "hayai-xpu": {
+    required: [
+      "--index-url https://download.pytorch.org/whl/xpu",
+      "torch==2.14.1+xpu",
+      "torchvision==0.29.1+xpu",
+      "intel-sycl-rt==",
+      "transformers==5.18.0",
+      "tokenizers==0.23.2",
+    ],
+    forbidden: [
+      "paddlepaddle",
+      "download.pytorch.org/whl/cu",
+      "repo.radeon.com/rocm",
+    ],
+  },
   "hayai-rocm": {
     required: [
       "--index-url https://stable.repo.amd.com/rocm/whl-next/",
@@ -324,6 +339,7 @@ function resolveBuiltinOcrRequirementsLock(variant) {
   const locks = {
     cpu: "requirements-ocr-cpu-win-py312.lock",
     "hayai-cpu": "requirements-hayai-cpu-win.lock",
+    "hayai-xpu": "requirements-hayai-xpu-win.lock",
     "gpu-cu126": "requirements-ocr-gpu-cu126-win-py312.lock",
     "gpu-cu129": "requirements-ocr-gpu-cu129-win-py312.lock",
     "gpu-cuda-transformers-cu126": "requirements-ocr-cuda-tf-cu126-win.lock",

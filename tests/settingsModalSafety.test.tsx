@@ -86,6 +86,61 @@ describe("settings draft safety", () => {
       fluxMode: "normal",
     });
   });
+  it.each([
+    { gpuName: "Intel Arc A770", gpuMemoryMb: 16384, supportsVulkan: true },
+    { gpuName: "Intel Iris Xe", gpuMemoryMb: null, supportsVulkan: false },
+  ])(
+    "keeps OCR and translation choices valid on $gpuName across tabs",
+    async (hardware) => {
+      const settings: AppSettings = {
+        ...initialSettings,
+        modelProvider: "gemma",
+        ocr: { ...initialSettings.ocr, pipeline: "hayai", device: "cpu" },
+        gemma: { ...initialSettings.gemma, llamaRuntimeProfile: "rocm" },
+        inpainting: { model: "flux-klein", fluxBackend: "rocm-native" },
+        runtimeHardware: { gpuVendor: "intel", ...hardware },
+      };
+      const onSubmit = vi.fn();
+      renderSettings({ settings, onSubmit });
+      const tab = (name: string) =>
+        fireEvent.click(screen.getByRole("tab", { name }));
+      const button = (name: string) => screen.getByRole("button", { name });
+      tab("하드웨어");
+      expect(screen.getByText(hardware.gpuName)).toBeTruthy();
+      tab("번역");
+      const runtime = within(
+        screen.getByRole("group", { name: "llama.cpp 런타임" }),
+      );
+      expect(
+        runtime.getByRole("button", {
+          name: hardware.supportsVulkan ? "Vulkan" : "CPU",
+        }),
+      ).toHaveProperty("ariaPressed", "true");
+      fireEvent.click(runtime.getByRole("button", { name: "CPU" }));
+      tab("이미지 · 원문 제거");
+      expect(button("Vulkan")).toHaveProperty(
+        "disabled",
+        !hardware.supportsVulkan,
+      );
+      tab("OCR");
+      if (hardware.supportsVulkan) {
+        fireEvent.click(button("Intel XPU"));
+        fireEvent.click(button("PaddleOCR(레거시)"));
+        expect(screen.queryByRole("button", { name: "Intel XPU" })).toBeNull();
+        expect(button("CPU")).toHaveProperty("ariaPressed", "true");
+        fireEvent.click(button("HayaiOCR"));
+        fireEvent.click(button("Intel XPU"));
+      } else {
+        expect(screen.queryByRole("button", { name: "Intel XPU" })).toBeNull();
+      }
+      fireEvent.click(button("저장"));
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+      const saved = onSubmit.mock.calls[0][0] as AppSettings;
+      expect(saved.gemma.llamaRuntimeProfile).toBe("cpu");
+      expect(saved.ocr.device).toBe(hardware.supportsVulkan ? "gpu" : "cpu");
+    },
+  );
+
   it("saves Hayai ROCm from a previously CPU-only RX 7600 setup", async () => {
     const settings: AppSettings = {
       ...initialSettings,

@@ -311,19 +311,10 @@ function resolveDefaultInpaintingSettings(
   hardwareDefaults: HardwareDefaults,
   gpu?: DetectedGpuInfo | null,
 ): NonNullable<AppSettings["inpainting"]> {
-  const defaultModel =
-    hardwareDefaults.fluxBackend === "cpu-native"
-      ? "aot-inpainting"
-      : gpu?.vendor === "apple" &&
-          (gpu.unifiedMemoryMb ?? gpu.memoryMb ?? 0) < 16 * 1024
-        ? "lama-manga"
-        : gpu?.supportsQwenMetal === false
-          ? "flux-klein"
-          : undefined;
   return {
     model: resolveInpaintingModel(
       env.MANGA_TRANSLATOR_INPAINTING_MODEL ?? env.MGT_INPAINTING_MODEL,
-      defaultModel,
+      resolveDefaultInpaintingModel(hardwareDefaults, gpu),
     ),
     fluxMode: hardwareDefaults.fluxMode,
     fluxBackend: resolveFluxBackend(
@@ -339,4 +330,21 @@ function resolveDefaultInpaintingSettings(
     bubbleLayoutAfterInpainting: false,
     bubbleLayoutPaddingRatio: DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO,
   };
+}
+
+function resolveDefaultInpaintingModel(
+  hardwareDefaults: HardwareDefaults,
+  gpu?: DetectedGpuInfo | null,
+) {
+  return (
+    hardwareDefaults.inpaintingModel ??
+    (hardwareDefaults.fluxBackend === "cpu-native"
+      ? "aot-inpainting"
+      : gpu?.vendor === "apple" &&
+          (gpu.unifiedMemoryMb ?? gpu.memoryMb ?? 0) < 16 * 1024
+        ? "lama-manga"
+        : gpu?.supportsQwenMetal === false
+          ? "flux-klein"
+          : undefined)
+  );
 }

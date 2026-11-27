@@ -23,7 +23,7 @@ public static class MgtDirectMlProbe {
     public uint deviceId;
     public string name, luid;
     public uint highPerformanceRank;
-    public ulong dedicatedVideoMemory;
+    public ulong dedicatedVideoMemory, sharedSystemMemory;
   }
   [DllImport("dxgi.dll", ExactSpelling = true)]
   static extern int CreateDXGIFactory1(ref Guid iid, out IntPtr factory);
@@ -74,7 +74,8 @@ public static class MgtDirectMlProbe {
           adapters.Add(new Adapter {
             deviceId = index, name = desc.Name, luid = luid,
             highPerformanceRank = ranks[luid],
-            dedicatedVideoMemory = desc.DedicatedVideoMemory.ToUInt64()
+            dedicatedVideoMemory = desc.DedicatedVideoMemory.ToUInt64(),
+            sharedSystemMemory = desc.SharedSystemMemory.ToUInt64()
           });
         } finally { Marshal.Release(adapter); }
       }

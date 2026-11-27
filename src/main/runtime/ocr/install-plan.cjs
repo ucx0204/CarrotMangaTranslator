@@ -85,6 +85,17 @@ function resolveHayaiInstallBatches(options) {
       ? wrapExplicitInstallBatch(rocmOverride)
       : buildRocmInstallBatches(options, DEFAULT_HAYAI_OCR_PACKAGES);
   }
+  if (resolveOcrGpuBackend(options) === "xpu") {
+    return [
+      [
+        "torch==2.14.1+xpu",
+        "torchvision==0.29.1+xpu",
+        "--index-url",
+        "https://download.pytorch.org/whl/xpu",
+      ],
+      resolveTransformerApplicationPackages(DEFAULT_HAYAI_OCR_PACKAGES),
+    ];
+  }
   const cudaOverride = splitShellLikeEnv(
     runtimeOverrideEnv("MANGA_TRANSLATOR_HAYAI_OCR_CUDA_PIP_PACKAGES", options),
   );
@@ -288,6 +299,8 @@ function summarizeOcrInstallBatches(installBatches, options = {}) {
 
 /** @param {RuntimeOptions} options @returns {string} */
 function resolveInstallSummarySuffix(options) {
+  if (isOcrGpuRequested(options) && resolveOcrGpuBackend(options) === "xpu")
+    return " (Intel XPU)";
   if (isHayaiOcrPipeline(options)) {
     if (!isOcrGpuRequested(options)) {
       return " (CPU)";

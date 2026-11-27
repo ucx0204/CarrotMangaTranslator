@@ -1,3 +1,4 @@
+import type { IntelGpuSupport } from "../../../../shared/intelHardware";
 import type { GemmaSamplingSettings } from "../../../../shared/gemmaSamplingSettings";
 import type { AppSettings } from "../../../../shared/settingsTypes";
 import type { CodexImageGenerationModel } from "../../../../shared/codexSettings";
@@ -124,6 +125,7 @@ export type EngineSettingsPanelProps = {
   setApiTopK: React.Dispatch<React.SetStateAction<string>>;
   setApiTopP: React.Dispatch<React.SetStateAction<string>>;
   submit: () => void;
+  intel?: IntelGpuSupport;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
   usesNvidiaHardware: boolean;

@@ -2178,6 +2178,10 @@
         "xhigh": "非常に高い"
       },
       "ocrDevices": {
+        "xpu": {
+          "label": "Intel XPU",
+          "description": "Intel ArcでHayaiOCRを実行します。初回起動時にPyTorchがデバイスを確認します。"
+        },
         "cuda": {
           "label": "NVIDIA CUDA",
           "description": "NVIDIA GPUでOCRを実行します。"
@@ -2202,6 +2206,9 @@
         }
       },
       "llamaRuntimes": {
+        "cpu": {
+          "description": "システムメモリを使用してローカルモデルをCPUで実行します。"
+        },
         "metal": {
           "label": "Apple Metal",
           "description": "Apple Silicon向けMetal llama.cppランタイムです。"
@@ -2246,13 +2253,13 @@
         },
         "vulkan": {
           "label": "Vulkan",
-          "description": "AMD GPUでROCmの代わりにVulkanを使用します。最新のグラフィックスドライバーが必要です。"
+          "description": "最新のグラフィックスドライバーでIntelまたはAMD GPUのVulkanを使用します。"
         }
       },
       "inpaintingModels": {
         "qwen": {
           "label": "Qwen Image 2.1",
-          "description": "Qwen Image 2.1で選択範囲の原文を除去します。NVIDIA CUDA、AMD ROCm・Vulkan、Apple Silicon Metal (macOS 26+)に対応します。"
+          "description": "NVIDIA CUDA、AMD ROCm、Intel・AMD Vulkan、Apple Silicon Metal（macOS 26以降）で選択範囲の原文を除去します。"
         },
         "aot": {
           "label": "AOT 最小",
@@ -2490,6 +2497,8 @@
     },
     "hardware": {
       "summaryTitle": "自動検出GPUと現在の経路",
+      "intelVulkan": "このIntel GPUでは、Gemma、HunyuanOCR、FLUX、QwenでVulkanを使用できます。",
+      "intelCpu": "Vulkanデバイスが見つかりません。OCRと原文除去にはCPUを推奨します。",
       "detectedTitle": "自動検出の基準GPU",
       "detectedUnknown": "GPU情報を取得できません",
       "memoryValue": "検出メモリ {{memory}}",

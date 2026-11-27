@@ -18,6 +18,11 @@ const {
   buildOcrRuntimeImportCheckScript,
 } = require("./runtime-import-check-script.cjs");
 
+/** @param {unknown} detail */
+function buildIntelXpuFailureMessage(detail) {
+  return `HayaiOCR의 Intel XPU 런타임을 사용할 수 없습니다. Intel 그래픽 드라이버를 확인하거나 OCR 설정에서 CPU를 선택하세요. detail=${truncateText(detail, 1200)}`;
+}
+
 /** @param {unknown} importMessage @param {RuntimeOptions} [options] @returns {string} */
 function buildOcrRuntimeImportFailureMessage(importMessage, options = {}) {
   const preflightFailure = resolveImportPreflightFailure(
@@ -56,6 +61,8 @@ function buildOcrRuntimeImportFailureMessage(importMessage, options = {}) {
 
 /** @param {unknown} importMessage @param {RuntimeOptions} options @returns {string | null} */
 function resolveImportPreflightFailure(importMessage, options) {
+  if (isOcrGpuRequested(options) && resolveOcrGpuBackend(options) === "xpu")
+    return buildIntelXpuFailureMessage(importMessage);
   if (isOcrBackendPackageIdentityFailureText(importMessage)) {
     return buildOcrBackendPackageIdentityFailureMessage(importMessage, options);
   }
@@ -158,6 +165,8 @@ function resolveOcrTimeoutSuffix(options) {
 /** @param {unknown} error @param {RuntimeOptions} [options] @returns {string} */
 function buildOcrGpuFailureMessage(error, options = {}) {
   const text = summarizeOcrErrorMessage(error);
+  if (resolveOcrGpuBackend(options) === "xpu")
+    return buildIntelXpuFailureMessage(text);
   if (isOcrBackendPackageIdentityFailureText(text)) {
     return buildOcrBackendPackageIdentityFailureMessage(text, options);
   }
@@ -173,6 +182,11 @@ function buildOcrGpuFailureMessage(error, options = {}) {
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return buildRocmGpuFailureMessage(text, options);
   }
+  return buildPaddleOrCudaGpuFailureMessage(text, options);
+}
+
+/** @param {string} text @param {RuntimeOptions} options */
+function buildPaddleOrCudaGpuFailureMessage(text, options) {
   if (isOcrCudaTorchRuntime(options)) {
     return isHayaiOcrPipeline(options)
       ? `HayaiOCR NVIDIA GPU 실행에 실패했습니다. PyTorch CUDA 런타임과 NVIDIA 드라이버를 확인하세요. detail=${truncateText(text, 1200)}`

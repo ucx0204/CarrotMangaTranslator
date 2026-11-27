@@ -37,6 +37,7 @@ describe("OCR runtime package identity contracts", () => {
     ["gpu-cuda-transformers-cu130", "requirements-ocr-cuda-tf-cu130-win.lock"],
     ["gpu-rocm-transformers", "requirements-ocr-rocm-win-py312.lock"],
     ["hayai-cpu", "requirements-hayai-cpu-win.lock"],
+    ["hayai-xpu", "requirements-hayai-xpu-win.lock"],
     ["hayai-cuda-cu126", "requirements-hayai-cuda-cu126-win.lock"],
     ["hayai-cuda-cu130", "requirements-hayai-cuda-cu130-win.lock"],
     ["hayai-rocm", "requirements-hayai-rocm-win.lock"],
@@ -56,6 +57,7 @@ describe("OCR runtime package identity contracts", () => {
   it("keeps every HayaiOCR lock free of Paddle packages", () => {
     for (const fileName of [
       "requirements-hayai-cpu-win.lock",
+      "requirements-hayai-xpu-win.lock",
       "requirements-hayai-cuda-cu126-win.lock",
       "requirements-hayai-cuda-cu130-win.lock",
       "requirements-hayai-rocm-win.lock",

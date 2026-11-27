@@ -17,6 +17,21 @@ function buildOcrRuntimeImportCheckScript(options = {}) {
     if (!isOcrGpuRequested(options)) {
       return buildCpuTransformersImportCheckScript(options);
     }
+    if (resolveOcrGpuBackend(options) === "xpu") {
+      return [
+        ...buildTransformersImportPrelude(options),
+        "assert not missing, 'Missing HayaiOCR XPU package(s): ' + ', '.join(missing)",
+        "import torch, torchvision, tokenizers",
+        "assert torch.__version__ == '2.14.1+xpu' and torchvision.__version__ == '0.29.1+xpu', 'Unexpected Intel XPU PyTorch build'",
+        "assert tokenizers.__version__ == '0.23.2'",
+        ...buildTransformersApiCheckLines(options),
+        "assert torch.xpu.is_available(), 'Intel XPU is unavailable. Select HayaiOCR CPU or update the Intel graphics driver.'",
+        "index = int(os.environ.get('MGT_HAYAI_XPU_INDEX', 0))",
+        "x = torch.ones((1,), device=f'xpu:{index}')",
+        "torch.xpu.synchronize(index)",
+        "print('Intel XPU', torch.xpu.get_device_name(index))",
+      ].join("; ");
+    }
     return resolveOcrGpuBackend(options) === "rocm-transformers"
       ? buildRocmImportCheckScript(options)
       : buildCudaTransformersImportCheckScript(options);

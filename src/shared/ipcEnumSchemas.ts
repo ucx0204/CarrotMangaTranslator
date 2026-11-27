@@ -18,7 +18,7 @@ export const GemmaVramModeSchema = z.preprocess(
 
 export const LlamaRuntimeProfileSchema = z.preprocess(
   (value) => canonicalizeLlamaRuntimeProfile(value) ?? value,
-  z.enum(["cuda12", "rtx50", "rocm", "vulkan", "metal"]),
+  z.enum(["cpu", "cuda12", "rtx50", "rocm", "vulkan", "metal"]),
 );
 
 export const AmdRocmTargetSchema = z.preprocess(
@@ -66,7 +66,7 @@ export const KoharuInpaintingBackendSchema = z.preprocess(
 
 export const OcrGpuBackendSchema = z.preprocess(
   (value) => canonicalizeOcrGpuBackend(value, "ipc") ?? value,
-  z.enum(["cuda", "rocm-transformers"]),
+  z.enum(["cuda", "rocm-transformers", "xpu"]),
 );
 
 export const OcrQualityModeSchema = z.preprocess(

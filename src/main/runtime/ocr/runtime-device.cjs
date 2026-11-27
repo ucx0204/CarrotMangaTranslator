@@ -45,7 +45,7 @@ function isOcrBlackwellCudaTag(options = {}) {
   );
 }
 
-/** @param {RuntimeOptions} [options] @returns {"cuda" | "rocm-transformers"} */
+/** @param {RuntimeOptions} [options] @returns {"cuda" | "rocm-transformers" | "xpu"} */
 function resolveOcrGpuBackend(options = /** @type {OcrConfigOptions} */ ({})) {
   const normalized = String(
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_GPU_BACKEND", options) ??
@@ -54,6 +54,11 @@ function resolveOcrGpuBackend(options = /** @type {OcrConfigOptions} */ ({})) {
   )
     .trim()
     .toLowerCase();
+  if (normalized === "xpu") {
+    if (!isHayaiOcrPipeline(options))
+      throw new Error("Intel XPU requires the HayaiOCR pipeline.");
+    return "xpu";
+  }
   if (CUDA_BACKEND_ALIASES.has(normalized)) {
     return "cuda";
   }
@@ -163,6 +168,7 @@ function resolveOcrRuntimeVariant(options = {}) {
     if (!isOcrGpuRequested(options)) {
       return "hayai-cpu";
     }
+    if (resolveOcrGpuBackend(options) === "xpu") return "hayai-xpu";
     if (resolveOcrGpuBackend(options) === "rocm-transformers") {
       return "hayai-rocm";
     }

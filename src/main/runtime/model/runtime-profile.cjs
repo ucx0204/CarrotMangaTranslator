@@ -73,6 +73,7 @@ function shouldUseRtx50LlamaRuntime(options = {}) {
 /** @param {RuntimePathOptions} [options] */
 function resolveLlamaRuntimeProfile(options = {}) {
   const profile = normalizedConfiguredProfile(options);
+  if (profile === "cpu") return "cpu";
   if (["rocm", "hip", "amd-rocm"].includes(profile)) return "rocm";
   if (["vulkan", "vk", "amd-vulkan"].includes(profile)) return "vulkan";
   if (["metal", "apple", "apple-metal", "mps"].includes(profile))
@@ -239,6 +240,7 @@ function resolvePreferredLlamaRuntime(options = {}) {
       : SPEED_LLAMA_RUNTIME_CUDA12;
   }
   const profile = resolveLlamaRuntimeProfile(options);
+  if (profile === "cpu") return SPEED_LLAMA_RUNTIME_CPU;
   if (profile === "metal") return resolveMetalRuntime(options);
   if (profile === "rocm") return resolveRocmRuntime(options);
   if (profile === "vulkan") {

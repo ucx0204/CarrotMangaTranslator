@@ -1,3 +1,4 @@
+import type { RuntimeGpuVendor } from "../../../shared/settingsTypes";
 import type { ModelTestProgressEvent } from "../../../shared/jobTypes";
 import type { TFunction } from "i18next";
 import type {
@@ -48,7 +49,7 @@ export function formatModelTestProgressLine(
 
 export function resolveHardwareRuntimeLock(
   settings: AppSettings,
-): "amd" | "nvidia" | "apple" | "unknown" {
+): RuntimeGpuVendor {
   const detectedVendor = recognizedGpuVendor(
     settings.runtimeHardware?.gpuVendor,
   );
@@ -66,8 +67,11 @@ export function resolveHardwareRuntimeLock(
 
 function recognizedGpuVendor(
   vendor: NonNullable<AppSettings["runtimeHardware"]>["gpuVendor"] | undefined,
-): "amd" | "nvidia" | "apple" | "unknown" {
-  return vendor === "amd" || vendor === "nvidia" || vendor === "apple"
+): RuntimeGpuVendor {
+  return vendor === "intel" ||
+    vendor === "amd" ||
+    vendor === "nvidia" ||
+    vendor === "apple"
     ? vendor
     : "unknown";
 }
@@ -75,7 +79,7 @@ function recognizedGpuVendor(
 function inferGpuVendorFromLlamaProfile(
   profile: LlamaRuntimeProfile,
   gemmaSelected: boolean,
-): "amd" | "nvidia" | "apple" | "unknown" {
+): RuntimeGpuVendor {
   if (isAppleLlamaRuntimeProfile(profile)) return "apple";
   if (isAmdLlamaRuntimeProfile(profile)) return "amd";
   return gemmaSelected && isNvidiaLlamaRuntimeProfile(profile)

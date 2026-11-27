@@ -1,12 +1,20 @@
 import React from "react";
 import type {
   AppSettings,
+  RuntimeGpuVendor,
   FluxBackend,
   LlamaRuntimeProfile,
   OcrDevice,
   OcrGpuBackend,
   OcrQualityMode,
 } from "../../../../shared/settingsTypes";
+import {
+  supportsIntelHayaiXpu,
+  resolveIntelLlamaRuntime,
+  resolveIntelFluxBackend,
+  canUseIntelOcrGpu,
+  type IntelGpuSupport,
+} from "../../../../shared/intelHardware";
 import { isFluxRtx20Sm75Hardware } from "../../../../shared/fluxSm75";
 import {
   isAmdLlamaRuntimeProfile,
@@ -26,6 +34,7 @@ export type SettingsRuntimeGuards = {
   gpuMemoryMb: number | null;
   computeCapability?: number | null;
   rtxGeneration?: number | null;
+  intel?: IntelGpuSupport;
   usesAmdHardware: boolean;
   usesNvidiaHardware: boolean;
   usesRtx50Hardware: boolean;
@@ -77,21 +86,10 @@ export function useSettingsRuntimeGuards({
       initialSettings.runtimeHardware?.computeCapability ?? null,
     rtxGeneration: initialSettings.runtimeHardware?.rtxGeneration ?? null,
     ...runtime,
-    isLlamaRuntimeOptionDisabled: React.useCallback(
-      (profile: LlamaRuntimeProfile) =>
-        controlsBusy ||
-        (runtime.usesAppleHardware && !isAppleLlamaRuntimeProfile(profile)) ||
-        ((runtime.usesAmdHardware || runtime.usesNvidiaHardware) &&
-          isAppleLlamaRuntimeProfile(profile)) ||
-        (runtime.usesAmdHardware && isNvidiaLlamaRuntimeProfile(profile)) ||
-        (runtime.usesNvidiaHardware && isAmdLlamaRuntimeProfile(profile)),
-      [
-        controlsBusy,
-        runtime.usesAmdHardware,
-        runtime.usesAppleHardware,
-        runtime.usesNvidiaHardware,
-      ],
-    ),
+    isLlamaRuntimeOptionDisabled: (profile) =>
+      controlsBusy ||
+      profile !==
+        resolveCompatibleLlamaRuntime(profile, initialSettings, runtime),
     isFluxBackendOptionDisabled: React.useCallback(
       (backend: FluxBackend) =>
         controlsBusy || isFluxBackendIncompatible(backend, runtime),
@@ -102,7 +100,7 @@ export function useSettingsRuntimeGuards({
 
 function resolveRuntimeContext(
   values: SettingsFormValues,
-  hardwareRuntimeLock: "amd" | "nvidia" | "apple" | "unknown",
+  hardwareRuntimeLock: RuntimeGpuVendor,
   hardware: AppSettings["runtimeHardware"],
 ) {
   const detected = resolveDetectedRuntimeContext(hardwareRuntimeLock, hardware);
@@ -113,7 +111,8 @@ function resolveRuntimeContext(
   const usesNvidiaGemmaRuntime =
     values.modelProvider === "gemma" &&
     isNvidiaLlamaRuntimeProfile(values.llamaRuntimeProfile);
-  const usesAmdOcrContext = usesAmdHardware || usesAmdGemmaRuntime;
+  const usesAmdOcrContext =
+    usesAmdHardware || (!detected.intel && usesAmdGemmaRuntime);
   return {
     ...detected,
     supportsOcrRocm:
@@ -127,16 +126,26 @@ function resolveRuntimeContext(
 }
 
 function resolveDetectedRuntimeContext(
-  hardwareRuntimeLock: "amd" | "nvidia" | "apple" | "unknown",
+  hardwareRuntimeLock: RuntimeGpuVendor,
   hardware: AppSettings["runtimeHardware"],
 ) {
-  const hardwareFlags = resolveDetectedHardwareFlags(hardwareRuntimeLock);
+  const usesNvidiaHardware = hardwareRuntimeLock === "nvidia";
   const nvidiaFeatures = resolveNvidiaFeatureFlags(
-    hardwareFlags.usesNvidiaHardware,
+    usesNvidiaHardware,
     hardware,
   );
   return {
-    ...hardwareFlags,
+    usesNvidiaHardware,
+    usesAmdHardware: hardwareRuntimeLock === "amd",
+    usesAppleHardware: hardwareRuntimeLock === "apple",
+    ...(hardwareRuntimeLock === "intel"
+      ? {
+          intel: {
+            vulkan: hardware?.supportsVulkan === true,
+            hayaiXpu: supportsIntelHayaiXpu(hardware?.gpuName),
+          },
+        }
+      : {}),
     ...nvidiaFeatures,
     supportsFluxZluda: hardware?.supportsFluxZluda,
     ...(hardware?.supportsQwenRocm === undefined
@@ -146,16 +155,6 @@ function resolveDetectedRuntimeContext(
     ...(hardware?.supportsQwenMetal === undefined
       ? {}
       : { supportsQwenMetal: hardware.supportsQwenMetal }),
-  };
-}
-
-function resolveDetectedHardwareFlags(
-  hardwareRuntimeLock: "amd" | "nvidia" | "apple" | "unknown",
-) {
-  return {
-    usesAmdHardware: hardwareRuntimeLock === "amd",
-    usesNvidiaHardware: hardwareRuntimeLock === "nvidia",
-    usesAppleHardware: hardwareRuntimeLock === "apple",
   };
 }
 
@@ -212,24 +211,24 @@ function useOcrRuntimeGuard(
   React.useEffect(() => {
     const changedPipeline = previousPipeline.current !== values.ocrPipeline;
     previousPipeline.current = values.ocrPipeline;
+    const invalidIntelDevice =
+      runtime.intel &&
+      !canUseIntelOcrGpu(
+        values.ocrPipeline,
+        values.ocrGpuBackend,
+        runtime.intel.hayaiXpu,
+      );
     const switchToCpu =
       changedPipeline &&
       values.ocrPipeline === "paddle-legacy" &&
       runtime.usesAmdHardware &&
       runtime.supportsOcrRocm === false &&
       values.ocrGpuBackend === "rocm-transformers";
-    const corrected = resolveCompatibleOcrSettings(
-      {
-        ocrDevice: switchToCpu ? "cpu" : values.ocrDevice,
-        ocrGpuBackend: values.ocrGpuBackend,
-        ocrQualityMode: values.ocrQualityMode,
-      },
-      {
-        supportsOcrRocm: runtime.supportsOcrRocm,
-        usesAmdOcrContext: runtime.usesAmdOcrContext,
-        usesNvidiaOcrContext: runtime.usesNvidiaOcrContext,
-      },
-    );
+    const corrected = resolveCompatibleOcrSettings({
+      ocrDevice: invalidIntelDevice || switchToCpu ? "cpu" : values.ocrDevice,
+      ocrGpuBackend: values.ocrGpuBackend,
+      ocrQualityMode: values.ocrQualityMode,
+    });
     if (corrected.ocrDevice !== values.ocrDevice) {
       setters.setOcrDevice(corrected.ocrDevice);
     }
@@ -240,6 +239,7 @@ function useOcrRuntimeGuard(
       setters.setOcrQualityMode(corrected.ocrQualityMode);
     }
   }, [
+    runtime.intel,
     runtime.usesAmdOcrContext,
     runtime.usesNvidiaOcrContext,
     runtime.supportsOcrRocm,
@@ -260,7 +260,7 @@ type OcrRuntimeSettings = {
 
 export function resolveCompatibleOcrSettings(
   values: OcrRuntimeSettings,
-  _runtime: Pick<
+  _runtime?: Pick<
     ReturnType<typeof resolveRuntimeContext>,
     "supportsOcrRocm" | "usesAmdOcrContext" | "usesNvidiaOcrContext"
   >,
@@ -281,41 +281,37 @@ function useLlamaRuntimeGuard(
   initialSettings: AppSettings,
   runtime: ReturnType<typeof resolveRuntimeContext>,
 ): void {
-  React.useEffect(() => {
-    if (
-      runtime.usesAppleHardware &&
-      !isAppleLlamaRuntimeProfile(values.llamaRuntimeProfile)
-    ) {
-      setters.setLlamaRuntimeProfile("metal");
-      return;
-    }
-    if (
-      runtime.usesAmdHardware &&
-      (isNvidiaLlamaRuntimeProfile(values.llamaRuntimeProfile) ||
-        isAppleLlamaRuntimeProfile(values.llamaRuntimeProfile))
-    ) {
-      setters.setLlamaRuntimeProfile(
-        resolvePreferredAmdLlamaRuntime(initialSettings),
-      );
-      return;
-    }
-    if (
-      runtime.usesNvidiaHardware &&
-      (isAmdLlamaRuntimeProfile(values.llamaRuntimeProfile) ||
-        isAppleLlamaRuntimeProfile(values.llamaRuntimeProfile))
-    ) {
-      setters.setLlamaRuntimeProfile(
-        resolvePreferredNvidiaLlamaRuntime(initialSettings),
-      );
-    }
-  }, [
+  const requested = values.llamaRuntimeProfile;
+  const profile = resolveCompatibleLlamaRuntime(
+    requested,
     initialSettings,
-    runtime.usesAmdHardware,
-    runtime.usesAppleHardware,
-    runtime.usesNvidiaHardware,
-    setters,
-    values.llamaRuntimeProfile,
-  ]);
+    runtime,
+  );
+  React.useEffect(() => {
+    if (profile !== requested) setters.setLlamaRuntimeProfile(profile);
+  }, [profile, requested, setters]);
+}
+
+function resolveCompatibleLlamaRuntime(
+  profile: LlamaRuntimeProfile,
+  initialSettings: AppSettings,
+  runtime: ReturnType<typeof resolveRuntimeContext>,
+): LlamaRuntimeProfile {
+  if (runtime.intel)
+    return resolveIntelLlamaRuntime(profile, runtime.intel.vulkan);
+  if (runtime.usesAppleHardware) return "metal";
+  if (
+    runtime.usesAmdHardware &&
+    (isNvidiaLlamaRuntimeProfile(profile) ||
+      isAppleLlamaRuntimeProfile(profile))
+  )
+    return resolvePreferredAmdLlamaRuntime(initialSettings);
+  if (
+    runtime.usesNvidiaHardware &&
+    (isAmdLlamaRuntimeProfile(profile) || isAppleLlamaRuntimeProfile(profile))
+  )
+    return resolvePreferredNvidiaLlamaRuntime(initialSettings);
+  return profile;
 }
 
 function useFluxBackendGuard(
@@ -332,12 +328,14 @@ function useFluxBackendGuard(
       runtime.usesAppleHardware,
       runtime.usesNvidiaHardware,
       runtime.usesSm75Hardware,
+      runtime.intel,
     );
     if (corrected !== values.fluxBackend) {
       setters.setFluxBackend(corrected);
     }
   }, [
     initialSettings.inpainting?.fluxBackend,
+    runtime.intel,
     runtime.usesAmdHardware,
     runtime.usesAppleHardware,
     runtime.usesNvidiaHardware,
@@ -354,7 +352,9 @@ export function resolveCompatibleFluxBackend(
   usesAppleHardware: boolean,
   usesNvidiaHardware: boolean,
   usesSm75Hardware: boolean,
+  intel?: IntelGpuSupport,
 ): FluxBackend {
+  if (intel) return resolveIntelFluxBackend(backend, intel.vulkan);
   if (usesAppleHardware) return "metal-native";
   if (usesNvidiaHardware) {
     if (backend === "cpu-native" || backend === "vulkan-native") return backend;
@@ -378,6 +378,8 @@ export function isFluxBackendIncompatible(
   backend: FluxBackend,
   runtime: ReturnType<typeof resolveRuntimeContext>,
 ): boolean {
+  if (runtime.intel)
+    return backend !== resolveIntelFluxBackend(backend, runtime.intel.vulkan);
   if (runtime.usesAppleHardware) return backend !== "metal-native";
   if (backend === "metal-native") {
     return runtime.usesAmdHardware || runtime.usesNvidiaHardware;

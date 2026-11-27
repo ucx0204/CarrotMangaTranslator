@@ -370,7 +370,7 @@ HayaiOCR의 **기존 버전**과 PaddleOCR에서는 화·페이지를 선택하�
 
 ## 원문 제거와 수동 보정
 
-**자동 지우기 → 남은 자국 보정 → 원본 비교** 순서로 처리합니다. 자동 지우기는 블록의 원문 영역을 기준으로 배경을 복원합니다. Qwen Image 2.1은 선택 영역 주변을 잘라 가변 해상도로 복원합니다. 지원 GPU에서는 이 모델이 기본이며, **설정 → 이미지 · 원문 제거**에서 FLUX Klein도 선택할 수 있습니다. Windows에서는 NVIDIA CUDA 또는 Vulkan, 지원되는 AMD GPU에서는 ROCm 또는 Vulkan을 사용합니다. Apple Silicon에서는 macOS 26 이상에서 Metal로 실행하며, 통합 메모리 16GiB 이상이면 Qwen이 기본입니다.
+**자동 지우기 → 남은 자국 보정 → 원본 비교** 순서로 처리합니다. 자동 지우기는 블록의 원문 영역을 기준으로 배경을 복원합니다. Qwen Image 2.1은 선택 영역 주변을 잘라 가변 해상도로 복원합니다. 지원 GPU에서는 이 모델이 기본이며, **설정 → 이미지 · 원문 제거**에서 FLUX Klein도 선택할 수 있습니다. Windows에서는 NVIDIA CUDA 또는 Vulkan, 지원되는 AMD GPU에서는 ROCm 또는 Vulkan을 사용합니다. Intel GPU는 드라이버에서 Vulkan 장치를 확인한 경우 Qwen과 FLUX를 실행할 수 있습니다. 통합 그래픽에서는 AOT CPU가 기본이고, 전용 GPU 메모리가 16GiB 이상이면 Qwen을 기본으로 선택합니다. Apple Silicon에서는 macOS 26 이상에서 Metal로 실행하며, 통합 메모리 16GiB 이상이면 Qwen이 기본입니다.
 
 남길 글자는 블록의 더 보기에서 **자동 지우기에서 제외**합니다.
 

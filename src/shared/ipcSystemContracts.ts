@@ -59,7 +59,7 @@ const runtimeCapabilitiesResultSchema: z.ZodType<RuntimeCapabilities> = z
     platform: z.string().min(1).max(32),
     arch: z.string().min(1).max(32),
     appleSilicon: z.boolean(),
-    gpuVendor: z.enum(["nvidia", "amd", "apple", "unknown"]),
+    gpuVendor: z.enum(["nvidia", "amd", "intel", "apple", "unknown"]),
     gpuName: z.string().max(500).nullable(),
     supportsMetal: z.boolean(),
     unifiedMemoryMb: z.number().int().positive().nullable(),

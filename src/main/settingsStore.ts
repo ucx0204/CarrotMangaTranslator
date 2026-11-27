@@ -6,7 +6,7 @@ import {
   isJsonParseError,
 } from "./settings/settingsMutationQueue";
 import { readFile } from "node:fs/promises";
-import type { AppSettings } from "../shared/settingsTypes";
+import type { AppSettings, RuntimeGpuVendor } from "../shared/settingsTypes";
 import { getAppPaths, type AppPaths } from "./appPaths";
 import {
   normalizeAppSettings,
@@ -73,8 +73,7 @@ async function readStoredAppSettings(
   detectGpu: GpuInfoProvider,
   diagnostics: SettingsStoreDiagnostics,
 ): Promise<AppSettings> {
-  const detectedGpu = await detectGpu();
-  const defaults = resolveDefaultAppSettings(env, detectedGpu);
+  const defaults = await getDefaultAppSettings(env, detectGpu);
 
   try {
     const committed = await loadCommittedSettingsPair(paths);
@@ -94,21 +93,18 @@ async function readStoredAppSettings(
         paths,
       );
     }
-    return attachRuntimeHardware(
-      attachSettingsSecrets(plaintext.persistentSettings, secrets),
-      detectedGpu,
-    );
+    return {
+      ...attachSettingsSecrets(plaintext.persistentSettings, secrets),
+      runtimeHardware: defaults.runtimeHardware,
+    };
   } catch (error) {
     if (isMissingFileError(error)) {
       const secrets = await loadSettingsSecrets(paths);
-      return attachRuntimeHardware(
-        attachSettingsSecrets(defaults, secrets),
-        detectedGpu,
-      );
+      return attachSettingsSecrets(defaults, secrets);
     }
     if (isJsonParseError(error)) {
       await backupCorruptSettings(paths, error, diagnostics);
-      return attachRuntimeHardware(defaults, detectedGpu);
+      return defaults;
     }
     throw error;
   }
@@ -184,11 +180,11 @@ export async function normalizeAppSettingsForRuntime(
   env: NodeJS.ProcessEnv = process.env,
   detectGpu: GpuInfoProvider = detectBestGpuInfo,
 ): Promise<AppSettings> {
-  const detectedGpu = await detectGpu();
-  return attachRuntimeHardware(
-    normalizeAppSettings(settings, resolveDefaultAppSettings(env, detectedGpu)),
-    detectedGpu,
-  );
+  const defaults = await getDefaultAppSettings(env, detectGpu);
+  return {
+    ...normalizeAppSettings(settings, defaults),
+    runtimeHardware: defaults.runtimeHardware,
+  };
 }
 
 /**
@@ -221,15 +217,14 @@ async function resetAppSettingsUnlocked(
   env: NodeJS.ProcessEnv = process.env,
   detectGpu: GpuInfoProvider = detectBestGpuInfo,
 ): Promise<AppSettings> {
-  const detectedGpu = await detectGpu();
-  const rawDefaults = resolveDefaultAppSettings(env, detectedGpu);
+  const rawDefaults = await getDefaultAppSettings(env, detectGpu);
   const defaults = normalizeAppSettings(rawDefaults, rawDefaults);
   await persistAppSettingsPair(
     separateSettingsSecrets(stripRuntimeHardware(defaults)).persistentSettings,
     {},
     paths,
   );
-  return attachRuntimeHardware(defaults, detectedGpu);
+  return { ...defaults, runtimeHardware: rawDefaults.runtimeHardware };
 }
 
 export function maskAppSettingsSecrets(settings: AppSettings): AppSettings {
@@ -325,9 +320,10 @@ function createUnknownRuntimeHardware(): NonNullable<
 
 function normalizeRuntimeGpuVendor(
   vendor: DetectedGpuInfo["vendor"],
-): "nvidia" | "amd" | "apple" | "unknown" {
+): RuntimeGpuVendor {
   switch (vendor) {
     case "nvidia":
+    case "intel":
     case "amd":
     case "apple":
       return vendor;

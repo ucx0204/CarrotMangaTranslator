@@ -255,6 +255,13 @@ export const API_REASONING_OPTIONS: ApiReasoningOption[] = [
 
 export const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [
   {
+    id: "xpu",
+    labelKey: "settings.options.ocrDevices.xpu.label",
+    descriptionKey: "settings.options.ocrDevices.xpu.description",
+    device: "gpu",
+    gpuBackend: "xpu",
+  },
+  {
     id: "cuda",
     labelKey: "settings.options.ocrDevices.cuda.label",
     descriptionKey: "settings.options.ocrDevices.cuda.description",
@@ -290,6 +297,11 @@ export const OCR_QUALITY_OPTIONS: OcrQualityOption[] = [
 ];
 
 export const LLAMA_RUNTIME_PROFILE_OPTIONS: LlamaRuntimeProfileOption[] = [
+  {
+    id: "cpu",
+    labelKey: "settings.options.ocrDevices.cpu.label",
+    descriptionKey: "settings.options.llamaRuntimes.cpu.description",
+  },
   {
     id: "metal",
     labelKey: "settings.options.llamaRuntimes.metal.label",

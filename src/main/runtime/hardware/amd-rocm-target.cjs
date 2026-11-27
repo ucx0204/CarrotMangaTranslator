@@ -115,11 +115,11 @@ function detectWindowsAmdRocmTarget() {
     "Bypass",
     "-Command",
     [
-      "$pattern = 'AMD|Radeon|ATI|Advanced Micro Devices|VEN_1002|V710';",
+      "$pattern = '\\b(?:AMD|Radeon|ATI|V710)\\b|Advanced Micro Devices|VEN_1002';",
       "$displayClass = '{4d36e968-e325-11ce-bfc1-08002be10318}';",
       "$isActive = { param($item) $code = $item.ConfigManagerErrorCode; $present = $item.Present; ($null -eq $code -or [int]$code -eq 0) -and ($null -eq $present -or [bool]$present) };",
-      "$video = Get-CimInstance Win32_VideoController | Where-Object { (($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ') -match $pattern -and (& $isActive $_) } | ForEach-Object { ($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ' };",
-      "$pnp = Get-CimInstance Win32_PnPEntity | Where-Object { ($_.PNPClass -eq 'Display' -or $_.ClassGuid -eq $displayClass) -and (($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID) -join ' ') -match $pattern -and (& $isActive $_) } | ForEach-Object { ($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID) -join ' ' };",
+      "$video = Get-CimInstance Win32_VideoController | Where-Object { (($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ') -match $pattern -and ($_.PNPDeviceID -notmatch 'VEN_(?!1002)[0-9a-f]{4}') -and (& $isActive $_) } | ForEach-Object { ($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ' };",
+      "$pnp = Get-CimInstance Win32_PnPEntity | Where-Object { ($_.PNPClass -eq 'Display' -or $_.ClassGuid -eq $displayClass) -and (($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID) -join ' ') -match $pattern -and ($_.DeviceID -notmatch 'VEN_(?!1002)[0-9a-f]{4}') -and (& $isActive $_) } | ForEach-Object { ($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID) -join ' ' };",
       "$video; $pnp",
     ].join(" "),
   ]);

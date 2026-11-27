@@ -2178,6 +2178,10 @@
         "xhigh": "Very high"
       },
       "ocrDevices": {
+        "xpu": {
+          "label": "Intel XPU",
+          "description": "Run HayaiOCR on Intel Arc. PyTorch checks the device on first use."
+        },
         "cuda": {
           "label": "NVIDIA CUDA",
           "description": "Run OCR on an NVIDIA GPU."
@@ -2202,6 +2206,9 @@
         }
       },
       "llamaRuntimes": {
+        "cpu": {
+          "description": "Run the local model on CPU using system memory."
+        },
         "metal": {
           "label": "Apple Metal",
           "description": "Metal llama.cpp runtime for Apple Silicon."
@@ -2246,13 +2253,13 @@
         },
         "vulkan": {
           "label": "Vulkan",
-          "description": "Run on an AMD GPU with Vulkan instead of ROCm. Requires an up-to-date graphics driver."
+          "description": "Use Vulkan on an Intel or AMD GPU with an up-to-date graphics driver."
         }
       },
       "inpaintingModels": {
         "qwen": {
           "label": "Qwen Image 2.1",
-          "description": "Remove lettering from artwork with Qwen Image 2.1 using NVIDIA CUDA, AMD ROCm or Vulkan, or Apple Silicon Metal (macOS 26+)."
+          "description": "Remove lettering with NVIDIA CUDA, AMD ROCm, Intel or AMD Vulkan, or Apple Silicon Metal (macOS 26+)."
         },
         "aot": {
           "label": "AOT minimum",
@@ -2490,6 +2497,8 @@
     },
     "hardware": {
       "summaryTitle": "Auto-detected GPU and active routes",
+      "intelVulkan": "Vulkan is available for Gemma, HunyuanOCR, FLUX and Qwen on this Intel GPU.",
+      "intelCpu": "No Vulkan device was found. CPU is recommended for OCR and text removal.",
       "detectedTitle": "GPU used for auto-detection",
       "detectedUnknown": "GPU information unavailable",
       "memoryValue": "{{memory}} detected memory",

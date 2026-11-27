@@ -1,3 +1,4 @@
+import * as gpuInfo from "../src/main/gpuInfo";
 import { qwenWorkerEnvironment } from "../src/main/inpainting/qwenGpuBudget";
 import { beforeEach, expect, it, vi } from "vitest";
 import {
@@ -121,6 +122,71 @@ it("checks the selected WDDM board and yields to another active image worker", a
   expect(stop).toHaveBeenCalledOnce();
   expect(adapters).toHaveBeenCalledOnce();
 });
+it.each([
+  { name: "Intel Iris Xe", memoryMb: null, counter: "SharedUsage" },
+  { name: "Intel Arc A770", memoryMb: 16384, counter: "DedicatedUsage" },
+])(
+  "guards the selected $name using its WDDM $counter counter",
+  async ({ name: selected, memoryMb, counter }) => {
+    const probe = vi.spyOn(gpuInfo, "detectBestGpuInfo").mockResolvedValue({
+      name: selected,
+      vendor: "intel",
+      memoryMb,
+      rtxGeneration: null,
+      computeCapability: null,
+      supportsVulkan: true,
+    });
+    try {
+      const capacity = 16 * 2 ** 30;
+      adapters.mockImplementation((_file, _args, _options, callback) =>
+        callback(
+          null,
+          JSON.stringify({
+            adapters: [
+              {
+                name: selected,
+                luid,
+                deviceId: 0,
+                highPerformanceRank: 0,
+                dedicatedVideoMemory: memoryMb ? capacity : 128 * 2 ** 20,
+                sharedSystemMemory: capacity,
+              },
+            ],
+            cudaLuid: null,
+          }),
+        ),
+      );
+      execute
+        .mockResolvedValueOnce({
+          stdout: "Vulkan0\tOther GPU\nVulkan1\t" + selected,
+        })
+        .mockResolvedValueOnce({
+          stdout: JSON.stringify({
+            board: [{ Name: board(0).Name, [counter]: capacity }],
+            peer: false,
+          }),
+        });
+      const guard = await prepareQwenPlatformGpu(
+        "sd-cli",
+        {},
+        "vulkan",
+        undefined,
+        signal,
+      );
+      expect(guard.device).toBe("Vulkan1");
+      const stop = vi.fn();
+      expect(await guard.monitor(42, new Promise(() => {}), stop)).toBe(
+        "memory",
+      );
+      expect(stop).toHaveBeenCalledOnce();
+      expect(execute.mock.calls[1][1].at(-1)).toContain(
+        "-Property Name," + counter,
+      );
+    } finally {
+      probe.mockRestore();
+    }
+  },
+);
 it("stops the owned worker before the 11 GiB limit and fails closed when counters disappear", async () => {
   execute
     .mockResolvedValueOnce({ stdout: "ROCm0\t" + name })

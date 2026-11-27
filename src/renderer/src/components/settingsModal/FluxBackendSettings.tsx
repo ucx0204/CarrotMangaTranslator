@@ -1,3 +1,4 @@
+import type { IntelGpuSupport } from "../../../../shared/intelHardware";
 import { SegmentedControl } from "../ui/SegmentedControl";
 import React from "react";
 import { ControlTooltip } from "../ui/ControlTooltip";
@@ -20,6 +21,7 @@ type FluxBackendSettingsProps = {
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
   supportsFluxZluda?: boolean;
   supportsQwenRocm?: boolean;
+  intel?: IntelGpuSupport;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
 };
@@ -183,6 +185,7 @@ function resolveVisibleFluxBackends(
 export function QwenBackendSettings({
   usesAppleHardware,
   usesAmdHardware,
+  intel,
   fluxBackend,
   supportsQwenRocm,
   setFluxBackend,
@@ -191,6 +194,7 @@ export function QwenBackendSettings({
 }: Pick<
   FluxBackendSettingsProps,
   | "usesAppleHardware"
+  | "intel"
   | "usesAmdHardware"
   | "fluxBackend"
   | "supportsQwenRocm"
@@ -201,9 +205,11 @@ export function QwenBackendSettings({
   const { t } = useTranslation("components");
   const backends = usesAppleHardware
     ? ["metal-native"]
-    : usesAmdHardware
-      ? ["rocm-native", "vulkan-native"]
-      : ["cuda-native", "vulkan-native"];
+    : intel
+      ? ["vulkan-native"]
+      : usesAmdHardware
+        ? ["rocm-native", "vulkan-native"]
+        : ["cuda-native", "vulkan-native"];
   const options = FLUX_BACKEND_OPTIONS.filter((option) =>
     backends.includes(option.id),
   ).map((option) => ({

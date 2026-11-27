@@ -29,9 +29,12 @@ This OCR-runtime rule is separate from Text Detector's existing same-model Direc
 | Hayai         | NVIDIA CUDA 12.6                    | `hayai-cuda-cu126`       | `requirements-hayai-cuda-cu126-win.lock` |
 | Hayai         | NVIDIA CUDA 13.0                    | `hayai-cuda-cu130`       | `requirements-hayai-cuda-cu130-win.lock` |
 | Hayai         | AMD ROCm 10.0.0                     | `hayai-rocm`             | `requirements-hayai-rocm-win.lock`       |
+| Hayai         | Intel Arc XPU                       | `hayai-xpu`              | `requirements-hayai-xpu-win.lock`        |
 | Paddle legacy | CPU / Paddle GPU / Transformers GPU | existing legacy variants | existing legacy locks                    |
 
 On Windows, Hayai enables ROCm for the Radeon RX 7600 (gfx1102) using the pinned PyTorch, torchvision and ROCm SDK device wheels. Legacy Paddle uses ROCm 7.2.1 and offers CPU on this card.
+
+Windows Intel systems default to CPU OCR. Arc users can explicitly select Intel XPU for Hayai. The managed runtime verifies the pinned PyTorch XPU packages and performs a tensor operation on the selected device before loading the OCR model. Iris Xe, UHD and legacy PaddleOCR use CPU. Text detection retains its DirectML provider selection.
 
 Hayai locks are hash-complete and forbid Paddle packages. Custom Hayai package or PyTorch index overrides require a caller-supplied hash-complete requirements lock.
 

@@ -6112,6 +6112,28 @@
         "pct": 0
       }
     },
+    "src/main/runtime/compute-gpu-selection.cjs": {
+      "lines": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 23,
+        "total": 25,
+        "pct": 92
+      }
+    },
     "src/main/runtime/hardware/amd-rocm-target.cjs": {
       "lines": {
         "covered": 37,
@@ -6330,6 +6352,28 @@
         "covered": 61,
         "total": 69,
         "pct": 88.4
+      }
+    },
+    "src/main/runtime/model/model-runtime-compatibility.cjs": {
+      "lines": {
+        "covered": 25,
+        "total": 35,
+        "pct": 71.42
+      },
+      "statements": {
+        "covered": 26,
+        "total": 36,
+        "pct": 72.22
+      },
+      "functions": {
+        "covered": 7,
+        "total": 8,
+        "pct": 87.5
+      },
+      "branches": {
+        "covered": 32,
+        "total": 50,
+        "pct": 64
       }
     },
     "src/main/runtime/model/paddle-model-download.cjs": {
@@ -8664,6 +8708,28 @@
         "pct": 81.08
       }
     },
+    "src/main/runtimeCapabilities.ts": {
+      "lines": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 22,
+        "pct": 63.63
+      }
+    },
     "src/main/runtimeModuleLoader.ts": {
       "lines": {
         "covered": 16,
@@ -9080,6 +9146,28 @@
         "covered": 97,
         "total": 104,
         "pct": 93.26
+      }
+    },
+    "src/main/settings/hardwareVendor.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
       }
     },
     "src/main/settings/llamaRuntimeProfile.ts": {
@@ -19222,6 +19310,28 @@
         "covered": 130,
         "total": 144,
         "pct": 90.27
+      }
+    },
+    "src/shared/runtimeCapabilities.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/shared/settingsSecrets.ts": {
@@ -41930,6 +42040,28 @@
         "pct": 96.55
       }
     },
+    "src/main/windowsIntelVulkan.ts": {
+      "lines": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 14,
+        "total": 15,
+        "pct": 93.33
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 15,
+        "total": 17,
+        "pct": 88.23
+      }
+    },
     "src/main/windowsNativeRuntimeFailure.ts": {
       "lines": {
         "covered": 12,
@@ -54666,6 +54798,28 @@
         "covered": 12,
         "total": 12,
         "pct": 100
+      }
+    },
+    "src/shared/intelHardware.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 24,
+        "total": 25,
+        "pct": 96
       }
     },
     "src/shared/internetResearchTypes.ts": {

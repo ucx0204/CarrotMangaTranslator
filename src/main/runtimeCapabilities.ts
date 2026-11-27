@@ -2,6 +2,7 @@ import {
   APPLE_SILICON_MEMORY_REQUIREMENTS_MB,
   type RuntimeCapabilities,
 } from "../shared/runtimeCapabilities";
+import { supportsIntelHayaiXpu } from "../shared/intelHardware";
 import { resolveBuildChannel } from "./buildChannel";
 import type { DetectedGpuInfo } from "./gpuInfo";
 
@@ -53,7 +54,11 @@ export function buildRuntimeCapabilities({
     },
     ocr: {
       cpu: true,
-      gpu: platform === "win32",
+      gpu:
+        platform === "win32" &&
+        (gpu?.vendor !== "intel" ||
+          Boolean(gpu.supportsVulkan) ||
+          supportsIntelHayaiXpu(gpu.name)),
     },
   };
 }

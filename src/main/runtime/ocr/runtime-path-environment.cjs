@@ -56,6 +56,18 @@ function buildOcrRuntimeDllSearchDirs(
   const paddleDirs = isHayaiOcrPipeline(options)
     ? []
     : buildPaddleDllSearchDirs(packageDir);
+  if (resolveOcrGpuBackend(options) === "xpu") {
+    const venvDir = resolveOcrVenvDir(
+      runtimeDir,
+      resolveOcrRuntimeVariant(options),
+      options,
+    );
+    return [
+      ...buildTorchDllSearchDirs(packageDir),
+      path.join(packageDir, "Library", "bin"),
+      path.join(venvDir, "Library", "bin"),
+    ];
+  }
   if (resolveOcrGpuBackend(options) === "rocm-transformers") {
     return [
       ...paddleDirs,

@@ -39,7 +39,7 @@ export type GemmaVramMode =
 export type ApiReasoningEffort =
   "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
-export type OcrGpuBackend = "cuda" | "rocm-transformers";
+export type OcrGpuBackend = "xpu" | "cuda" | "rocm-transformers";
 export type OcrQualityMode = "economy" | "full";
 /**
  * `hayai` is the current region-locked text-detector + HayaiOCR pipeline. The Paddle
@@ -54,7 +54,7 @@ export type OcrPipeline = "hayai" | "paddle-legacy" | "hunyuan";
 export type TranslationWorkflowMode = "standard" | "cumulative";
 export type CumulativeContextDetail = "detailed" | "balanced" | "essential";
 export type LlamaRuntimeProfile =
-  "cuda12" | "rtx50" | "rocm" | "vulkan" | "metal";
+  "cpu" | "cuda12" | "rtx50" | "rocm" | "vulkan" | "metal";
 export type AmdRocmTarget =
   | "gfx908"
   | "gfx90a"
@@ -63,7 +63,7 @@ export type AmdRocmTarget =
   | "gfx1150"
   | "gfx1151"
   | "gfx120X";
-type RuntimeGpuVendor = "nvidia" | "amd" | "apple" | "unknown";
+export type RuntimeGpuVendor = "intel" | "nvidia" | "amd" | "apple" | "unknown";
 
 type RuntimeHardwareInfo = {
   gpuVendor: RuntimeGpuVendor;
