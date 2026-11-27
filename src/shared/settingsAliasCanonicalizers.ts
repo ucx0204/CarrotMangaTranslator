@@ -53,7 +53,8 @@ const FLUX_BACKEND_ALIASES = createAliasMap<FluxBackend>([
 ]);
 
 const INPAINTING_MODEL_ALIASES = createAliasMap<InpaintingModel>([
-  ["flux-klein", ["flux", "flux-klein", "klein", "default"]],
+  ["qwen-image-2.1", ["qwen-image-2.1", "qwen-2.1", "default"]],
+  ["flux-klein", ["flux", "flux-klein", "klein"]],
   ["lama-manga", ["koharu", "lama", "lama-manga", "lama_manga"]],
   ["aot-inpainting", ["aot", "aot-inpainting", "aot_inpainting"]],
 ]);
@@ -170,7 +171,7 @@ export function canonicalizeInpaintingModel(
 ): InpaintingModel | undefined {
   const normalized = normalizeAlias(value);
   if (surface === "ipc" && (normalized === "" || normalized === "auto")) {
-    return "flux-klein";
+    return "qwen-image-2.1";
   }
   return lookupNormalizedAlias(INPAINTING_MODEL_ALIASES, normalized);
 }

@@ -79,6 +79,34 @@ afterEach(async () => {
 });
 
 describe("native runtime installation", () => {
+  it.runIf(process.platform === "win32" && process.arch === "x64")(
+    "installs the Qwen CUDA packages under their own model label",
+    async () => {
+      const qwen = {
+        runtimeDir: root,
+        engine: "qwen-image" as const,
+        backend: "cuda" as const,
+      };
+      const spec = nativeInferencePlan({
+        ...qwen,
+        platform: "win32",
+        arch: "x64",
+      });
+      const zip = new AdmZip();
+      for (const name of [...spec.libraries, "sd-cli.exe"])
+        zip.addFile(name, Buffer.from("Qwen runtime fixture"));
+      zip.writeZip(archive);
+      const installed = await ensureNativeInferenceRuntime(qwen);
+      expect(installed.executable).toBe(
+        join(installed.directory, "sd-cli.exe"),
+      );
+      expect(state.download.mock.calls.map(([asset]) => asset.label)).toEqual([
+        "Qwen Image 2.1 msvc-win32",
+        "Qwen Image 2.1 qwen-image-sdcpp-win32-cuda",
+        "Qwen Image 2.1 qwen-image-cuda12-runtime",
+      ]);
+    },
+  );
   it.runIf(process.platform === "win32")(
     "verifies and repairs the packaged Vulkan executable as well as its libraries",
     async () => {

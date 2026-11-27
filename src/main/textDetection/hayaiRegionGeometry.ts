@@ -358,7 +358,7 @@ function prepareDetections(result: ComicPageDetectionResult): MaskDetection[] {
     const mask = new Uint8Array(source.logits.length);
     let area = 0;
     for (let pixel = 0; pixel < source.logits.length; pixel += 1) {
-      if ((source.logits[pixel] ?? -1) >= 0) {
+      if ((source.logits[pixel] ?? -1) > 0) {
         mask[pixel] = 1;
         area += 1;
       }

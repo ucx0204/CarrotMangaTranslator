@@ -293,11 +293,15 @@ function createDetectedRuntimeHardware(
           ),
           supportsHayaiOcrRocm: supportsWindowsRocmOcrGpu(detectedGpu, "hayai"),
           supportsFluxZluda: resolveNativeRocmGpuSupport(detectedGpu),
+          supportsQwenRocm: resolveNativeRocmGpuSupport(detectedGpu, "qwen"),
         }
       : {}),
     supportsRocm: Boolean(detectedGpu.supportsRocm),
     supportsVulkan: Boolean(detectedGpu.supportsVulkan),
     supportsMetal: Boolean(detectedGpu.supportsMetal),
+    ...(detectedGpu.vendor === "apple"
+      ? { supportsQwenMetal: detectedGpu.supportsQwenMetal }
+      : {}),
     unifiedMemoryMb: detectedGpu.unifiedMemoryMb,
   };
 }

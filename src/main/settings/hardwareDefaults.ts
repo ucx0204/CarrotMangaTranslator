@@ -233,9 +233,11 @@ function resolveHardwareFluxBackend(info: DetectedGpuInfo | null): FluxBackend {
   if (info?.vendor !== "amd") {
     return resolveDefaultFluxNvidiaBackend(info);
   }
-  return resolveNativeRocmGpuSupport(info) === true
+  return resolveNativeRocmGpuSupport(info, "qwen") === true
     ? "rocm-native"
-    : "cpu-native";
+    : info.supportsVulkan
+      ? "vulkan-native"
+      : "cpu-native";
 }
 
 function normalizeDetectedGpuInfo(

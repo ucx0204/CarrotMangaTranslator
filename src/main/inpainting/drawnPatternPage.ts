@@ -1,3 +1,4 @@
+import { usesRegionInpainting } from "../../shared/inpaintingSettingsTypes";
 import { nativeImage } from "electron";
 import { restoreHiddenPixels } from "../imageRedactionPixels";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -196,10 +197,9 @@ async function runDrawnPatternInpainting(
       contextPx: FLUX_INPAINT_CONTEXT_PX,
       maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
       maxPixels: FLUX_INPAINT_MAX_PIXELS,
-      bubbleMask:
-        engine.model === "flux-klein"
-          ? undefined
-          : new Uint8Array(input.width * input.height),
+      bubbleMask: usesRegionInpainting(engine.model)
+        ? undefined
+        : new Uint8Array(input.width * input.height),
       windowMasks: resolveOwnedWindowMasks(engine, input.components),
       requirePixelChange: true,
     },

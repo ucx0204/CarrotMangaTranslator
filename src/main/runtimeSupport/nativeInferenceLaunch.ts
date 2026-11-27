@@ -6,13 +6,14 @@ import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
 import { ensureNativeInferenceRuntime } from "./nativeInferenceRuntime";
 import type { NativeInferenceBackend } from "./nativeInferencePlan";
 import type { RuntimeAssetProgress } from "./modelDownloads";
+import { ensureManagedKoharuRunner } from "./koharuRunner";
 
 const execute = promisify(execFile);
 
 type LaunchOptions = {
   runtimeDir: string;
   executable?: string;
-  engine: "torch" | "diffusion";
+  engine: "torch" | "diffusion" | "qwen-image";
   backend: NativeInferenceBackend;
   computeGpuIndex?: number;
   signal?: AbortSignal;
@@ -34,7 +35,8 @@ export async function prepareNativeInferenceLaunch(
     // Koharu's macOS bindings resolve dylibs relative to the worker executable.
     const sourceExecutable = executable;
     executable = join(runtime.directory, basename(sourceExecutable));
-    await copyFile(sourceExecutable, executable);
+    if (sourceExecutable !== executable)
+      await copyFile(sourceExecutable, executable);
     await chmod(executable, 0o755);
   }
   return {
@@ -72,10 +74,15 @@ function runtimeEnvironmentPath(path: string): string {
 }
 
 async function probeRocmTarget(options: LaunchOptions): Promise<string> {
-  if (!options.executable) throw new Error("ROCm probe requires an executable");
+  const probe =
+    options.engine === "qwen-image"
+      ? (await ensureManagedKoharuRunner(options)).path
+      : options.executable;
+  if (!probe) throw new Error("ROCm probe requires an executable");
   const core = await ensureNativeInferenceRuntime({
     ...options,
     engine: "rocm-probe",
+    qwenRocmProbe: options.engine === "qwen-image",
   });
   const index = normalizeComputeGpuIndex(options.computeGpuIndex) ?? 0;
   const probeEnv: NodeJS.ProcessEnv = {
@@ -97,7 +104,7 @@ async function probeRocmTarget(options: LaunchOptions): Promise<string> {
     delete probeEnv[key];
   }
   const { stdout } = await execute(
-    options.executable,
+    probe,
     ["--probe-rocm", core.manifest, String(index)],
     {
       windowsHide: true,

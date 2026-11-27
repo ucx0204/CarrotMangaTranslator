@@ -4,6 +4,18 @@ import { createEmptyPatternMaskContext } from "../src/main/inpainting/patternMas
 import { runPatternInpaintingEngine } from "../src/main/inpainting/patternEngineRunner";
 
 describe("runPatternInpaintingEngine", () => {
+  it("requires an engine only when a real page window needs work", async () => {
+    const maskContext = createEmptyPatternMaskContext(32, 32);
+    const request = {
+      maskContext,
+      bitmap: Buffer.alloc(32 * 32 * 4),
+      width: 32,
+      height: 32,
+    };
+    await expect(runPatternInpaintingEngine(request)).resolves.toBeUndefined();
+    maskContext.inpaintWindows.push({ x: 0, y: 0, w: 32, h: 32 });
+    await expect(runPatternInpaintingEngine(request)).rejects.toThrow("엔진");
+  });
   it.each(["flux-klein", "codex"] as const)(
     "keeps %s windows aligned with their owned masks",
     async (model) => {

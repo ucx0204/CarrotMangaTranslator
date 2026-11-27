@@ -1,12 +1,19 @@
 import { expect, it, vi } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
 import { createMcpImageBudgetTool } from "../src/main/mcp/mcpImageBudgetTool";
+import { MCP_TRANSLATION_INSTRUCTIONS } from "../src/shared/mcpTranslationInstructions";
 import {
   ImageEditingBudgetSchema,
   imageEditingBudget,
 } from "../src/shared/imageEditingBudget";
 
 vi.mock("electron", () => ({ app: { getVersion: () => "test" } }));
+
+it("names the ordinary erasure model and fallback in the instructions shared with chat clients", () => {
+  expect(MCP_TRANSLATION_INSTRUCTIONS).toContain(
+    "ordinary erasure uses Qwen Image 2.1 with FLUX available as a fallback",
+  );
+});
 
 it.each([
   ["plus", 10, false, "complex-only", 1],
@@ -32,7 +39,7 @@ it.each([
       maxAttemptsPerRegion: attempts,
       imageQuotaRemaining: null,
       simpleBackground: "aot-inpainting",
-      ordinaryBackground: "flux-klein",
+      ordinaryBackground: "qwen-image-2.1",
     });
   },
 );

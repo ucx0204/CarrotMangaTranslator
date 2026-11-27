@@ -595,7 +595,7 @@ describe("production cleanup coverage floor gate", () => {
     // RX 7600 support adds the original measured Windows OCR policy floor.
     // FLUX modes register the original constants, crop tiling and window preparation floors.
     // Local Gemma streaming reuses the existing bounded body reader.
-    expect(scope.existing).toHaveLength(877);
+    expect(scope.existing).toHaveLength(880);
     // Includes global chat, shared actions, OpenCode help, MCP event streams, shared
     // translation instructions and image budget; inherited floors remain unchanged.
     // inherited floors remain unchanged.
@@ -625,7 +625,15 @@ describe("production cleanup coverage floor gate", () => {
     // Issue #176 adds nine per-job storage, cache and shared import policy owners.
     // Credential recovery adds five storage, error, contract and production UI owners.
     // Image framing recovery and local Gemma stream handling have measured floors.
-    expect(scope.added).toHaveLength(1638);
+    // Qwen image restoration and shared crop validation extend the tracked inventory.
+    // Qwen crop masks, print substrates and punctuation use dedicated source measurements.
+    // Registered cover print, jacket boundaries and selected caption geometry.
+    // Native Qwen reference inputs and measured sound-effect geometry have separate owners.
+    // Phase-scoped Qwen workers include both the session controller and the native C binding.
+    // Native layout and Qwen CPU inference add six process and worker modules.
+    // Ruled page headers and the measured scan palette have separate coverage records.
+    // Sparse layout transfer and measured paper, ink, and sound restoration.
+    expect(scope.added).toHaveLength(1750);
     expect(scope.deleted).toHaveLength(12);
   });
 });

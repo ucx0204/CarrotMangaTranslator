@@ -2250,6 +2250,10 @@
         }
       },
       "inpaintingModels": {
+        "qwen": {
+          "label": "Qwen Image 2.1",
+          "description": "Qwen Image 2.1で選択範囲の原文を除去します。NVIDIA CUDA、AMD ROCm・Vulkan、Apple Silicon Metal (macOS 26+)に対応します。"
+        },
         "aot": {
           "label": "AOT 最小",
           "description": "最も軽量なKoharu AOTインペインティングです。"
@@ -2535,6 +2539,7 @@
       "fluxMode": "FLUXインペインティングモード",
       "fluxModeNormal": "通常",
       "fluxModeLight": "軽量",
+      "qwenBackend": "Qwen 実行バックエンド",
       "fluxBackend": "Fluxインペインティングのバックエンド",
       "inpaintingModel": "インペインティングモデル",
       "amdOcrExperimental": "AMD GPU OCRは実験機能です。失敗した場合はOCRだけをCPUに切り替えられます。",

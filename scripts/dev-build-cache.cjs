@@ -181,6 +181,13 @@ function createElectronCompileCacheStep(root, options = {}) {
   const sourceRoot = join(root, "src");
   const mainSource = join(sourceRoot, "main");
   const sharedSource = join(sourceRoot, "shared");
+  // The Python detector loads its graph metadata from app-runtime beside the
+  // worker. TypeScript only emits JSON imported by a TypeScript module.
+  const koharuGraphMetadata = join(
+    mainSource,
+    "runtime",
+    "koharu-sparse-model.json",
+  );
   const fontMatchingRuntimeSource = join(
     mainSource,
     "runtime",
@@ -199,7 +206,8 @@ function createElectronCompileCacheStep(root, options = {}) {
   const getTscInputs = () => [
     ...listTreeFiles(
       mainSource,
-      isTscInputFile,
+      (filePath) =>
+        filePath !== koharuGraphMetadata && isTscInputFile(filePath),
       false,
       (directory) =>
         directory !== fontMatchingRuntimeSource &&

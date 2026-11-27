@@ -52,8 +52,10 @@ export type HardwareSettingsPanelProps = {
   supportsOcrRocm?: boolean;
   /** Whether AMD officially supports the adapter in the current Windows HIP SDK. */
   supportsFluxZluda?: boolean;
+  supportsQwenRocm?: boolean;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
+  supportsQwenMetal?: boolean;
   usesAmdOcrContext: boolean;
   usesNvidiaHardware: boolean;
   usesNvidiaOcrContext: boolean;

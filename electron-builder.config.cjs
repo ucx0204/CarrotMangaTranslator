@@ -74,8 +74,19 @@ const extraResources = [
     filter: ["**/*"],
   },
 ];
-const windowsExtraResources = [];
-const macExtraResources = [];
+/** @type {import("electron-builder").FileSet[]} */
+const windowsExtraResources = [
+  {
+    from: "node_modules/@koromix/koffi-win32-x64/win32_x64/koffi.node",
+    to: "app-runtime/koffi.node",
+  },
+];
+const macExtraResources = [
+  {
+    from: "node_modules/@koromix/koffi-darwin-arm64/darwin_arm64/koffi.node",
+    to: "app-runtime/koffi.node",
+  },
+];
 
 if (!thinInstaller && existsSync(join(__dirname, "tools", "python"))) {
   windowsExtraResources.push({
@@ -415,6 +426,7 @@ module.exports = {
     "!node_modules/undici-types{,/**/*}",
     // A platform-specific copy is staged under the short `resources/o` path.
     "!node_modules/onnxruntime-node{,/**/*}",
+    "!node_modules/@koromix{,/**/*}",
     // The selected official native distribution is staged under resources/c.
     // Do not also retain the JS launcher or any optional platform packages in ASAR.
     "!node_modules/@openai/codex{,/**/*}",

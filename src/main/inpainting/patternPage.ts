@@ -1,3 +1,4 @@
+import { usesRegionInpainting } from "../../shared/inpaintingSettingsTypes";
 import { nativeImage } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -12,10 +13,9 @@ import {
   shouldUseOriginalPatternImage,
 } from "./patternBlockEligibility";
 import { runPatternInpaintingEngine } from "./patternEngineRunner";
-import {
-  buildPatternPageMask,
-  type PatternMaskContext,
-} from "./patternPageMask";
+import type { PatternMaskContext } from "./patternPageMask";
+import { preparePatternPageMask } from "./patternMaskWorker";
+import { pasteMeasuredPaper } from "./patternMaskContext";
 import {
   attachRequiredPatternSourceDiagnostics,
   cleanupStrictDiagnosticOutput,
@@ -49,7 +49,7 @@ export async function inpaintPatternPage(
   const size = { width: working.width, height: working.height };
   const bitmap = Buffer.from(working.bitmap);
 
-  const maskContext = createPatternMaskContext(page, bitmap, size, options);
+  const maskContext = await planPageMasks(page, bitmap, size, options);
   if (maskContext.blocksErased === 0) return { page, blocksErased: 0 };
   await runPatternInpaintingEngine({
     ...options,
@@ -60,6 +60,7 @@ export async function inpaintPatternPage(
     engine: options.inpaintingEngine,
     maskContext,
   });
+  pasteMeasuredPaper(maskContext, bitmap, size.width);
   const changes = resolvePatternPixelChanges(
     working.bitmap,
     bitmap,
@@ -171,24 +172,25 @@ function resolvePatternBlockIds(
   ).map((block) => block.id);
 }
 
-function createPatternMaskContext(
+function planPageMasks(
   page: MangaPage,
   bitmap: Buffer,
   size: { height: number; width: number },
   options: PatternPageInpaintingOptions,
-): PatternMaskContext {
-  return buildPatternPageMask({
+): Promise<PatternMaskContext> {
+  return preparePatternPageMask({
     blockId: options.blockId,
     blockIds: options.blockIds,
     page,
     bitmap,
     collectSourceGlyphEvidence: false,
+    conditionOnTypography: options.inpaintingEngine?.model === "qwen-image-2.1",
     width: size.width,
     height: size.height,
     mode:
       options.inpaintingEngine?.model === "codex"
         ? "codex-region"
-        : options.inpaintingEngine?.model === "flux-klein" ||
+        : usesRegionInpainting(options.inpaintingEngine?.model) ||
             options.typographySegmentation
           ? "flux-region"
           : "glyph",

@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import type {
   InpaintingModel,
+  KoharuInpaintingModel,
   KoharuInpaintingBackend,
 } from "../../shared/inpaintingSettingsTypes";
 import {
@@ -49,7 +50,7 @@ type KoharuWorkerLaunchOptions = {
   runtimeDir: string;
   cudaRuntimeDir?: string;
   computeGpuIndex?: number;
-  model: Exclude<InpaintingModel, "flux-klein">;
+  model: KoharuInpaintingModel;
   modelFiles: KoharuModelFiles;
   backend: KoharuInpaintingBackend;
   signal?: AbortSignal;
@@ -76,7 +77,7 @@ export function resolveKoharuModelFiles(model: InpaintingModel): {
 }
 
 export async function ensureKoharuModelAssets(options: {
-  model: Exclude<InpaintingModel, "flux-klein">;
+  model: KoharuInpaintingModel;
   modelDir: string;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;

@@ -272,16 +272,10 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  border: 3px solid;
+  border: 3px dashed var(--danger-bd);
   border-radius: 2px;
   background: transparent;
-}
-
-.creationBox {
   z-index: var(--sound-effect-translation-modal-creation-box-z-index);
-  border-color: var(--danger-bd);
-  border-style: dashed;
-  background: var(--danger-soft);
   pointer-events: none;
 }
 

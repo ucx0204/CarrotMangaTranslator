@@ -99,15 +99,16 @@ describe("settings alias surfaces", () => {
   it("keeps inpainting-model aliases surface-compatible", () => {
     assertAliasMatrix(
       [
-        ["flux-klein", ["flux", "flux-klein", "klein", "default"]],
+        ["flux-klein", ["flux", "flux-klein", "klein"]],
         ["lama-manga", ["koharu", "lama", "lama-manga", "lama_manga"]],
+        ["qwen-image-2.1", ["qwen-image-2.1", "qwen-2.1", "default"]],
         ["aot-inpainting", ["aot", "aot-inpainting", "aot_inpainting"]],
       ],
       (alias) => InpaintingModelSchema.parse(alias),
       (alias) => resolveInpaintingModel(alias, "aot-inpainting"),
     );
     for (const alias of ["", "auto"]) {
-      expect(InpaintingModelSchema.parse(alias)).toBe("flux-klein");
+      expect(InpaintingModelSchema.parse(alias)).toBe("qwen-image-2.1");
       expect(resolveInpaintingModel(alias, "aot-inpainting")).toBe(
         "aot-inpainting",
       );

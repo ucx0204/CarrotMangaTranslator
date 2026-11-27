@@ -1,3 +1,5 @@
+import { DEFAULT_INPAINTING_MODEL } from "../../shared/inpaintingSettingsTypes";
+import { usesRegionInpainting } from "../../shared/inpaintingSettingsTypes";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { PageWorkflowStage } from "../../shared/pageWorkflowStages";
 import { PageWorkflowPartialFailure } from "../application/pageWorkflowPartialFailure";
@@ -50,7 +52,9 @@ export function createWorkflowImages(
       return;
     if (
       context.plan.erasureEngine !== "codex" &&
-      (context.settings.inpainting?.model ?? "flux-klein") === "flux-klein"
+      usesRegionInpainting(
+        context.settings.inpainting?.model ?? DEFAULT_INPAINTING_MODEL,
+      )
     ) {
       await runner.preparePages?.(pages, context.signal, (page, index) =>
         emitInpaintingMaskPreparation(
@@ -102,16 +106,16 @@ async function eraseWorkflowPage(
   const lease = await acquireWorkflowErasure(context, runtime);
   try {
     const blockIds = targets.map((block) => block.id);
-    const prepass =
-      lease.engine.model === "flux-klein"
-        ? await runBubbleLayoutMaskPrepass({
-            page,
-            blockIds,
-            config: { policy: "balanced", overwriteManual: false },
-            runner,
-            signal: context.signal,
-          })
-        : undefined;
+    const prepass = usesRegionInpainting(lease.engine.model)
+      ? await runBubbleLayoutMaskPrepass({
+          model: lease.engine.model,
+          page,
+          blockIds,
+          config: { policy: "balanced", overwriteManual: false },
+          runner,
+          signal: context.signal,
+        })
+      : undefined;
     const {
       page: maskPage = page,
       restoreLayout,
@@ -216,7 +220,7 @@ async function acquireWorkflowErasure(
     : await runtime.acquireInpaintingEngine({
         appPaths: context.paths,
         signal: context.signal,
-        model: settings.inpainting?.model ?? "flux-klein",
+        model: settings.inpainting?.model ?? DEFAULT_INPAINTING_MODEL,
         fluxBackend: settings.inpainting?.fluxBackend,
         fluxMode: settings.inpainting?.fluxMode,
         koharuBackend: settings.inpainting?.koharuBackend,

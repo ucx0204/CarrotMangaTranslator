@@ -21,12 +21,6 @@ const DEFAULT_COHORT = path.join(
   "koharu-bubble-text-overlay-300-v1",
   "cohort.json",
 );
-const DEFAULT_ONNX = path.join(
-  ROOT,
-  ".tmp",
-  "koharu-layout-rfdetr-onnx-v1",
-  "rfdetr-seg-2xlarge.onnx",
-);
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -34,7 +28,7 @@ async function main() {
   app.setPath("userData", path.join(options.outputDir, ".electron-profile"));
   await app.whenReady();
   const modules = loadCompiledModules();
-  stageKoharuModel(options.dataRoot, options.onnxPath);
+  if (options.onnxPath) stageKoharuModel(options.dataRoot, options.onnxPath);
   mkdirSync(path.join(options.outputDir, "source"), { recursive: true });
   mkdirSync(path.join(options.outputDir, "masks"), { recursive: true });
 
@@ -362,9 +356,9 @@ function stageKoharuModel(dataRoot, sourcePath) {
     dataRoot,
     "models",
     "bubble-layout",
-    "koharu-layout-rfdetr-seg-2xl-1152",
+    "koharu-layout-rfdetr-highres-1920",
   );
-  const targetPath = path.join(targetDir, "rfdetr-seg-2xlarge.onnx");
+  const targetPath = path.join(targetDir, "model.onnx");
   mkdirSync(targetDir, { recursive: true });
   if (!existsSync(targetPath)) copyFileSync(sourcePath, targetPath);
 }
@@ -408,7 +402,7 @@ function parseArgs(args) {
     ),
     engines,
     indices,
-    onnxPath: path.resolve(values.get("onnx") || DEFAULT_ONNX),
+    onnxPath: values.has("onnx") ? path.resolve(values.get("onnx")) : undefined,
     outputDir: path.resolve(outputDir),
   };
 }

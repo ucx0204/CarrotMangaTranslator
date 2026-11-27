@@ -352,6 +352,16 @@ export const FLUX_BACKEND_OPTIONS: FluxBackendOption[] = [
 
 export const INPAINTING_MODEL_OPTIONS: InpaintingModelOption[] = [
   {
+    id: "qwen-image-2.1",
+    labelKey: "settings.options.inpaintingModels.qwen.label",
+    descriptionKey: "settings.options.inpaintingModels.qwen.description",
+  },
+  {
+    id: "flux-klein",
+    labelKey: "settings.options.inpaintingModels.flux.label",
+    descriptionKey: "settings.options.inpaintingModels.flux.description",
+  },
+  {
     id: "aot-inpainting",
     labelKey: "settings.options.inpaintingModels.aot.label",
     descriptionKey: "settings.options.inpaintingModels.aot.description",
@@ -360,11 +370,6 @@ export const INPAINTING_MODEL_OPTIONS: InpaintingModelOption[] = [
     id: "lama-manga",
     labelKey: "settings.options.inpaintingModels.lama.label",
     descriptionKey: "settings.options.inpaintingModels.lama.description",
-  },
-  {
-    id: "flux-klein",
-    labelKey: "settings.options.inpaintingModels.flux.label",
-    descriptionKey: "settings.options.inpaintingModels.flux.description",
   },
 ];
 

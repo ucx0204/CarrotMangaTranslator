@@ -1,3 +1,8 @@
+import {
+  prepareCudaContext,
+  resolvePreparedContext,
+} from "./preparedContextualText";
+import { completePaperOwners } from "../inpainting/qwenPaperOwnership";
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { isGeneratedBubbleLayout } from "../../shared/bubbleLayout";
@@ -10,6 +15,12 @@ import type {
 } from "../inpainting/bubbleLayoutRunner";
 import { ensureKoharuLayoutAssets } from "./assets";
 import { detectKoharuPageLayout } from "./detector";
+import { loadPageImage } from "../inpainting/imageIO";
+import { completeDetectedQwenPrintEdges } from "../inpainting/qwenDetectedPrintEdge";
+import {
+  contextualTextTargets,
+  refineContextualText,
+} from "../inpainting/qwenContextualTypography";
 import { disposeCachedKoharuLayoutSessions } from "./session";
 import { PreparedLayoutDetections } from "./preparedLayoutDetections";
 import type { MangaPage } from "../../shared/libraryTypes";
@@ -45,7 +56,17 @@ export function createProductionBubbleLayoutRunner(
       await prepared.prepare(
         pages,
         signal,
-        (page) => detectOriginalPageLayoutUncached(options, page, signal),
+        async (page) => {
+          const detection = await detectOriginalPageLayoutUncached(
+            options,
+            page,
+            signal,
+          );
+          return options.prepareQwenContext &&
+            detection.executionProvider === "cuda"
+            ? prepareCudaContext(page, detection, options, signal)
+            : detection;
+        },
         disposeCachedKoharuLayoutSessions,
         onProgress,
       );
@@ -78,28 +99,23 @@ async function runProductionBubbleLayout(
       detectionsByOriginalPath,
     );
     throwIfAborted(request.signal);
-    return {
-      patches: processDetectedBubbleLayouts({
-        page: request.page,
-        imageWidth: detection.imageWidth,
-        imageHeight: detection.imageHeight,
-        detections: detection.detections,
-        policy: request.policy,
-        paddingRatio: request.paddingRatio,
-        sharedOwnershipGapPx: request.sharedOwnershipGapPx,
-        sourceEraseMask: request.sourceEraseMask,
-        pageRevision,
-      }),
-      ...(request.includeTypographySegmentation
-        ? {
-            typographySegmentation: {
-              imageWidth: detection.imageWidth,
-              imageHeight: detection.imageHeight,
-              detections: detection.detections,
-            },
-          }
-        : {}),
-    };
+    const detectedPatches = processDetectedBubbleLayouts({
+      page: request.page,
+      imageWidth: detection.imageWidth,
+      imageHeight: detection.imageHeight,
+      detections: detection.detections,
+      policy: request.policy,
+      paddingRatio: request.paddingRatio,
+      sharedOwnershipGapPx: request.sharedOwnershipGapPx,
+      sourceEraseMask: request.sourceEraseMask,
+      pageRevision,
+    });
+    return await prepareEraseResult(
+      options,
+      request,
+      detection,
+      detectedPatches,
+    );
   } catch (error) {
     if (request.signal.aborted) {
       throw new DOMException("Aborted", "AbortError");
@@ -123,6 +139,135 @@ async function runProductionBubbleLayout(
       patches: clearStaleGeneratedLayouts(request, pageRevision),
     };
   }
+}
+
+async function prepareEraseResult(
+  options: BubbleLayoutRunnerFactoryOptions,
+  request: BubbleLayoutRunnerRequest,
+  detection: ComicPageDetectionResult,
+  detectedPatches: ReturnType<typeof processDetectedBubbleLayouts>,
+): Promise<BubbleLayoutRunnerResult> {
+  let original: ReturnType<typeof loadPageImage> | undefined;
+  const loadOriginal = () =>
+    (original ??= loadPageImage(
+      request.page.imagePath,
+      options.decodeFallback,
+    ));
+  const patches = await resolveSourceEraseEdges(
+    request,
+    detection,
+    detectedPatches,
+    loadOriginal,
+  );
+  const contextualText = await resolveContextualText(
+    options,
+    request,
+    detection,
+    patches,
+    loadOriginal,
+  );
+  return {
+    patches,
+    ...(request.includeTypographySegmentation
+      ? {
+          typographySegmentation: {
+            imageWidth: detection.imageWidth,
+            imageHeight: detection.imageHeight,
+            detections: detection.detections,
+            ...(contextualText?.size ? { contextualText } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
+async function resolveContextualText(
+  options: BubbleLayoutRunnerFactoryOptions,
+  request: BubbleLayoutRunnerRequest,
+  detection: ComicPageDetectionResult,
+  patches: ReturnType<typeof processDetectedBubbleLayouts>,
+  loadOriginal: () => ReturnType<typeof loadPageImage>,
+) {
+  if (
+    request.includeTypographySegmentation !== "qwen-print" ||
+    detection.imageWidth !== request.page.width ||
+    detection.imageHeight !== request.page.height
+  )
+    return;
+  const targets = contextualTextTargets(
+    request.page,
+    detection,
+    patches,
+    request.targetBlockIds,
+  );
+  if (!targets.length) return;
+  try {
+    return await resolvePreparedContext(
+      targets,
+      detection.preparedText,
+      async (missing) => {
+        const source = await loadOriginal();
+        const assets = await ensureKoharuLayoutAssets({
+          dataRoot: options.dataRoot,
+          signal: request.signal,
+        });
+        return refineContextualText(
+          request.page,
+          missing,
+          (view) =>
+            detectKoharuPageLayout({
+              imagePath: request.page.imagePath,
+              originalCrop: source.crop(view),
+              modelPath: assets.modelPath,
+              providerPreference: ["cpu"],
+              signal: request.signal,
+            }),
+          request.signal,
+        );
+      },
+    );
+  } catch (error) {
+    request.signal.throwIfAborted();
+    logWarn("Koharu contextual text refinement skipped", {
+      pageId: request.page.id,
+      error,
+    });
+    return;
+  }
+}
+
+async function resolveSourceEraseEdges(
+  request: BubbleLayoutRunnerRequest,
+  detection: ComicPageDetectionResult,
+  patches: ReturnType<typeof processDetectedBubbleLayouts>,
+  loadOriginal: () => ReturnType<typeof loadPageImage>,
+) {
+  if (
+    request.includeTypographySegmentation !== "qwen-print" ||
+    !patches.some((patch) => patch.sourceEraseConstraint)
+  )
+    return patches;
+  const source = await loadOriginal();
+  throwIfAborted(request.signal);
+  const { width, height } = source.getSize();
+  if (width !== detection.imageWidth || height !== detection.imageHeight)
+    return patches;
+  const bitmap = source.toBitmap();
+  const owners = completePaperOwners(
+    request.page,
+    patches,
+    bitmap,
+    request.signal,
+    request.targetBlockIds,
+  );
+  return completeDetectedQwenPrintEdges(
+    request.page,
+    owners,
+    detection,
+    bitmap,
+    request.signal,
+    request.targetBlockIds,
+  );
 }
 
 async function detectOriginalPageLayout(

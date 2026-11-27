@@ -136,6 +136,7 @@ describe("inpainting model choices with help", () => {
     setInpaintingModel: vi.fn(),
     unifiedMemoryMb: 8192,
     usesAppleHardware: true,
+    usesNvidiaHardware: false,
   };
   it("explains a model without selecting it and keeps the low-memory confirmation", () => {
     const setModel = vi.fn();

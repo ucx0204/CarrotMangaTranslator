@@ -1,3 +1,4 @@
+import { INPAINTING_MODELS } from "./inpaintingSettingsTypes";
 import { z } from "zod";
 import {
   canonicalizeAmdRocmTarget,
@@ -48,7 +49,7 @@ export const FluxBackendSchema = z.preprocess(
 
 export const InpaintingModelSchema = z.preprocess(
   (value) => canonicalizeInpaintingModel(value, "ipc") ?? value,
-  z.enum(["flux-klein", "lama-manga", "aot-inpainting"]),
+  z.enum(INPAINTING_MODELS),
 );
 
 export const KoharuInpaintingBackendSchema = z.preprocess(

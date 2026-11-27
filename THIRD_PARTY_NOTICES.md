@@ -6,13 +6,17 @@
 
 - Electron, React, Vite, TypeScript, dnd-kit, Radix UI, Tabler Icons 등 JavaScript 패키지
 - Kenney `Interface Sounds`의 `confirmation_002.ogg` 완료 알림음. 원본은 [Kenney Interface Sounds](https://kenney.nl/assets/interface-sounds)에서 Creative Commons Zero(CC0)로 배포되며, 번들 파일 `src/renderer/src/assets/audio/completion.ogg`의 SHA-256은 `33b17a9a9a2397c62b285c52c33a907fdffb476909c99e42dde603f6a7a8b12c`입니다.
-- Apache-2.0 `ogkalu/comic-text-and-bubble-detector`의 RT-DETR-v2 ONNX 모델과 MIT `onnxruntime-web`. 앱은 말풍선·말풍선 안 텍스트·자유글 후보를 찾기 위해 고정 revision의 INT8 모델을 SHA-256 검증 후 내려받습니다.
+- Koharu Layout HighRes © 2026 Mayo Takanashi, RF-DETR Seg 2XL © 2025 Roboflow. 앱은 Apache-2.0 모델의 ONNX 변환본을 내려받아 SHA-256을 검증합니다. [원본 모델](https://huggingface.co/mayocream/koharu-layout-highres) · [ONNX 변환 및 고지](https://huggingface.co/erdeneetemp/koharu-layout-highres-onnx/blob/a5818861f184f496c2e45063c9542ffb7abccd37/NOTICE) · [MIT ONNX Runtime](https://github.com/microsoft/onnxruntime/blob/main/LICENSE)
 - Apache-2.0 `@openai/codex` 공식 패키지와 플랫폼별 네이티브 Codex 런타임. 설치판은 고정 버전의 공식 Codex App Server 바이너리를 `resources/c`에 포함하고 패키지 매니페스트와 버전을 검증합니다.
 - Anthropic `@anthropic-ai/claude-agent-sdk`와 공식 Claude Code 네이티브 런타임. 수정하지 않은 공식 실행 파일과 원본 라이선스를 `resources/claude`에 포함합니다. Claude Code 사용에는 Anthropic의 [Legal Agreements](https://code.claude.com/docs/en/legal-and-compliance)가 적용됩니다.
 - ffmpeg
 - llama.cpp, beellama, Lemonade ROCm runtime
 - PaddleOCR, PaddlePaddle, Python runtime
 - Flux/Koharu 기반 인페인팅 runner와 관련 모델/런타임
+- Qwen Image 2.1 인페인팅에는 leejet의 GGUF와 Comfy-Org의 VAE와 가속 경로용 Qwen Image 2.1 Turbo INT8을 사용합니다. ControlNet 경로에서는 같은 배포처의 Fun ControlNet Union도 내려받습니다. 이 가중치들의 배포처는 비상업적 연구·평가 용도의 Qwen Research License를 명시하며, 상업적으로 사용하려면 별도 라이선스가 필요합니다. [원본 라이선스](https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE) · [GGUF 모델 카드](https://huggingface.co/leejet/Qwen-Image-2.1-GGUF) · [Turbo·VAE·ControlNet 배포처](https://huggingface.co/Comfy-Org/Qwen-Image-2.1)
+- 네이티브 Qwen 실행기는 Koffi(MIT)를 사용해 stable-diffusion.cpp 라이브러리를 호출합니다. [Koffi](https://koffi.dev/)
+- ControlNet 인페인팅은 전용 로컬 런타임에서 ComfyUI(GPL-3.0), ComfyUI-GGUF(Apache-2.0), GGUF 판독기를 사용합니다. 밑그림 복원에는 Apache-2.0으로 배포된 LaMa Manga ONNX를 사용합니다. [ComfyUI](https://github.com/Comfy-Org/ComfyUI/blob/v0.46.0/LICENSE) · [ComfyUI-GGUF](https://github.com/leejet/ComfyUI-GGUF/blob/ff8d48666758866bcc9e93b22e1e07cb636e084f/LICENSE) · [GGUF](https://pypi.org/project/gguf/0.19.0/) · [LaMa Manga ONNX](https://huggingface.co/mayocream/lama-manga-onnx)
+- Qwen Image 2.1의 이미지·텍스트 인코딩에 사용하는 Qwen3-VL-8B-Instruct GGUF와 시각 프로젝터에는 Apache-2.0이 적용됩니다. [Qwen3-VL 모델 카드](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF)
 - Gemma 4 GGUF 모델, mmproj, Flux Klein, Flux small decoder, LaMa Manga, AOT Inpainting 등 Hugging Face에서 내려받는 모델 파일
 - `mayocream/anime-text-yolo`의 GPL-3.0 `yolo12n_animetext.safetensors`. 앱은 고정 revision과 SHA-256을 검증해 내려받으며, OCR 그룹을 직접 결정하지 않는 보조 텍스트 영역 신호로만 사용합니다.
 

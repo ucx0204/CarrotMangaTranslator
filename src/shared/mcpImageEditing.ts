@@ -1,3 +1,4 @@
+import { INPAINTING_MODELS } from "./inpaintingSettingsTypes";
 import { z } from "zod/v4";
 import { InpaintingRetouchGeometrySchema } from "./ipcJobSchemas";
 import { McpSourceRectPatchSchema } from "./mcpSourceRect";
@@ -24,7 +25,7 @@ const geometry = z
   ])
   .refine((value) => InpaintingRetouchGeometrySchema.safeParse(value).success);
 const protectedAreas = z.array(geometry).max(50).default([]);
-const engine = z.enum(["flux-klein", "lama-manga", "aot-inpainting"]);
+const engine = z.enum(INPAINTING_MODELS);
 const erasure = {
   expectedEngine: engine,
   allowAssetDownloads: z.boolean().default(false),

@@ -9,7 +9,10 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as fsPromises from "node:fs/promises";
-import { queryWindowsDirectMlAdapter } from "../src/main/runtimeSupport/windowsDirectMlAdapter";
+import {
+  queryWindowsCudaLuid,
+  queryWindowsDirectMlAdapter,
+} from "../src/main/runtimeSupport/windowsDirectMlAdapter";
 
 const { execFileMock } = vi.hoisted(() => ({ execFileMock: vi.fn() }));
 vi.mock("node:child_process", () => ({ execFile: execFileMock }));
@@ -57,6 +60,28 @@ function assertWritableProbeTemp(options: ProbeOptions): string {
   expect(options.windowsHide).toBe(true);
   return directory;
 }
+
+it("resolves Qwen's assigned CUDA device and rejects a missing identifier or invalid counter LUID", async () => {
+  await expect(queryWindowsCudaLuid("")).rejects.toThrow("NVIDIA");
+  expect(execFileMock).not.toHaveBeenCalled();
+  const uuid = "GPU-12345678-abcd-1234-abcd-123456789abc";
+  for (const luid of ["000000000000ABCD", "unknown"]) {
+    execFileMock.mockImplementationOnce(
+      (
+        _file: string,
+        _args: string[],
+        options: ProbeOptions,
+        callback: ProbeCallback,
+      ) => {
+        expect(options.env.CUDA_VISIBLE_DEVICES).toBe(uuid);
+        callback(null, luid);
+      },
+    );
+    const probe = queryWindowsCudaLuid(uuid);
+    if (luid === "unknown") await expect(probe).rejects.toThrow();
+    else await expect(probe).resolves.toBe("000000000000abcd");
+  }
+});
 
 describe("Windows DirectML probe temporary files", () => {
   it("reports unavailable temporary storage without starting a compiler", async () => {

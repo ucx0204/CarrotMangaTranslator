@@ -91,6 +91,7 @@
     "electron-updater": "6.8.11",
     "google-auth-library": "^11.1.0",
     "i18next": "^26.4.2",
+    "koffi": "3.3.8",
     "onnxruntime-node": "1.30.0",
     "onnxruntime-web": "1.30.0",
     "pngjs": "^7.0.0",

@@ -1,6 +1,7 @@
 import { join } from "node:path";
 
 const APP_RUNTIME_MODULE_FILES = {
+  nativeFfi: "koffi.node",
   llamaDownload: "model/llama-runtime-download.cjs",
   mainlineRuntimes: "model/speed-llama-runtime-contracts.cjs",
   processTermination: "transport/process-termination.cjs",

@@ -28,6 +28,7 @@ describe("KoharuLayout detector backend", () => {
         prepareImage,
         resolveBackend,
         runWasmInference,
+        runNativeInference: vi.fn(),
       },
     );
 
@@ -40,5 +41,51 @@ describe("KoharuLayout detector backend", () => {
       signal,
     });
     expect(result.executionProvider).toBe("wasm");
+  });
+  it("passes only the original crop pixels and model settings to the native process", async () => {
+    const bitmap = Buffer.alloc(32, 91);
+    const originalCrop = {
+      getSize: () => ({ width: 4, height: 2 }),
+      toBitmap: () => bitmap,
+    } as Electron.NativeImage;
+    const runNativeInference = vi.fn(async () => ({
+      imageWidth: 4,
+      imageHeight: 2,
+      detections: [],
+    }));
+    const loadImage = vi.fn(),
+      prepareImage = vi.fn(),
+      runWasmInference = vi.fn();
+    const signal = new AbortController().signal;
+    await detectKoharuPageLayout(
+      {
+        imagePath: "original.jpg",
+        originalCrop,
+        modelPath: "model.onnx",
+        directMl: { computeGpuIndex: 1 },
+        providerPreference: ["dml", "cpu"],
+        signal,
+      },
+      {
+        resolveBackend: () => "native",
+        runNativeInference,
+        runWasmInference,
+        loadImage,
+        prepareImage,
+      },
+    );
+    expect(runNativeInference).toHaveBeenCalledWith(
+      {
+        bitmap,
+        width: 4,
+        height: 2,
+        modelPath: "model.onnx",
+        directMl: { computeGpuIndex: 1 },
+        providerPreference: ["dml", "cpu"],
+      },
+      signal,
+    );
+    for (const unused of [prepareImage, loadImage, runWasmInference])
+      expect(unused).not.toHaveBeenCalled();
   });
 });

@@ -348,16 +348,12 @@ export const AppSettingsSchema = z
     blockStylePresets: z
       .array(BlockStylePresetSchema)
       .max(MAX_BLOCK_STYLE_PRESETS)
-      .refine(
-        (items) => new Set(items.map((item) => item.id)).size === items.length,
-      )
+      .refine(hasUniquePresetIds)
       .optional(),
     blockStylePresetGroups: z
       .array(BlockStylePresetGroupSchema)
       .max(MAX_BLOCK_STYLE_PRESET_GROUPS)
-      .refine(
-        (items) => new Set(items.map((item) => item.id)).size === items.length,
-      )
+      .refine(hasUniquePresetIds)
       .optional(),
     keybindings: KeybindingOverridesSchema.optional(),
     hardware: z
@@ -383,9 +379,11 @@ export const AppSettingsSchema = z
         supportsOcrRocm: z.boolean().optional(),
         supportsHayaiOcrRocm: z.boolean().optional(),
         supportsFluxZluda: z.boolean().optional(),
+        supportsQwenRocm: z.boolean().optional(),
         supportsRocm: z.boolean().optional(),
         supportsVulkan: z.boolean().optional(),
         supportsMetal: z.boolean().optional(),
+        supportsQwenMetal: z.boolean().optional(),
         unifiedMemoryMb: z.number().int().positive().nullable().optional(),
       })
       .strict()
@@ -403,3 +401,7 @@ export const AppSettingsSchema = z
     ctx: z.number().int().min(MIN_CONTEXT_TOKENS),
   })
   .strict();
+
+function hasUniquePresetIds(items: { id: string }[]) {
+  return new Set(items.map((item) => item.id)).size === items.length;
+}

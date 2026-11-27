@@ -1,3 +1,5 @@
+import { DEFAULT_INPAINTING_MODEL } from "../../shared/inpaintingSettingsTypes";
+import { usesRegionInpainting } from "../../shared/inpaintingSettingsTypes";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -171,18 +173,18 @@ async function eraseRegionWithConfiguredEngine(
   const appPaths = dependencies.getAppPaths();
   const settings = await dependencies.getAppSettings(appPaths);
   const inpainting = settings.inpainting ?? {};
-  const model = inpainting.model ?? "flux-klein";
-  const runner =
-    model === "flux-klein"
-      ? dependencies.createBubbleLayoutRunner({
-          dataRoot: appPaths.dataRoot,
-          decodeFallback,
-          directMl: {
-            ...settings.hardware,
-            computeGpuBackend: settings.ocr.gpuBackend,
-          },
-        })
-      : undefined;
+  const model = inpainting.model ?? DEFAULT_INPAINTING_MODEL;
+  const runner = usesRegionInpainting(model)
+    ? dependencies.createBubbleLayoutRunner({
+        ...(model === "qwen-image-2.1" && { prepareQwenContext: true }),
+        dataRoot: appPaths.dataRoot,
+        decodeFallback,
+        directMl: {
+          ...settings.hardware,
+          computeGpuBackend: settings.ocr.gpuBackend,
+        },
+      })
+    : undefined;
   let lease:
     | Awaited<ReturnType<typeof dependencies.acquireInpaintingEngine>>
     | undefined;
@@ -232,8 +234,9 @@ async function erasePreparedRegion(
 ) {
   const blockIds = page.blocks.map((block) => block.id);
   const prepared =
-    lease.engine.model === "flux-klein" && runner
+    usesRegionInpainting(lease.engine.model) && runner
       ? await runBubbleLayoutMaskPrepass({
+          model: lease.engine.model,
           page,
           blockIds,
           signal,

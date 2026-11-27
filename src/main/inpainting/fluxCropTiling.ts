@@ -12,7 +12,8 @@ import {
   type PixelRect,
 } from "./maskGeometry";
 
-export type FluxCropStrategy = "resize" | "native" | "native-tiled";
+export type FluxCropStrategy =
+  "resize" | "native" | "native-tiled" | "worker-resize";
 
 export type FluxPreparedCrop = {
   localMask: Uint8Array;
@@ -34,6 +35,7 @@ export function prepareFluxWindowCrops(options: {
   cropStrategy: FluxCropStrategy;
   width: number;
   window: PixelRect;
+  isolatedReference?: boolean;
 }): FluxPreparedCrop[] {
   if (!rectHasMask(options.mask, options.width, options.window)) {
     return [];
@@ -46,17 +48,19 @@ export function prepareFluxWindowCrops(options: {
   if (!maskBounds) {
     return [];
   }
-  const paddedBounds = alignRectToMultiple(
-    expandRect(
-      maskBounds,
-      options.width,
-      options.height,
-      options.contextPx + options.maskPaddingPx,
-    ),
-    options.width,
-    options.height,
-    FLUX_INPAINT_MULTIPLE,
-  );
+  const paddedBounds = options.isolatedReference
+    ? options.window
+    : alignRectToMultiple(
+        expandRect(
+          maskBounds,
+          options.width,
+          options.height,
+          options.contextPx + options.maskPaddingPx,
+        ),
+        options.width,
+        options.height,
+        FLUX_INPAINT_MULTIPLE,
+      );
   const tiles = resolveCropTiles(options, maskBounds, paddedBounds);
   return tiles.flatMap(({ cropBounds, writeBounds }) => {
     const localMask = buildLocalMask(

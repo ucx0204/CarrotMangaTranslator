@@ -16,6 +16,9 @@ export type InpaintingModelSettingsProps = {
   setInpaintingModel: React.Dispatch<React.SetStateAction<InpaintingModel>>;
   unifiedMemoryMb: number | null;
   usesAppleHardware: boolean;
+  supportsQwenMetal?: boolean;
+  usesNvidiaHardware: boolean;
+  usesAmdHardware?: boolean;
 };
 
 export function InpaintingModelSettings(
@@ -49,6 +52,9 @@ function InpaintingModelButton({
   setInpaintingModel,
   unifiedMemoryMb,
   usesAppleHardware,
+  usesNvidiaHardware,
+  usesAmdHardware,
+  supportsQwenMetal,
 }: InpaintingModelSettingsProps & {
   option: (typeof INPAINTING_MODEL_OPTIONS)[number];
 }): React.JSX.Element {
@@ -58,7 +64,15 @@ function InpaintingModelButton({
       <Button
         type="button"
         className={`settings-preset-button ${inpaintingModel === option.id ? "active" : ""}`}
-        disabled={controlsBusy}
+        disabled={
+          controlsBusy ||
+          (option.id === "qwen-image-2.1" &&
+            !(
+              (usesAppleHardware && supportsQwenMetal !== false) ||
+              usesNvidiaHardware ||
+              usesAmdHardware
+            ))
+        }
         aria-pressed={inpaintingModel === option.id}
         onClick={() => {
           if (

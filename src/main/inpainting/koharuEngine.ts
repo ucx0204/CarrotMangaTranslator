@@ -11,13 +11,13 @@ import {
   ensureKoharuWorkerLaunch,
 } from "./koharuAssets";
 import type {
-  InpaintingModel,
+  KoharuInpaintingModel,
   KoharuInpaintingBackend,
 } from "../../shared/inpaintingSettingsTypes";
 import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
 
 export type KoharuInpaintingEngine = InpaintingEngine & {
-  model: Exclude<InpaintingModel, "flux-klein">;
+  model: KoharuInpaintingModel;
 };
 
 /**
@@ -28,7 +28,7 @@ export const KOHARU_LAMA_METAL_MAX_PIXELS = 512 * 512;
 
 export function resolveKoharuInpaintMaxPixels(options: {
   backend: KoharuInpaintingBackend;
-  model: Exclude<InpaintingModel, "flux-klein">;
+  model: KoharuInpaintingModel;
   requestedMaxPixels?: number;
 }): number | undefined {
   const requestedMaxPixels = normalizeRequestedMaxPixels(
@@ -47,7 +47,7 @@ export async function prepareKoharuInpaintingEngine(options: {
   runtimeDir: string;
   cudaRuntimeDir?: string;
   modelDir: string;
-  model: Exclude<InpaintingModel, "flux-klein">;
+  model: KoharuInpaintingModel;
   backend: KoharuInpaintingBackend;
   computeGpuIndex?: number;
   runRootDir: string;
@@ -81,7 +81,7 @@ export async function prepareKoharuInpaintingEngine(options: {
 
 function createKoharuEngine(options: {
   launch: KoharuWorkerLaunchSpec;
-  model: Exclude<InpaintingModel, "flux-klein">;
+  model: KoharuInpaintingModel;
   modelFiles: KoharuModelFiles;
   runRootDir: string;
 }): KoharuInpaintingEngine {

@@ -1,3 +1,4 @@
+import { DEFAULT_INPAINTING_MODEL } from "../../shared/inpaintingSettingsTypes";
 import {
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,
@@ -101,7 +102,7 @@ export function resolveFluxBackend(
 
 export function resolveInpaintingModel(
   value: unknown,
-  fallback: InpaintingModel = "flux-klein",
+  fallback: InpaintingModel = DEFAULT_INPAINTING_MODEL,
 ): InpaintingModel {
   return canonicalizeInpaintingModel(value, "runtime-stored") ?? fallback;
 }

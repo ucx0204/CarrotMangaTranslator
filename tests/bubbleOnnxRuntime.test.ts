@@ -129,10 +129,10 @@ describe("Text Detector DirectML device-loss recovery (#103)", () => {
         dispose: vi.fn(),
       },
       masks: {
-        data: new Proxy({ length: 300 * 288 ** 2 } as ArrayLike<number>, {
+        data: new Proxy({ length: 300 * 480 ** 2 } as ArrayLike<number>, {
           get: (target, key) => (key === "length" ? target.length : 1),
         }),
-        dims: [1, 300, 288, 288],
+        dims: [1, 300, 480, 480],
         dispose: vi.fn(),
       },
     };
@@ -151,32 +151,16 @@ describe("Text Detector DirectML device-loss recovery (#103)", () => {
       }
       return gpu;
     });
-    const { detectKoharuPageLayout } =
-      await import("../src/main/bubbleLayout/detector");
-    const { prepareComicDetectorImage } =
-      await import("../src/main/bubbleLayout/preprocess");
+    const { inferNativeLayout } =
+      await import("../src/main/bubbleLayout/nativeDetector");
     const sessions = await import("../src/main/bubbleLayout/session");
-    const image: Partial<Electron.NativeImage> = {
-      getSize: () => ({ width: 240, height: 360 }),
-      resize: (): Electron.NativeImage =>
-        ({
-          getSize: () => ({ width: 1152, height: 1152 }),
-          isEmpty: () => false,
-          toBitmap: () => Buffer.alloc(1152 * 1152 * 4, 128),
-        }) as Electron.NativeImage,
-    };
     const detect = (signal?: AbortSignal) =>
-      detectKoharuPageLayout(
+      inferNativeLayout(
+        { imageWidth: 240, imageHeight: 360, rgbChw: new Float32Array(3) },
         {
           modelPath: "device-lost.onnx",
-          imagePath: "original.png",
+          providerPreference: ["dml", "cpu"],
           signal,
-        },
-        {
-          loadImage: async () => image as Electron.NativeImage,
-          prepareImage: prepareComicDetectorImage,
-          resolveBackend: () => "native",
-          runWasmInference: vi.fn(),
         },
       );
     return { detect, gpu, cpu, outputs, events, ...sessions };
@@ -196,7 +180,7 @@ describe("Text Detector DirectML device-loss recovery (#103)", () => {
     expect(first.executionProvider).toBe("cpu");
     expect(first.detections[0]).toMatchObject({
       label: "text",
-      box: [90, 135, 150, 225],
+      box: [135, 135, 225, 225],
     });
     expect(second).toEqual(first);
     expect(gpu.run).toHaveBeenCalledOnce();
@@ -216,15 +200,15 @@ describe("Text Detector DirectML device-loss recovery (#103)", () => {
   it("does not run a queued page on a retired GPU session or release it twice", async () => {
     const { detect, gpu, cpu, disposeCachedKoharuLayoutSessions } =
       await setupDetector();
-    let failGpu!: (error: Error) => void;
-    gpu.run.mockImplementationOnce(
-      () =>
-        new Promise<never>((_resolve, reject) => {
-          failGpu = reject;
-        }),
-    );
+    // High-resolution preprocessing can outlast a polling timeout under coverage.
+    // Synchronize on the first inference entering the held GPU session.
+    const started = new Promise<(error: Error) => void>((entered) => {
+      gpu.run.mockImplementationOnce(
+        () => new Promise<never>((_resolve, reject) => entered(reject)),
+      );
+    });
     const first = detect();
-    await vi.waitFor(() => expect(gpu.run).toHaveBeenCalledOnce());
+    const failGpu = await started;
     const second = detect();
     await vi.waitFor(() =>
       expect(runtimeMocks.createSession).toHaveBeenCalledOnce(),
@@ -373,7 +357,7 @@ describe("KoharuLayout native ONNX runtime", () => {
           dataRoot,
           "models",
           "bubble-layout",
-          "koharu-layout-rfdetr-seg-2xl-1152",
+          "koharu-layout-rfdetr-highres-1920",
         ),
         fileName: KOHARU_LAYOUT_ONNX_FILE,
         expectedSha256: KOHARU_LAYOUT_ONNX_SHA256,
@@ -386,7 +370,7 @@ describe("KoharuLayout native ONNX runtime", () => {
         dataRoot,
         "models",
         "bubble-layout",
-        "koharu-layout-rfdetr-seg-2xl-1152",
+        "koharu-layout-rfdetr-highres-1920",
       )}/${KOHARU_LAYOUT_ONNX_FILE}`,
     });
   });
@@ -564,7 +548,7 @@ describe("KoharuLayout native ONNX runtime", () => {
     await expect(disposeCachedKoharuLayoutSessions()).resolves.toBe(false);
   });
 
-  it("uses the platform provider preference when none is supplied", async () => {
+  it("runs the automatic HighRes session on CPU", async () => {
     const { disposeCachedKoharuLayoutSessions, getKoharuLayoutSession } =
       await import("../src/main/bubbleLayout/session");
 
@@ -575,10 +559,7 @@ describe("KoharuLayout native ONNX runtime", () => {
     expect(runtimeMocks.createSession).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        executionProviders:
-          process.platform === "win32"
-            ? [{ name: "dml", deviceId: 0 }]
-            : ["cpu"],
+        executionProviders: ["cpu"],
       }),
     );
     await expect(disposeCachedKoharuLayoutSessions()).resolves.toBe(true);

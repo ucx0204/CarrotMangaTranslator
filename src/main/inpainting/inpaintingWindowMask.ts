@@ -1,4 +1,7 @@
-import type { InpaintingWindowMask } from "./inpaintingEngine";
+import type {
+  InpaintRunOptions,
+  InpaintingWindowMask,
+} from "./inpaintingEngine";
 import { buildLocalMask } from "./imageRaster";
 import { expandRect } from "./maskGeometry";
 
@@ -7,12 +10,74 @@ export type ExclusiveInpaintingWindowMasks = {
   input: InpaintingWindowMask;
 };
 
+/** A partial selection inside a larger printed title must not condition the
+ * model on the remaining half of the same letters. Transfer its ownership only
+ * when the containing selection already covers every pixel it could write. */
+export function containingTypographyOwners(
+  options: InpaintRunOptions,
+): number[] | undefined {
+  const { windowMasks, compositeMasks, speechBubbleWindows } = options;
+  if (!windowMasks || !compositeMasks || windowMasks.length < 2) return;
+  return windowMasks.map((small, index) => {
+    let owner = index;
+    if (speechBubbleWindows?.[index]) return owner;
+    for (const [other, large] of windowMasks.entries()) {
+      const current = windowMasks[owner].bounds;
+      if (large.bounds.w * large.bounds.h <= current.w * current.h) continue;
+      if (!sharesWriteBoundary(options, index, other)) continue;
+      if (
+        containsActivePixels(large, small) &&
+        containsActivePixels(compositeMasks[other], compositeMasks[index])
+      )
+        owner = other;
+    }
+    return owner;
+  });
+}
+function sharesWriteBoundary(
+  {
+    speechBubbleWindows,
+    compositeFeatherPx,
+    compositeConstraints,
+  }: InpaintRunOptions,
+  index: number,
+  other: number,
+) {
+  if (
+    speechBubbleWindows?.[other] ||
+    compositeFeatherPx?.[index] !== compositeFeatherPx?.[other]
+  )
+    return false;
+  const outer = compositeConstraints?.[other],
+    inner = compositeConstraints?.[index];
+  return !outer || (!!inner && containsActivePixels(outer, inner));
+}
+
+function containsActivePixels(
+  outer: InpaintingWindowMask,
+  inner: InpaintingWindowMask,
+) {
+  const a = outer.bounds,
+    b = inner.bounds;
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
+  if (dx < 0 || dy < 0 || dx + b.w > a.w || dy + b.h > a.h) return false;
+  for (let y = 0; y < b.h; y++) {
+    for (let x = 0; x < b.w; x++) {
+      if (inner.data[y * b.w + x] && !outer.data[(dy + y) * a.w + dx + x])
+        return false;
+    }
+  }
+  return true;
+}
+
 export function buildExclusivePaddedWindowMasks(
   windowMasks: InpaintingWindowMask[],
   pageWidth: number,
   pageHeight: number,
   paddingPx: number,
   priorityMasks: InpaintingWindowMask[] = windowMasks,
+  containingOwners?: number[],
 ): ExclusiveInpaintingWindowMasks[] {
   if (windowMasks.length >= 0xffff) {
     throw new Error("Too many block-owned inpainting masks.");
@@ -22,14 +87,15 @@ export function buildExclusivePaddedWindowMasks(
   for (const windowMask of [...windowMasks, ...priorityMasks]) {
     validateWindowMask(windowMask, pageWidth, pageHeight);
   }
+  const ownerIds = windowMasks.map((_, i) => (containingOwners?.[i] ?? i) + 1);
   const owners = new Uint16Array(pageWidth * pageHeight);
   // Reserve actual write cores before broad model-conditioning masks. A
   // previous context rectangle must not steal a later block's source glyphs.
   for (const [index, priorityMask] of priorityMasks.entries()) {
-    assignUnownedPixels(owners, priorityMask, pageWidth, index + 1);
+    assignUnownedPixels(owners, priorityMask, pageWidth, ownerIds[index]);
   }
   for (const [index, windowMask] of windowMasks.entries()) {
-    assignUnownedPixels(owners, windowMask, pageWidth, index + 1);
+    assignUnownedPixels(owners, windowMask, pageWidth, ownerIds[index]);
   }
   const paddedMasks = windowMasks.map((windowMask) =>
     padWindowMask(
@@ -40,7 +106,7 @@ export function buildExclusivePaddedWindowMasks(
     ),
   );
   for (const [index, windowMask] of paddedMasks.entries()) {
-    assignUnownedPixels(owners, windowMask, pageWidth, index + 1);
+    assignUnownedPixels(owners, windowMask, pageWidth, ownerIds[index]);
   }
   return windowMasks.map((windowMask, index) => ({
     core: keepOwnedPixels(windowMask, owners, pageWidth, index + 1),

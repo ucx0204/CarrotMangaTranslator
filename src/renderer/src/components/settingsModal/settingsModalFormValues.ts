@@ -1,3 +1,4 @@
+import { DEFAULT_INPAINTING_MODEL } from "../../../../shared/inpaintingSettingsTypes";
 import { resolveDefaultFluxMode } from "../../../../shared/fluxHardwarePolicy";
 import type { HunyuanSettings } from "../../../../shared/settingsTypes";
 import {
@@ -307,7 +308,7 @@ function resolveHardwareFormValues(
     hunyuanOcr: normalizeHunyuanSettings(settings.ocr.hunyuan),
     ocrGpuBackend: settings.ocr.gpuBackend ?? "cuda",
     ocrQualityMode: settings.ocr.qualityMode ?? "economy",
-    inpaintingModel: inpainting.model ?? "flux-klein",
+    inpaintingModel: inpainting.model ?? DEFAULT_INPAINTING_MODEL,
     fluxBackend: inpainting.fluxBackend ?? "cuda-native",
     fluxMode:
       inpainting.fluxMode ??

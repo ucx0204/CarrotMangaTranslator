@@ -565,9 +565,21 @@ describe("dev content build cache", () => {
 
   it("leaves model runtime bundles to the runtime-assets cache", () => {
     const fixture = createElectronCompileCacheFixture();
+    const graph = join(
+      fixture.root,
+      "src",
+      "main",
+      "runtime",
+      "koharu-sparse-model.json",
+    );
+    writeFileSync(graph, "{}", "utf8");
     const inputFiles = fixture.step.getInputFiles();
     const requiredOutputs = fixture.step.getRequiredOutputFiles();
 
+    expect(inputFiles).not.toContain(graph);
+    expect(requiredOutputs).not.toContain(
+      join(fixture.root, "out", "main", "runtime", "koharu-sparse-model.json"),
+    );
     expect(inputFiles).toContain(fixture.regularMainJson);
     expect(inputFiles).toContain(fixture.runtimeSupportSource);
     expect(inputFiles).not.toContain(fixture.fontMatchingMarker);

@@ -2250,6 +2250,10 @@
         }
       },
       "inpaintingModels": {
+        "qwen": {
+          "label": "Qwen Image 2.1",
+          "description": "Remove lettering from artwork with Qwen Image 2.1 using NVIDIA CUDA, AMD ROCm or Vulkan, or Apple Silicon Metal (macOS 26+)."
+        },
         "aot": {
           "label": "AOT minimum",
           "description": "The lightest Koharu AOT inpainting model."
@@ -2535,6 +2539,7 @@
       "fluxMode": "FLUX inpainting mode",
       "fluxModeNormal": "Normal",
       "fluxModeLight": "Lightweight",
+      "qwenBackend": "Qwen backend",
       "fluxBackend": "Flux inpainting backend",
       "inpaintingModel": "Inpainting model",
       "amdOcrExperimental": "AMD GPU OCR is experimental. If it fails, you can switch only OCR to the CPU.",

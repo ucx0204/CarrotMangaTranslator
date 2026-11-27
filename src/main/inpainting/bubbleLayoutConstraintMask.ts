@@ -50,12 +50,12 @@ export function buildBubbleLayoutConstraintMask(
   return data.some(Boolean) ? { bounds, data } : null;
 }
 
-/** Projects a page-space window mask into another page-space rectangle. */
+/** Project into the target rectangle, adding to an existing mask when supplied. */
 export function projectWindowMask(
   source: InpaintingWindowMask,
   target: PixelRect,
+  output: Uint8Array = new Uint8Array(target.w * target.h),
 ): Uint8Array {
-  const output = new Uint8Array(target.w * target.h);
   const left = Math.max(source.bounds.x, target.x);
   const top = Math.max(source.bounds.y, target.y);
   const right = Math.min(
@@ -114,4 +114,15 @@ function clampPixelBounds(
   const right = Math.min(imageWidth, Math.ceil(bbox.x + bbox.w));
   const bottom = Math.min(imageHeight, Math.ceil(bbox.y + bbox.h));
   return right > x && bottom > y ? { x, y, w: right - x, h: bottom - y } : null;
+}
+
+export function intersectWindowMask(
+  mask: InpaintingWindowMask,
+  constraint: InpaintingWindowMask,
+): InpaintingWindowMask {
+  const data = projectWindowMask(constraint, mask.bounds);
+  for (let index = 0; index < data.length; index += 1) {
+    if (!mask.data[index]) data[index] = 0;
+  }
+  return { bounds: mask.bounds, data };
 }

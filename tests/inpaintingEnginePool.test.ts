@@ -1,4 +1,9 @@
 import { withModelWorkload } from "../src/main/runtimeSupport/modelWorkload";
+import { release } from "node:os";
+import {
+  acquireQwenInpaintingEngine,
+  disposeCachedQwenInpaintingEngine,
+} from "../src/main/inpainting/qwenImageEngine";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
 import type { InpaintingEngine } from "../src/main/inpainting/inpaintingEngine";
@@ -7,6 +12,11 @@ import {
   type InpaintingEngineLease,
   type InpaintingEnginePoolDependencies,
 } from "../src/main/inpainting/inpaintingEnginePool";
+
+vi.mock("node:os", async (original) => {
+  const os = await original<typeof import("node:os")>();
+  return { ...os, release: vi.fn(os.release) };
+});
 
 const acquireFlux = vi.fn<InpaintingEnginePoolDependencies["acquireFlux"]>();
 const acquireKoharu =
@@ -60,6 +70,71 @@ describe("selected inpainting model routing", () => {
     },
   );
 
+  it("releases both idle models before acquiring the selected Qwen adapter", async () => {
+    const native = makeLease("qwen-image-2.1");
+    const qwen = {
+      acquire: vi.fn(async () => ({
+        engine: native.engine,
+        release: async () => {
+          await native.release();
+        },
+      })),
+      dispose: vi.fn(async () => true),
+    };
+    const signal = new AbortController().signal;
+    const lease = await acquireInpaintingEngine(
+      {
+        appPaths,
+        model: "qwen-image-2.1",
+        fluxBackend: "vulkan-native",
+        computeGpuIndex: 1,
+        signal,
+      },
+      { ...dependencies, qwen },
+    );
+    expect(qwen.acquire).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fluxBackend: "vulkan-native",
+        computeGpuIndex: 1,
+      }),
+    );
+    expect(disposeFlux).toHaveBeenCalledWith("switch-to-qwen");
+    expect(disposeKoharu).toHaveBeenCalledWith("switch-to-qwen");
+    expect(qwen.acquire.mock.invocationCallOrder[0]).toBeGreaterThan(
+      disposeFlux.mock.invocationCallOrder[0],
+    );
+    expect(lease.engine).toBe(native.engine);
+    await lease.release();
+    expect(native.release).toHaveBeenCalledTimes(1);
+    expect(qwen.dispose).toHaveBeenCalledWith("workload-complete");
+  });
+  it("rejects unsupported devices and pre-cancelled jobs before loading model files", async () => {
+    try {
+      vi.stubGlobal("process", { ...process, platform: "linux", arch: "x64" });
+      await expect(acquireQwenInpaintingEngine({ appPaths })).rejects.toThrow(
+        "Windows x64",
+      );
+      vi.stubGlobal("process", {
+        ...process,
+        platform: "darwin",
+        arch: "arm64",
+      });
+      vi.mocked(release).mockReturnValueOnce("24.6.0");
+      await expect(acquireQwenInpaintingEngine({ appPaths })).rejects.toThrow(
+        "macOS 26",
+      );
+      await expect(
+        acquireQwenInpaintingEngine({
+          appPaths,
+          signal: AbortSignal.abort(),
+        }),
+      ).rejects.toMatchObject({ name: "AbortError" });
+      expect(await disposeCachedQwenInpaintingEngine("unused")).toBe(false);
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
   it("uses only Flux when Flux is selected", async () => {
     const fluxLease = makeLease("flux-klein");
     acquireFlux.mockResolvedValue(fluxLease);

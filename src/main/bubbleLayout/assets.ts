@@ -33,7 +33,7 @@ export async function ensureKoharuLayoutAssets(options: {
       options.dataRoot,
       "models",
       "bubble-layout",
-      "koharu-layout-rfdetr-seg-2xl-1152",
+      "koharu-layout-rfdetr-highres-1920",
     ),
     url: KOHARU_LAYOUT_ONNX_URL,
     fileName: KOHARU_LAYOUT_ONNX_FILE,

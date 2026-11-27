@@ -1190,3 +1190,25 @@ function requireArrayItem<T>(items: readonly T[], index: number): T {
   }
   return item;
 }
+
+it("prepares contextual masks for legacy settings with an implicit Qwen model", async () => {
+  const factory = vi.fn(() => ({ runPage: async () => ({ patches: [] }) })),
+    runtime = makeRuntime(new Map(), factory);
+  const settings = resolveDefaultAppSettings();
+  Reflect.deleteProperty(settings, "inpainting");
+  settings.ocr.device = "gpu";
+  Reflect.deleteProperty(settings.ocr, "gpuBackend");
+  vi.spyOn(runtime, "getSettings").mockResolvedValue(settings);
+  await prepareBubbleLayoutJob({
+    context: makeContext([]),
+    request: { mode: "page-pattern", chapterId: CHAPTER_ID, pageId: PAGE_ID },
+    runtime,
+    totalTargetBlocks: 1,
+  });
+  expect(factory).toHaveBeenCalledWith(
+    expect.objectContaining({
+      prepareQwenContext: true,
+      directMl: expect.objectContaining({ computeGpuBackend: "cuda" }),
+    }),
+  );
+});

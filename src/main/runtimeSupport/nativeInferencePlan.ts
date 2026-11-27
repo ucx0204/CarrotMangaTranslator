@@ -1,6 +1,7 @@
 import catalog from "../runtime/native-inference-manifest.json";
 
-export type NativeInferenceEngine = "torch" | "diffusion" | "rocm-probe";
+export type NativeInferenceEngine =
+  "torch" | "diffusion" | "rocm-probe" | "qwen-image";
 export type NativeInferenceBackend =
   "cpu" | "cuda" | "rocm" | "metal" | "vulkan";
 type NativeInferencePackage = {
@@ -67,6 +68,7 @@ type PlanOptions = {
   platform: NodeJS.Platform;
   arch: string;
   rocmTarget?: string;
+  qwenRocmProbe?: boolean;
 };
 type Plan = {
   version: string;
@@ -84,14 +86,33 @@ function addPackage(plan: Plan, id: string, only?: string[]): void {
   plan.packages.push({ ...value, id, only });
 }
 
-export function nativeInferencePlan(options: PlanOptions): Plan {
-  const { engine, backend, platform, arch, rocmTarget } = options;
-  if (
-    engine === "rocm-probe" &&
-    `${platform}/${arch}/${backend}` !== "win32/x64/rocm"
-  ) {
+function assertEnginePlatform({
+  engine,
+  backend,
+  platform,
+  arch,
+}: PlanOptions) {
+  const target = `${platform}/${arch}/${backend}`;
+  if (engine === "rocm-probe" && target !== "win32/x64/rocm") {
     throw new Error("ROCm probe requires Windows x64 and the ROCm backend");
   }
+  if (
+    engine === "qwen-image" &&
+    ![
+      "win32/x64/cuda",
+      "win32/x64/vulkan",
+      "win32/x64/rocm",
+      "darwin/arm64/metal",
+    ].includes(target)
+  )
+    throw new Error(
+      "Qwen Image 2.1에는 Windows x64의 CUDA, ROCm, Vulkan 또는 Apple Silicon의 Metal이 필요합니다.",
+    );
+}
+
+export function nativeInferencePlan(options: PlanOptions): Plan {
+  assertEnginePlatform(options);
+  const { engine, backend, platform, arch, rocmTarget } = options;
   const plan: Plan = {
     version: `${catalog.version}-${platform}-${arch}-${backend}-${engine}-${rocmTarget ?? "generic"}`,
     packages: [],
@@ -103,6 +124,16 @@ export function nativeInferencePlan(options: PlanOptions): Plan {
     arch === "arm64" &&
     (backend === "metal" || backend === "cpu")
   ) {
+    if (engine === "qwen-image") {
+      plan.executable = "sd-cli";
+      plan.version = "qwen-image-2.1-sdcpp-532d2c1-darwin-arm64-metal";
+      plan.libraries.push("libstable-diffusion.dylib");
+      addPackage(plan, "qwen-image-sdcpp-darwin-metal", [
+        plan.executable,
+        ...plan.libraries,
+      ]);
+      return plan;
+    }
     addPackage(plan, `${engine}-darwin-metal`);
     plan.libraries.push(
       ...(engine === "torch"
@@ -127,7 +158,7 @@ export function nativeInferencePlan(options: PlanOptions): Plan {
 
 function addWindowsRuntime(plan: Plan, options: PlanOptions): void {
   const { engine, backend } = options;
-  if (backend === "vulkan" && engine !== "diffusion")
+  if (backend === "vulkan" && !["diffusion", "qwen-image"].includes(engine))
     throw new Error("Vulkan is supported only for diffusion");
   addPackage(plan, "msvc-win32");
   plan.libraries.push(
@@ -141,13 +172,8 @@ function addWindowsRuntime(plan: Plan, options: PlanOptions): void {
     "msvcp140_codecvt_ids.dll",
     "vcomp140.dll",
   );
-  if (engine === "rocm-probe") {
-    addPackage(plan, "rocm-core");
-    plan.libraries.push(...ROCM_CORE_LIBRARIES);
-    plan.pathDirectories.push("_rocm_sdk_core/bin");
-    plan.version = `${catalog.version}-win32-x64-rocm-probe`;
-    return;
-  }
+  if (engine === "qwen-image") return addWindowsQwen(plan, options);
+  if (engine === "rocm-probe") return addWindowsProbe(plan, options);
   if (engine === "torch") {
     addPackage(
       plan,
@@ -171,6 +197,89 @@ function addWindowsRuntime(plan: Plan, options: PlanOptions): void {
     );
   if (engine === "diffusion") plan.libraries.push("stable-diffusion.dll");
   else addTorchLibraries(plan, backend);
+}
+
+function addWindowsProbe(plan: Plan, options: PlanOptions): void {
+  if (options.qwenRocmProbe) {
+    const files = ["amd_comgr.dll", "rocm_kpack.dll", "amdhip64_7.dll"];
+    addPackage(plan, "qwen-image-sdcpp-win32-rocm", files);
+    plan.libraries.push(...files);
+    plan.version = "qwen-image-2.1-sdcpp-532d2c1-win32-x64-rocm-probe";
+    return;
+  }
+  addPackage(plan, "rocm-core");
+  plan.libraries.push(...ROCM_CORE_LIBRARIES);
+  plan.pathDirectories.push("_rocm_sdk_core/bin");
+  plan.version = `${catalog.version}-win32-x64-rocm-probe`;
+}
+
+function addWindowsQwen(plan: Plan, options: PlanOptions): void {
+  const { backend } = options;
+  const shared = [
+    "ggml-base.dll",
+    "ggml.dll",
+    backend === "vulkan" ? "ggml-vulkan.dll" : "ggml-cuda.dll",
+    "stable-diffusion.dll",
+    "libsharpyuv.dll",
+    "libwebp.dll",
+    "libwebpmux.dll",
+    "webm.dll",
+    ...[
+      "x64",
+      "sse42",
+      "sandybridge",
+      "haswell",
+      "skylakex",
+      "cannonlake",
+      "cascadelake",
+      "icelake",
+      "alderlake",
+    ].map((cpu) => `ggml-cpu-${cpu}.dll`),
+  ];
+  const cuda = ["cudart64_12.dll", "cublas64_12.dll", "cublasLt64_12.dll"];
+  plan.executable = "sd-cli.exe";
+  const libraries =
+    backend === "rocm"
+      ? [
+          "stable-diffusion.dll",
+          "amdhip64_7.dll",
+          "amd_comgr.dll",
+          "rocm_kpack.dll",
+        ]
+      : shared;
+  plan.version = `qwen-image-2.1-sdcpp-532d2c1-win32-x64-${backend === "cuda" ? "cuda12" : backend}`;
+  addPackage(plan, `qwen-image-sdcpp-win32-${backend}`, [
+    ...libraries,
+    plan.executable,
+  ]);
+  plan.libraries.push(...libraries);
+  if (backend === "rocm") {
+    const target = options.rocmTarget;
+    if (
+      !target ||
+      !Object.hasOwn(catalog.packages, "qwen-rocm-device-" + target)
+    )
+      throw new Error(
+        "선택한 GPU의 Qwen ROCm 커널이 없습니다. Vulkan을 선택하세요.",
+      );
+    for (const id of [
+      "qwen-rocm-core",
+      "qwen-rocm-libraries",
+      "qwen-rocm-device-" + target,
+    ])
+      addPackage(plan, id);
+    plan.pathDirectories.push("_rocm_sdk_core/bin", "_rocm_sdk_libraries/bin");
+    plan.libraries.push(
+      ...["rocblas.dll", "hipblas.dll", "libhipblaslt.dll"].map(
+        (name) => "_rocm_sdk_libraries/bin/" + name,
+      ),
+    );
+    plan.version += "-" + target;
+  }
+  if (backend === "cuda") {
+    addPackage(plan, "qwen-image-cuda12-runtime", cuda);
+    plan.libraries.push(...cuda);
+  }
 }
 
 function addWindowsAccelerator(

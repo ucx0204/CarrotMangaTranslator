@@ -13,5 +13,6 @@ export type DetectedGpuInfo = {
   supportsRocm?: boolean;
   supportsVulkan?: boolean;
   supportsMetal?: boolean;
+  supportsQwenMetal?: boolean;
   unifiedMemoryMb?: number | null;
 };

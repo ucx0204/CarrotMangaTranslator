@@ -6,6 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveBubbleLayoutBlockRevision } from "../src/main/bubbleLayout/bubbleLayoutPageProcessor";
 import type { BubbleLayout } from "../src/shared/bubbleLayout";
 import type { MangaPage } from "../src/shared/libraryTypes";
+import { makeRasterPng } from "./helpers/imageFixtures";
+
+vi.mock("electron", async () => ({
+  nativeImage: (await import("./mcpImageNative.fixture")).imageNativeBoundary,
+}));
 
 const bubbleRuntimeMocks = vi.hoisted(() => ({
   detectKoharuPageLayout: vi.fn(),
@@ -43,6 +48,151 @@ afterEach(async () => {
 });
 
 describe("production bubble layout failure fallback", () => {
+  it.each([200, 203])(
+    "preserves the detected balloon erase boundary on a %ipx source",
+    async (sourceWidth) => {
+      const files = await createPageFiles();
+      const page = {
+        ...makePage(files.original, files.cleaned),
+        width: 200,
+        height: 200,
+      };
+      page.blocks[0].bbox = { x: 57, y: 56, w: 30, h: 35 };
+      page.blocks[0].bboxSpace = "pixels";
+      await writeFile(
+        files.original,
+        makeRasterPng(sourceWidth, 200, [255, 255, 255, 255]),
+      );
+      const mask = {
+        width: 24,
+        height: 24,
+        logits: new Float32Array(24 * 24).fill(4),
+      };
+      bubbleRuntimeMocks.ensureKoharuLayoutAssets.mockResolvedValue({
+        modelPath: "test.onnx",
+      });
+      bubbleRuntimeMocks.detectKoharuPageLayout.mockResolvedValue({
+        imageWidth: 200,
+        imageHeight: 200,
+        detections: [
+          {
+            labelId: 2,
+            label: "bubble",
+            box: [28, 28, 121, 124],
+            score: 0.95,
+            mask,
+          },
+          {
+            labelId: 0,
+            label: "text",
+            box: [57, 56, 87, 91],
+            score: 0.95,
+            mask,
+          },
+        ],
+      });
+      const { createProductionBubbleLayoutRunner } =
+        await import("../src/main/bubbleLayout/bubbleLayoutFacade");
+      const runner = createProductionBubbleLayoutRunner({
+        dataRoot: files.root,
+      });
+      const req = {
+        imagePath: files.original,
+        page,
+        policy: "balanced" as const,
+        paddingRatio: 0,
+        sourceEraseMask: true,
+        signal: new AbortController().signal,
+      };
+      const expected = await runner.runPage({
+        ...req,
+        includeTypographySegmentation: true,
+      });
+      expect(expected.patches[0]?.sourceEraseConstraint).toBeDefined();
+      const qwen = await runner.runPage({
+        ...req,
+        includeTypographySegmentation: "qwen-print",
+      });
+      expect(qwen.patches).toEqual(expected.patches);
+      expect(bubbleRuntimeMocks.detectKoharuPageLayout).toHaveBeenCalledTimes(
+        1,
+      );
+    },
+  );
+  it.each([false, true])(
+    "keeps the full-page Qwen text detection when a contextual crop fails (%s)",
+    async (cropFails) => {
+      const files = await createPageFiles();
+      const page = {
+        ...makePage(files.original, files.cleaned),
+        width: 200,
+        height: 200,
+      };
+      await writeFile(
+        files.original,
+        makeRasterPng(200, 200, [255, 255, 255, 255]),
+      );
+      page.blocks[0].bbox = { x: 78, y: 78, w: 30, h: 30 };
+      page.blocks[0].bboxSpace = "pixels";
+      const text = (box: number[], score: number) => ({
+        labelId: 0,
+        label: "text",
+        score,
+        box,
+        mask: { width: 64, height: 64, logits: new Float32Array(4096).fill(4) },
+      });
+      const original = text([83, 83, 99, 101], 0.32);
+      bubbleRuntimeMocks.ensureKoharuLayoutAssets.mockResolvedValue({
+        modelPath: "test.onnx",
+      });
+      bubbleRuntimeMocks.detectKoharuPageLayout.mockImplementation(
+        async ({ originalCrop }) => {
+          if (!originalCrop)
+            return {
+              imageWidth: 200,
+              imageHeight: 200,
+              detections: [original],
+            };
+          if (cropFails) throw new Error("context unavailable");
+          const { width, height } = originalCrop.getSize();
+          const offset = Math.round(93 - width / 2);
+          return {
+            imageWidth: width,
+            imageHeight: height,
+            detections: [
+              text([81 - offset, 81 - offset, 104 - offset, 103 - offset], 0.8),
+            ],
+          };
+        },
+      );
+      const { createProductionBubbleLayoutRunner } =
+        await import("../src/main/bubbleLayout/bubbleLayoutFacade");
+      const runner = createProductionBubbleLayoutRunner({
+        dataRoot: files.root,
+      });
+      const results = await runner.runPage({
+        imagePath: files.original,
+        page,
+        paddingRatio: 0,
+        policy: "balanced",
+        sourceEraseMask: true,
+        includeTypographySegmentation: "qwen-print",
+        signal: new AbortController().signal,
+      });
+      expect(results.typographySegmentation?.detections).toEqual([original]);
+      const refined = results.typographySegmentation?.contextualText?.get(
+        page.blocks[0].id,
+      );
+      if (cropFails) expect(refined).toBeUndefined();
+      else
+        expect(refined?.data.reduce((sum, px) => sum + px, 0)).toBeGreaterThan(
+          290,
+        );
+      expect(bubbleRuntimeMocks.detectKoharuPageLayout).toHaveBeenCalledTimes(
+        cropFails ? 2 : 3,
+      );
+    },
+  );
   it("preserves mask and final layout results across the disk preparation boundary without reinference", async () => {
     const files = await createPageFiles();
     const page = makePage(files.original, files.cleaned);

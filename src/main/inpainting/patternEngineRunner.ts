@@ -1,3 +1,4 @@
+import { usesRegionInpainting } from "../../shared/inpaintingSettingsTypes";
 import {
   FLUX_INPAINT_CONTEXT_PX,
   FLUX_INPAINT_FEATHER_PX,
@@ -8,6 +9,7 @@ import type { InpaintingEngine } from "./inpaintingEngine";
 import type { ImageDecodeFallback } from "./inpaintingTypes";
 import type { PatternMaskContext } from "./patternPageMask";
 import { resolvePatternInpaintWindows } from "./patternWindowPolicy";
+import { isIllustratedTitleGroup } from "./qwenIllustratedPlate";
 
 export async function runPatternInpaintingEngine(options: {
   sourceImagePath?: string;
@@ -26,13 +28,13 @@ export async function runPatternInpaintingEngine(options: {
   }
   const constrainedFlux =
     options.maskContext.inpaintWindowConstraints.some(Boolean);
-  const flux = options.engine.model === "flux-klein";
+  const regionModel = usesRegionInpainting(options.engine.model);
   const codex = options.engine.model === "codex";
   const typographyComposite = options.maskContext.usesKoharuTypographyComposite;
-  const composite = flux || typographyComposite;
-  const owned = flux || codex;
+  const composite = regionModel || typographyComposite;
+  const owned = regionModel || codex;
   const constrained = constrainedFlux || typographyComposite;
-  const bubbleOptions = flux
+  const bubbleOptions = regionModel
     ? { speechBubbleWindows: options.maskContext.inpaintSpeechBubbleWindows }
     : { bubbleMask: new Uint8Array(options.width * options.height) };
   await options.engine.inpaint(
@@ -59,6 +61,7 @@ export async function runPatternInpaintingEngine(options: {
       maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
       maxPixels: FLUX_INPAINT_MAX_PIXELS,
       ...bubbleOptions,
+      ...illustratedTitleOptions(options.engine.model, options.maskContext),
       windowMasks: owned ? options.maskContext.inpaintWindowMasks : undefined,
       compositeMasks: composite
         ? options.maskContext.inpaintCompositeMasks
@@ -73,4 +76,18 @@ export async function runPatternInpaintingEngine(options: {
       requirePixelChange: false,
     },
   );
+}
+
+function illustratedTitleOptions(
+  model: InpaintingEngine["model"],
+  context: PatternMaskContext,
+) {
+  if (model !== "qwen-image-2.1") return {};
+  const windows = context.inpaintWindowGroupIds.map(isIllustratedTitleGroup);
+  return {
+    ...(windows.some(Boolean) ? { illustratedTitleWindows: windows } : {}),
+    ...(context.windowProcessingOrder
+      ? { windowProcessingOrder: context.windowProcessingOrder }
+      : {}),
+  };
 }

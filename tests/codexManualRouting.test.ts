@@ -92,7 +92,7 @@ describe("manual Codex routing", () => {
     await acquireInpaintingEngineIfNeeded({ ...input, engine: undefined });
     expect(runtime.acquireEngine).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        model: "flux-klein",
+        model: "qwen-image-2.1",
         fluxMode: undefined,
         allowUnsafeLowMemoryFlux: false,
       }),

@@ -47,7 +47,7 @@ export type BubbleLayoutRunnerRequest = {
    */
   sharedOwnershipGapPx?: number;
   /** Return job-local text/SFX masks for the inpainting mask prepass. */
-  includeTypographySegmentation?: boolean;
+  includeTypographySegmentation?: boolean | "qwen-print";
   /** Do not cut render-only gutters through a transient source erase mask. */
   sourceEraseMask?: boolean;
   signal: AbortSignal;
@@ -74,6 +74,7 @@ export interface BubbleLayoutRunner {
 }
 
 export type BubbleLayoutRunnerFactoryOptions = {
+  prepareQwenContext?: boolean;
   dataRoot: string;
   directMl?: DirectMlDeviceRequest;
   decodeFallback?: ImageDecodeFallback;
@@ -148,7 +149,7 @@ export async function runBubbleLayoutPostprocess({
   blockIds?: readonly string[];
   config: BubbleLayoutPostprocessConfig;
   failureMode?: "best-effort" | "required";
-  includeTypographySegmentation?: boolean;
+  includeTypographySegmentation?: BubbleLayoutRunnerRequest["includeTypographySegmentation"];
   sourceEraseMask?: boolean;
   page: MangaPage;
   runner: BubbleLayoutRunner;

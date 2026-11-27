@@ -1,3 +1,4 @@
+import { SegmentedControl } from "../ui/SegmentedControl";
 import React from "react";
 import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
@@ -18,6 +19,7 @@ type FluxBackendSettingsProps = {
   isFluxBackendOptionDisabled: (backend: FluxBackend) => boolean;
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
   supportsFluxZluda?: boolean;
+  supportsQwenRocm?: boolean;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
 };
@@ -176,4 +178,57 @@ function resolveVisibleFluxBackends(
     if (usesAppleHardware) return option.id === "metal-native";
     return option.id !== "metal-native";
   });
+}
+
+export function QwenBackendSettings({
+  usesAppleHardware,
+  usesAmdHardware,
+  fluxBackend,
+  supportsQwenRocm,
+  setFluxBackend,
+  clearTestState,
+  controlsBusy,
+}: Pick<
+  FluxBackendSettingsProps,
+  | "usesAppleHardware"
+  | "usesAmdHardware"
+  | "fluxBackend"
+  | "supportsQwenRocm"
+  | "setFluxBackend"
+  | "clearTestState"
+  | "controlsBusy"
+>) {
+  const { t } = useTranslation("components");
+  const backends = usesAppleHardware
+    ? ["metal-native"]
+    : usesAmdHardware
+      ? ["rocm-native", "vulkan-native"]
+      : ["cuda-native", "vulkan-native"];
+  const options = FLUX_BACKEND_OPTIONS.filter((option) =>
+    backends.includes(option.id),
+  ).map((option) => ({
+    id: option.id,
+    label: t(option.labelKey),
+    disabled: option.id === "rocm-native" && supportsQwenRocm === false,
+  }));
+  const current = backends.includes(fluxBackend)
+    ? fluxBackend
+    : usesAmdHardware && !supportsQwenRocm
+      ? "vulkan-native"
+      : options[0].id;
+  return (
+    <div className="settings-field-stack">
+      <span>{t("settings.hardware.qwenBackend")}</span>
+      <SegmentedControl
+        ariaLabel={t("settings.hardware.qwenBackend")}
+        options={options}
+        value={current}
+        disabled={controlsBusy}
+        onChange={(backend) => {
+          clearTestState();
+          setFluxBackend(backend);
+        }}
+      />
+    </div>
+  );
 }

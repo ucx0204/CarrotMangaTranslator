@@ -186,6 +186,12 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+@media (max-width: 480px) {
+  .settings-preset-group {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .settings-preset-button {
   width: 100%;
 }

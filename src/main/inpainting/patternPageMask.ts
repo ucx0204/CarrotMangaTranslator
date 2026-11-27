@@ -1,4 +1,5 @@
 import type { MangaPage } from "../../shared/libraryTypes";
+import { createAbortError } from "../abortSignal";
 import type { KoharuTypographySegmentation } from "../bubbleLayout/contracts";
 import {
   bboxToPixelRect,
@@ -8,22 +9,20 @@ import {
   resolvePatternDilationRadius,
   resolvePatternRegionPaddingPx,
   resolvePatternWindowMarginPx,
+  unionRects,
   type PixelRect,
 } from "./maskGeometry";
 import type { InpaintingWindowMask } from "./inpaintingEngine";
-import { validateWindowMask } from "./inpaintingWindowMask";
+import { projectWindowMask } from "./bubbleLayoutConstraintMask";
 import {
-  buildBubbleLayoutConstraintMask,
-  projectWindowMask,
-} from "./bubbleLayoutConstraintMask";
-import {
-  isPatternInpaintingBlockEligible,
-  acceptsPatternBubbleConstraint,
+  resolveEligiblePatternBlocks,
+  resolveFluxBubbleConstraint,
+  sharedTypographyOwnership,
   protectUnselectedFluxPlan,
 } from "./patternBlockEligibility";
 import { buildPatternTextMask } from "./patternTextMask";
 import { extendSharedBubbleMaskWithDetectedText } from "./sharedBubbleTextBridge";
-import { coalesceSharedConstrainedWindows } from "./patternSharedWindows";
+import { prepareGroupedRegionWindows } from "./patternSharedWindows";
 import {
   buildSourceGlyphEvidence,
   type SourceGlyphEvidence,
@@ -31,6 +30,15 @@ import {
 import { FLUX_INPAINT_FEATHER_PX } from "./fluxEngineConstants";
 import { resolvePatternFluxCompositePlan } from "./patternFluxCompositePlan";
 import {
+  pairQwenTitleWindows,
+  type QwenRuledTitleBand,
+} from "./qwenRuledTitle";
+import { selectedPrintGroups } from "./qwenIllustratedPlate";
+import { QwenRepeatedGlyphs } from "./qwenRepeatedGlyphs";
+import {
+  appendPatternValidationBinding,
+  collectPaperGradient,
+  finalizeMeasuredPaper,
   createEmptyPatternMaskContext,
   type PatternMaskContext,
 } from "./patternMaskContext";
@@ -51,6 +59,7 @@ export function buildPatternPageMask(options: {
   width: number;
   height: number;
   mode?: PatternPageMaskMode;
+  conditionOnTypography?: boolean;
   /**
    * Only a job-local, zero-padding bubble prepass may enable this. Persisted
    * layout geometry can include user-configured text padding and is not an
@@ -66,28 +75,43 @@ export function buildPatternPageMask(options: {
   signal?: AbortSignal;
 }): PatternMaskContext {
   const context = createEmptyPatternMaskContext(options.width, options.height);
-  for (const block of options.page.blocks) {
-    if (
-      !isPatternInpaintingBlockEligible(
-        block,
-        options.blockId,
-        options.excludedBlockIds,
-        options.blockIds,
-      )
-    ) {
-      continue;
-    }
-    throwIfAborted(options.signal);
-    mergePatternBlock(options, context, block);
+  const eligible = resolveEligiblePatternBlocks(
+    options.page,
+    options.blockId,
+    options.excludedBlockIds,
+    options.blockIds,
+  );
+  const working = {
+    ...options,
+    selectedDialogue: options.conditionOnTypography
+      ? new Set(
+          eligible
+            .filter((b) => b.textRole !== "sound" && b.sourceText.trim())
+            .map((b) => b.id),
+        )
+      : undefined,
+    repeatedGlyphs: QwenRepeatedGlyphs.forPage(options),
+    unpairedTitleBands: new Map<number, QwenRuledTitleBand>(),
+  };
+  for (const block of eligible) {
+    if (options.signal?.aborted) throw createAbortError();
+    mergePatternBlock(working, context, block);
   }
   if (options.mode === "flux-region" || options.mode === "codex-region") {
-    coalesceSharedConstrainedWindows(context);
+    prepareGroupedRegionWindows(context, options);
   }
+  finalizeMeasuredPaper(context, options.width);
   return context;
 }
 
+type PatternMaskOptions = Parameters<typeof buildPatternPageMask>[0] & {
+  selectedDialogue?: ReadonlySet<string>;
+  unpairedTitleBands: Map<number, QwenRuledTitleBand>;
+  repeatedGlyphs?: QwenRepeatedGlyphs;
+};
+
 function mergePatternBlock(
-  options: Parameters<typeof buildPatternPageMask>[0],
+  options: PatternMaskOptions,
   context: PatternMaskContext,
   block: MangaPage["blocks"][number],
 ): void {
@@ -95,11 +119,9 @@ function mergePatternBlock(
   const sourceGlyphEvidence =
     options.collectSourceGlyphEvidence === true
       ? buildSourceGlyphEvidence({
+          ...options,
           bitmap: options.sourceEvidenceBitmap ?? options.bitmap,
           block,
-          height: options.height,
-          page: options.page,
-          width: options.width,
         })
       : undefined;
   const supportRect = expandRect(
@@ -113,6 +135,16 @@ function mergePatternBlock(
         )
       : resolvePatternRegionPaddingPx(block, options.page),
   );
+  if (
+    collectPaperGradient(
+      options,
+      block,
+      sourceRect,
+      context,
+      sourceGlyphEvidence,
+    )
+  )
+    return;
   if (options.mode === "flux-region" || options.mode === "codex-region") {
     mergeFluxRegionMask(
       options,
@@ -159,7 +191,7 @@ function mergePatternBlock(
 }
 
 function mergeFluxRegionMask(
-  options: Parameters<typeof buildPatternPageMask>[0],
+  options: PatternMaskOptions,
   context: PatternMaskContext,
   block: MangaPage["blocks"][number],
   supportRect: PixelRect,
@@ -179,9 +211,18 @@ function mergeFluxRegionMask(
     shared: sharedGroupIds.length > 0,
   });
   const plan = resolvePatternFluxCompositePlan({
+    selectedDialogue: options.selectedDialogue,
     regionOnly: options.mode === "codex-region",
+    conditionOnTypography: options.conditionOnTypography,
+    bitmap: options.bitmap,
+    repeatedGlyphs: options.repeatedGlyphs,
     block,
     fallbackConstraint: bubbleMask ? regionMask : null,
+    outlinedReading:
+      options.sourceEraseConstraintsByBlock?.[block.id]?.outlinedReading,
+    selectedBalloonConstraint: bubbleMask
+      ? sharedTypographyOwnership(options, block, sharedGroupIds, regionMask)
+      : undefined,
     height: options.height,
     page: options.page,
     regionMask,
@@ -189,16 +230,11 @@ function mergeFluxRegionMask(
     sourceRect: bboxToPixelRect(block.bbox, options.page),
     width: options.width,
   });
-  protectUnselectedFluxPlan(plan, options);
+  protectSelectedRegion(options, block, plan);
   const { compositeMask, featherPx: compositeFeatherPx, modelMask } = plan;
   context.usesKoharuTypographyComposite ||= plan.usesTypographySegmentation;
   const bounds = modelMask.bounds;
-  mergeMaskIntoPage(
-    context.pageMask,
-    options.width,
-    modelMask.bounds,
-    modelMask.data,
-  );
+  mergeMaskIntoPage(context.pageMask, options.width, bounds, modelMask.data);
   context.inpaintWindows.push(
     options.mode === "codex-region"
       ? bounds
@@ -221,37 +257,41 @@ function mergeFluxRegionMask(
   // Only a detected green region is a hard final-composite boundary. The
   // no-green fallback intentionally preserves the legacy OCR-region feather.
   context.inpaintWindowConstraints.push(plan.constraint);
-  context.inpaintWindowGroupIds.push(bubbleMask ? sharedGroupIds : []);
+  context.inpaintWindowGroupIds.push(
+    selectedPrintGroups(
+      block.id,
+      plan,
+      plan.sharedDialogueIds ?? sharedGroupIds,
+    ),
+  );
+  pairQwenTitleWindows(
+    options.unpairedTitleBands,
+    context.inpaintWindowGroupIds,
+    plan.titleBand,
+  );
   // Only the job-local bubble prepass supplies this semantic hint. A typography
   // feather constraint by itself can also describe lettering over artwork.
-  context.inpaintSpeechBubbleWindows.push(bubbleMask !== null);
+  context.inpaintSpeechBubbleWindows.push(plan.speechBubble);
   if (usedOtsu) context.otsuBlocks += 1;
   context.blocksErased += 1;
 }
 
-function resolveFluxBubbleConstraint(
-  options: Parameters<typeof buildPatternPageMask>[0],
+function protectSelectedRegion(
+  options: PatternMaskOptions,
   block: MangaPage["blocks"][number],
-): InpaintingWindowMask | null {
-  const bubbleMask = options.bubbleLayoutConstraintBlockIds?.includes(block.id)
-    ? (options.sourceEraseConstraintsByBlock?.[block.id] ??
-      buildBubbleLayoutConstraintMask(
-        block,
-        options.page,
-        options.width,
-        options.height,
-        true,
-      ))
-    : null;
-  if (bubbleMask) validateWindowMask(bubbleMask, options.width, options.height);
-  if (
-    bubbleMask &&
-    !acceptsPatternBubbleConstraint(block, options.page, bubbleMask)
-  )
-    return null;
-  return bubbleMask;
+  plan: ReturnType<typeof resolvePatternFluxCompositePlan>,
+) {
+  const dialogueStrokes =
+    options.bitmap &&
+    options.conditionOnTypography &&
+    plan.usesTypographySegmentation &&
+    plan.speechBubble &&
+    block.textRole !== "sound" &&
+    block.bubbleLayout?.origin === "detected"
+      ? { bitmap: options.bitmap, model: plan.modelMask }
+      : undefined;
+  protectUnselectedFluxPlan(plan, { ...options, dialogueStrokes });
 }
-
 function resolveFluxRegionMask({
   options,
   block,
@@ -293,14 +333,17 @@ function resolveFluxRegionMask({
   };
 }
 
-function mergePatternDetectionMask(options: {
-  page: MangaPage;
+type DetectionInput = Pick<
+  PatternMaskOptions,
+  "page" | "bitmap" | "width" | "height"
+> & {
   block: MangaPage["blocks"][number];
-  bitmap: Buffer;
-  width: number;
-  height: number;
   sourceRect: PixelRect;
-}): PatternMaskDetectionResult {
+};
+
+function mergePatternDetectionMask(
+  options: DetectionInput,
+): PatternMaskDetectionResult {
   const detected = detectPatternTextWindowMask(options);
   if (detected) return detected;
   return {
@@ -311,14 +354,9 @@ function mergePatternDetectionMask(options: {
   };
 }
 
-function detectPatternTextWindowMask(options: {
-  page: MangaPage;
-  block: MangaPage["blocks"][number];
-  bitmap: Buffer;
-  width: number;
-  height: number;
-  sourceRect: PixelRect;
-}): PatternMaskDetectionResult | null {
+function detectPatternTextWindowMask(
+  options: DetectionInput,
+): PatternMaskDetectionResult | null {
   const detectRect = expandRect(
     options.sourceRect,
     options.width,
@@ -360,9 +398,13 @@ function mergeLegacyFluxRegionMask(
 ): InpaintingWindowMask {
   if (!detectedMask) return createFilledWindowMask(supportRect);
   const bounds = unionRects(supportRect, detectedMask.bounds);
-  const data = new Uint8Array(bounds.w * bounds.h);
-  fillRectInWindowMask(data, bounds, supportRect);
-  mergeLocalMask(data, projectWindowMask(detectedMask, bounds));
+  const data = projectWindowMask(createFilledWindowMask(supportRect), bounds);
+  const relative = {
+    ...detectedMask.bounds,
+    x: detectedMask.bounds.x - bounds.x,
+    y: detectedMask.bounds.y - bounds.y,
+  };
+  mergeMaskIntoPage(data, bounds.w, relative, detectedMask.data);
   return { bounds, data };
 }
 
@@ -374,57 +416,4 @@ function resolveSharedBubbleTextBridgeRadius(
     resolvePatternDilationRadius(block) + 2,
     resolvePatternRegionPaddingPx(block, page),
   );
-}
-
-function appendPatternValidationBinding(
-  context: PatternMaskContext,
-  blockId: string,
-  firstPassCore: InpaintingWindowMask,
-  sourceGlyphEvidence: SourceGlyphEvidence | undefined,
-): void {
-  if (context.validationBlockIds.includes(blockId)) {
-    throw new Error(`Duplicate pattern validation block binding: ${blockId}`);
-  }
-  context.validationBlockIds.push(blockId);
-  context.validationWindowMasks.push(firstPassCore);
-  if (!sourceGlyphEvidence) return;
-  context.sourceGlyphEvidence.push(sourceGlyphEvidence);
-  context.validationBindingsByBlockId.set(blockId, {
-    blockId,
-    firstPassCore,
-    sourceGlyphEvidence,
-  });
-}
-
-function fillRectInWindowMask(
-  mask: Uint8Array,
-  bounds: PixelRect,
-  rect: PixelRect,
-): void {
-  const left = Math.max(bounds.x, rect.x);
-  const top = Math.max(bounds.y, rect.y);
-  const right = Math.min(bounds.x + bounds.w, rect.x + rect.w);
-  const bottom = Math.min(bounds.y + bounds.h, rect.y + rect.h);
-  for (let y = top; y < bottom; y += 1) {
-    const start = (y - bounds.y) * bounds.w + left - bounds.x;
-    mask.fill(1, start, start + right - left);
-  }
-}
-
-function mergeLocalMask(target: Uint8Array, source: Uint8Array): void {
-  for (let index = 0; index < target.length; index += 1) {
-    if (source[index]) target[index] = 1;
-  }
-}
-
-function unionRects(left: PixelRect, right: PixelRect): PixelRect {
-  const x = Math.min(left.x, right.x);
-  const y = Math.min(left.y, right.y);
-  const rightEdge = Math.max(left.x + left.w, right.x + right.w);
-  const bottomEdge = Math.max(left.y + left.h, right.y + right.h);
-  return { x, y, w: rightEdge - x, h: bottomEdge - y };
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 }

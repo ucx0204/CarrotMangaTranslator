@@ -78,9 +78,11 @@ type RuntimeHardwareInfo = {
   supportsHayaiOcrRocm?: boolean;
   /** Whether AMD officially supports the adapter in the current Windows HIP SDK. */
   supportsFluxZluda?: boolean;
+  supportsQwenRocm?: boolean;
   supportsRocm?: boolean;
   supportsVulkan?: boolean;
   supportsMetal?: boolean;
+  supportsQwenMetal?: boolean;
   /** Apple Silicon shares this physical memory between CPU and GPU. */
   unifiedMemoryMb?: number | null;
 };

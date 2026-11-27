@@ -1,3 +1,5 @@
+import { DEFAULT_INPAINTING_MODEL } from "../../shared/inpaintingSettingsTypes";
+import { usesRegionInpainting } from "../../shared/inpaintingSettingsTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { normalizeTranslationCompletionReferences } from "../translationCompletionReferences";
 import { getAppPaths } from "../appPaths";
@@ -115,8 +117,10 @@ async function prepareInpaintingEngine(
     const paths = dependencies.getAppPaths();
     const settings = await dependencies.getAppSettings(paths);
     const inpainting = settings.inpainting ?? {};
-    if ((inpainting.model ?? "flux-klein") === "flux-klein") {
+    const model = inpainting.model ?? DEFAULT_INPAINTING_MODEL;
+    if (usesRegionInpainting(model)) {
       runner = dependencies.createBubbleLayoutRunner({
+        ...(model === "qwen-image-2.1" && { prepareQwenContext: true }),
         dataRoot: paths.dataRoot,
         decodeFallback,
         directMl: {
@@ -128,7 +132,7 @@ async function prepareInpaintingEngine(
     }
     const lease = await dependencies.acquireEngine({
       appPaths: paths,
-      model: inpainting.model ?? "flux-klein",
+      model,
       fluxBackend: inpainting.fluxBackend,
       fluxMode: inpainting.fluxMode,
       koharuBackend: inpainting.koharuBackend,
@@ -174,7 +178,9 @@ async function inpaintChapterTargets({
         dependencies,
         engineLease,
         page: pages.get(target.pageId),
-        runner: engineLease.engine.model === "flux-klein" ? runner : undefined,
+        runner: usesRegionInpainting(engineLease.engine.model)
+          ? runner
+          : undefined,
         signal,
         target,
       }),
@@ -234,6 +240,7 @@ async function inpaintPageTarget({
   try {
     const prepared = runner
       ? await runBubbleLayoutMaskPrepass({
+          model: engineLease.engine.model,
           blockIds: selectedIds,
           config: { policy: "balanced", overwriteManual: false },
           page,

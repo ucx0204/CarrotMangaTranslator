@@ -9,7 +9,7 @@ import type { KoharuInstanceMask } from "./contracts";
 import type { BubbleMaskRefinementResult } from "./bubbleMaskTypes";
 
 /**
- * Converts KoharuLayout's full-page 288² instance logits into the fitting
+ * Converts KoharuLayout's page-aligned instance logits into the fitting
  * region used by the editor. No color flood, ellipse, or legacy detector
  * fallback is permitted: an absent/invalid Koharu mask produces no layout.
  */
@@ -77,7 +77,7 @@ function rasterizeMaskLogits(
       const pageX = crop.x + localX + 0.5;
       const maskX = (pageX / imageSize.imageWidth) * mask.width - 0.5;
       output[localY * crop.width + localX] =
-        bilinearSample(mask, maskX, maskY) >= 0 ? 1 : 0;
+        bilinearSample(mask, maskX, maskY) > 0 ? 1 : 0;
     }
   }
   return output;

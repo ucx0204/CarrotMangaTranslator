@@ -36,6 +36,7 @@ type Options = {
   engine: NativeInferenceEngine;
   backend: NativeInferenceBackend;
   rocmTarget?: string;
+  qwenRocmProbe?: boolean;
   signal?: AbortSignal;
   onProgress?: (progress: RuntimeAssetProgress) => void;
 };
@@ -154,7 +155,7 @@ async function installRuntime(
           "-" +
           asset.sha256.slice(0, 12) +
           (asset.format === "zip" ? ".zip" : ".tar.gz"),
-        label: "Koharu " + asset.id,
+        label: runtimePackageLabel(options.engine, asset.id),
         url: asset.url,
         expectedSha256: asset.sha256,
         minimumBytes: asset.bytes,
@@ -179,7 +180,7 @@ async function installRuntime(
         (name, entryPath) =>
           asset.only
             ? asset.only.includes(name)
-            : asset.id.startsWith("rocm-")
+            : asset.id.startsWith("rocm-") || asset.id.startsWith("qwen-rocm-")
               ? entryPath.startsWith("_rocm_sdk_core/") ||
                 entryPath.startsWith("_rocm_sdk_libraries/")
               : /\.(dll|dylib)$/i.test(name),
@@ -204,6 +205,10 @@ async function installRuntime(
     await rm(stage, { recursive: true, force: true });
     throw error;
   }
+}
+
+function runtimePackageLabel(engine: Options["engine"], id: string) {
+  return `${engine === "qwen-image" ? "Qwen Image 2.1" : "Koharu"} ${id}`;
 }
 
 async function inventory(

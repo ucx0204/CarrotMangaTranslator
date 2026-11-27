@@ -1,3 +1,5 @@
+export class PoissonConvergenceError extends Error {}
+
 /** Sparse geometric multigrid. Missing cells are Dirichlet boundaries, never tile edges. */
 type Level = {
   positions: Int32Array;
@@ -175,7 +177,7 @@ export function solvePoissonChannel(
     }
     cycle(level, check);
   }
-  throw new Error(
+  throw new PoissonConvergenceError(
     "치유 계산이 수렴하지 않았습니다. 더 작은 영역으로 다시 시도해 주세요.",
   );
 }

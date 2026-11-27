@@ -78,7 +78,7 @@ function buildField(
   imageHeight: number,
 ): Omit<BubbleMaskOwnership, "ownerIndex"> | null {
   if (mask.width * mask.height > 1_000_000) return null;
-  const binary = Uint8Array.from(mask.logits, (value) => (value >= 0 ? 1 : 0));
+  const binary = Uint8Array.from(mask.logits, (value) => (value > 0 ? 1 : 0));
   const scaleX = mask.width / imageWidth;
   const scaleY = mask.height / imageHeight;
   const seeds = owners.map((box) =>

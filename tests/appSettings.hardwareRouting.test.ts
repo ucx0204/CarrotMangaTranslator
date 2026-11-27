@@ -341,7 +341,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     );
   });
 
-  it("keeps an unknown AMD runtime target on the CPU inpainting backend", () => {
+  it("uses Vulkan for AMD hardware without a packaged ROCm target", () => {
     const settings = resolveDefaultAppSettings(
       {},
       {
@@ -353,7 +353,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
         rocmArch: "gfx9999",
       },
     );
-    expect(settings.inpainting?.fluxBackend).toBe("cpu-native");
+    expect(settings.inpainting?.fluxBackend).toBe("vulkan-native");
   });
 
   it("selects the packaged Hayai ROCm runtime for RX 7600 desktop and mobile", () => {
@@ -373,7 +373,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(rx7600mXtDefaults.gemma.llamaRuntimeProfile).toBe("rocm");
     expect(rx7600mXtDefaults.ocr.gpuBackend).toBe("rocm-transformers");
     expect(rx7600mXtDefaults.ocr.device).toBe("gpu");
-    expect(rx7600mXtDefaults.inpainting?.model).toBe("flux-klein");
+    expect(rx7600mXtDefaults.inpainting?.model).toBe("qwen-image-2.1");
     expect(rx7600mXtDefaults.inpainting?.fluxBackend).toBe("rocm-native");
 
     const rx7600Defaults = resolveDefaultAppSettings(
@@ -426,7 +426,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(rx6800Defaults.gemma.llamaRocmTarget).toBe("gfx103X");
     expect(rx6800Defaults.ocr.gpuBackend).not.toBe("rocm-transformers");
     expect(rx6800Defaults.ocr.device).toBe("cpu");
-    expect(rx6800Defaults.inpainting?.model).toBe("flux-klein");
+    expect(rx6800Defaults.inpainting?.model).toBe("qwen-image-2.1");
     expect(rx6800Defaults.inpainting?.fluxBackend).toBe("rocm-native");
 
     const rx6700Defaults = resolveDefaultAppSettings(
@@ -441,7 +441,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
         supportsRocm: false,
       },
     );
-    expect(rx6700Defaults.inpainting?.model).toBe("flux-klein");
+    expect(rx6700Defaults.inpainting?.model).toBe("qwen-image-2.1");
     expect(rx6700Defaults.inpainting?.fluxBackend).toBe("rocm-native");
   });
 
@@ -1086,3 +1086,26 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(options.llamaRuntimeProfile).toBe("rtx50");
   });
 });
+
+it.each([
+  [true, 24_576, "qwen-image-2.1"],
+  [false, 24_576, "flux-klein"],
+  [true, 8_192, "lama-manga"],
+] as const)(
+  "uses the Metal runtime supported by this Apple Silicon installation (%s, %i MiB)",
+  (supportsQwenMetal, unifiedMemoryMb, model) => {
+    const gpu = {
+      vendor: "apple" as const,
+      name: "Apple M4",
+      memoryMb: unifiedMemoryMb,
+      unifiedMemoryMb,
+      rtxGeneration: null,
+      computeCapability: null,
+      supportsMetal: true,
+      supportsQwenMetal,
+    };
+    const settings = resolveDefaultAppSettings({}, gpu);
+    expect(settings.inpainting?.model).toBe(model);
+    expect(settings.inpainting?.fluxBackend).toBe("metal-native");
+  },
+);

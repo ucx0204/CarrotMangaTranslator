@@ -1,3 +1,4 @@
+import { DEFAULT_INPAINTING_MODEL } from "../../shared/inpaintingSettingsTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { McpImageEditCommand } from "../../shared/mcpImageEditing";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
@@ -84,7 +85,8 @@ async function acquireLocalEngine(input: Production, command: Erasure) {
   input.guard();
   const settings = await runtime.getSettings(input.app.appPaths);
   input.guard();
-  const configuredEngine = settings.inpainting?.model ?? "flux-klein";
+  const configuredEngine =
+    settings.inpainting?.model ?? DEFAULT_INPAINTING_MODEL;
   if (configuredEngine !== command.expectedEngine)
     throw new McpEditError(
       "revision_conflict",

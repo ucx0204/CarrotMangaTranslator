@@ -7,7 +7,7 @@ import type { AppPaths } from "../appPaths";
 import { detectBestGpuInfo } from "../gpuInfo";
 import { tMain } from "./localization";
 import type {
-  InpaintingModel,
+  KoharuInpaintingModel,
   KoharuInpaintingBackend,
 } from "../../shared/inpaintingSettingsTypes";
 import type {
@@ -37,7 +37,7 @@ type ResolvedKoharuBackend = Exclude<KoharuInpaintingBackend, "auto">;
 
 type AcquireKoharuEngineOptions = {
   appPaths: AppPaths;
-  model: Exclude<InpaintingModel, "flux-klein">;
+  model: KoharuInpaintingModel;
   backend: KoharuInpaintingBackend;
   computeGpuIndex?: number;
   signal?: AbortSignal;
@@ -148,7 +148,7 @@ async function prepareKoharuEngineCandidate(
 
 function resolveKoharuEnginePaths(
   appPaths: AppPaths,
-  model: Exclude<InpaintingModel, "flux-klein">,
+  model: KoharuInpaintingModel,
 ): KoharuEnginePaths {
   return {
     cudaRuntimeDir: join(
@@ -221,7 +221,7 @@ export async function resolveKoharuBackendCandidates(
 }
 
 function logKoharuBackendCandidatesResolved(
-  model: Exclude<InpaintingModel, "flux-klein">,
+  model: KoharuInpaintingModel,
   requestedBackend: KoharuInpaintingBackend,
   candidates: ResolvedKoharuBackend[],
 ): void {
@@ -233,7 +233,7 @@ function logKoharuBackendCandidatesResolved(
 }
 
 function logKoharuBackendFailure(
-  model: Exclude<InpaintingModel, "flux-klein">,
+  model: KoharuInpaintingModel,
   requestedBackend: KoharuInpaintingBackend,
   backend: ResolvedKoharuBackend,
   fallbackBackend: ResolvedKoharuBackend | null,

@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "ded12bf93801d8025d28263f3efc5198799b0bf6d1695e88e3f61e623ae3aef2",
+    "introducedArtifactSha256": "48e9062bcad18424c7dcdfd99cf9e0b1b6046d3bdcb98e232b48a439f96b22cc",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.11",
     "coverageV8Version": "4.1.11"
@@ -214,6 +214,28 @@
         "total": 0,
         "covered": 0,
         "pct": 100
+      }
+    },
+    "src/main/appleGpuInfo.ts": {
+      "lines": {
+        "covered": 3,
+        "total": 14,
+        "pct": 21.42
+      },
+      "statements": {
+        "covered": 4,
+        "total": 16,
+        "pct": 25
+      },
+      "functions": {
+        "covered": 1,
+        "total": 5,
+        "pct": 20
+      },
+      "branches": {
+        "covered": 4,
+        "total": 18,
+        "pct": 22.22
       }
     },
     "src/main/bootstrap.ts": {
@@ -2108,6 +2130,28 @@
         "pct": 70.37
       }
     },
+    "src/main/inpainting/maskGeometry.ts": {
+      "lines": {
+        "covered": 87,
+        "total": 90,
+        "pct": 96.66
+      },
+      "statements": {
+        "covered": 96,
+        "total": 99,
+        "pct": 96.96
+      },
+      "functions": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 28,
+        "total": 36,
+        "pct": 77.77
+      }
+    },
     "src/main/inpainting/patternBlockEligibility.ts": {
       "lines": {
         "covered": 8,
@@ -2216,6 +2260,28 @@
         "covered": 6,
         "total": 6,
         "pct": 100
+      }
+    },
+    "src/main/inpainting/sharedBubbleTextBridge.ts": {
+      "lines": {
+        "covered": 45,
+        "total": 46,
+        "pct": 97.82
+      },
+      "statements": {
+        "covered": 53,
+        "total": 55,
+        "pct": 96.36
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 22,
+        "pct": 77.27
       }
     },
     "src/main/ipc/context.ts": {
@@ -22900,6 +22966,28 @@
         "pct": 100
       }
     },
+    "src/main/bubbleLayout/cudaDetector.ts": {
+      "lines": {
+        "covered": 15,
+        "total": 57,
+        "pct": 26.31
+      },
+      "statements": {
+        "covered": 15,
+        "total": 63,
+        "pct": 23.8
+      },
+      "functions": {
+        "covered": 3,
+        "total": 8,
+        "pct": 37.5
+      },
+      "branches": {
+        "covered": 2,
+        "total": 33,
+        "pct": 6.06
+      }
+    },
     "src/main/bubbleLayout/koharuMaskRefinement.ts": {
       "lines": {
         "total": 61,
@@ -22922,6 +23010,94 @@
         "pct": 70.27
       }
     },
+    "src/main/bubbleLayout/nativeDetector.ts": {
+      "lines": {
+        "total": 36,
+        "covered": 36,
+        "pct": 100
+      },
+      "statements": {
+        "total": 38,
+        "covered": 38,
+        "pct": 100
+      },
+      "functions": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "branches": {
+        "total": 10,
+        "covered": 10,
+        "pct": 100
+      }
+    },
+    "src/main/bubbleLayout/nativeLayoutWorker.ts": {
+      "lines": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "statements": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "functions": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      }
+    },
+    "src/main/bubbleLayout/nativeResultCache.ts": {
+      "lines": {
+        "covered": 33,
+        "total": 37,
+        "pct": 89.18
+      },
+      "statements": {
+        "covered": 34,
+        "total": 40,
+        "pct": 85
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 18,
+        "total": 22,
+        "pct": 81.81
+      }
+    },
+    "src/main/bubbleLayout/preparedContextualText.ts": {
+      "lines": {
+        "covered": 10,
+        "total": 24,
+        "pct": 41.66
+      },
+      "statements": {
+        "covered": 13,
+        "total": 28,
+        "pct": 46.42
+      },
+      "functions": {
+        "covered": 2,
+        "total": 5,
+        "pct": 40
+      },
+      "branches": {
+        "covered": 6,
+        "total": 10,
+        "pct": 60
+      }
+    },
     "src/main/bubbleLayout/preparedLayoutDetections.ts": {
       "lines": {
         "covered": 38,
@@ -22941,6 +23117,28 @@
       "branches": {
         "covered": 12,
         "total": 12,
+        "pct": 100
+      }
+    },
+    "src/main/bubbleLayout/sparseLayoutWorker.ts": {
+      "lines": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 6,
         "pct": 100
       }
     },
@@ -25144,6 +25342,28 @@
         "pct": 96.55
       }
     },
+    "src/main/inpainting/fluxInventedBalloon.ts": {
+      "lines": {
+        "covered": 21,
+        "total": 106,
+        "pct": 19.81
+      },
+      "statements": {
+        "covered": 23,
+        "total": 129,
+        "pct": 17.82
+      },
+      "functions": {
+        "covered": 5,
+        "total": 17,
+        "pct": 29.41
+      },
+      "branches": {
+        "covered": 12,
+        "total": 66,
+        "pct": 18.18
+      }
+    },
     "src/main/inpainting/fluxMaskContracts.ts": {
       "lines": {
         "total": 8,
@@ -25364,6 +25584,28 @@
         "pct": 100
       }
     },
+    "src/main/inpainting/patternMaskWorker.ts": {
+      "lines": {
+        "covered": 35,
+        "total": 35,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 36,
+        "total": 36,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      }
+    },
     "src/main/inpainting/patternPageSourceDiagnostics.ts": {
       "lines": {
         "total": 46,
@@ -25406,6 +25648,2228 @@
         "total": 30,
         "covered": 21,
         "pct": 70
+      }
+    },
+    "src/main/inpainting/qwenBalloonDash.ts": {
+      "lines": {
+        "covered": 61,
+        "total": 61,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 76,
+        "total": 76,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 51,
+        "total": 51,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/qwenBalloonEdgeReading.ts": {
+      "lines": {
+        "covered": 77,
+        "total": 82,
+        "pct": 93.9
+      },
+      "statements": {
+        "covered": 89,
+        "total": 102,
+        "pct": 87.25
+      },
+      "functions": {
+        "covered": 11,
+        "total": 12,
+        "pct": 91.66
+      },
+      "branches": {
+        "covered": 59,
+        "total": 73,
+        "pct": 80.82
+      }
+    },
+    "src/main/inpainting/qwenBalloonEllipsis.ts": {
+      "lines": {
+        "covered": 74,
+        "total": 75,
+        "pct": 98.66
+      },
+      "statements": {
+        "covered": 83,
+        "total": 88,
+        "pct": 94.31
+      },
+      "functions": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 69,
+        "total": 75,
+        "pct": 92
+      }
+    },
+    "src/main/inpainting/qwenBalloonPaper.ts": {
+      "lines": {
+        "covered": 93,
+        "total": 102,
+        "pct": 91.17
+      },
+      "statements": {
+        "covered": 109,
+        "total": 131,
+        "pct": 83.2
+      },
+      "functions": {
+        "covered": 25,
+        "total": 27,
+        "pct": 92.59
+      },
+      "branches": {
+        "covered": 65,
+        "total": 86,
+        "pct": 75.58
+      }
+    },
+    "src/main/inpainting/qwenBalloonReadings.ts": {
+      "lines": {
+        "covered": 51,
+        "total": 51,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 56,
+        "total": 57,
+        "pct": 98.24
+      },
+      "functions": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 63,
+        "total": 65,
+        "pct": 96.92
+      }
+    },
+    "src/main/inpainting/qwenBrushInk.ts": {
+      "lines": {
+        "covered": 143,
+        "total": 202,
+        "pct": 70.79
+      },
+      "statements": {
+        "covered": 166,
+        "total": 243,
+        "pct": 68.31
+      },
+      "functions": {
+        "covered": 37,
+        "total": 48,
+        "pct": 77.08
+      },
+      "branches": {
+        "covered": 74,
+        "total": 159,
+        "pct": 46.54
+      }
+    },
+    "src/main/inpainting/qwenCaptionEnvelope.ts": {
+      "lines": {
+        "covered": 56,
+        "total": 57,
+        "pct": 98.24
+      },
+      "statements": {
+        "covered": 61,
+        "total": 65,
+        "pct": 93.84
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 43,
+        "total": 48,
+        "pct": 89.58
+      }
+    },
+    "src/main/inpainting/qwenCaptionStock.ts": {
+      "lines": {
+        "covered": 147,
+        "total": 159,
+        "pct": 92.45
+      },
+      "statements": {
+        "covered": 178,
+        "total": 197,
+        "pct": 90.35
+      },
+      "functions": {
+        "covered": 30,
+        "total": 33,
+        "pct": 90.9
+      },
+      "branches": {
+        "covered": 105,
+        "total": 128,
+        "pct": 82.03
+      }
+    },
+    "src/main/inpainting/qwenColourHalo.ts": {
+      "lines": {
+        "covered": 50,
+        "total": 83,
+        "pct": 60.24
+      },
+      "statements": {
+        "covered": 60,
+        "total": 99,
+        "pct": 60.6
+      },
+      "functions": {
+        "covered": 12,
+        "total": 16,
+        "pct": 75
+      },
+      "branches": {
+        "covered": 45,
+        "total": 72,
+        "pct": 62.5
+      }
+    },
+    "src/main/inpainting/qwenContextualTypography.ts": {
+      "lines": {
+        "covered": 61,
+        "total": 63,
+        "pct": 96.82
+      },
+      "statements": {
+        "covered": 67,
+        "total": 73,
+        "pct": 91.78
+      },
+      "functions": {
+        "covered": 10,
+        "total": 12,
+        "pct": 83.33
+      },
+      "branches": {
+        "covered": 37,
+        "total": 43,
+        "pct": 86.04
+      }
+    },
+    "src/main/inpainting/qwenControlCrop.ts": {
+      "lines": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 30,
+        "total": 30,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/qwenControlReferences.ts": {
+      "lines": {
+        "total": 27,
+        "covered": 27,
+        "pct": 100
+      },
+      "statements": {
+        "total": 32,
+        "covered": 32,
+        "pct": 100
+      },
+      "functions": {
+        "total": 3,
+        "covered": 3,
+        "pct": 100
+      },
+      "branches": {
+        "total": 18,
+        "covered": 18,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/qwenControlRuntime.ts": {
+      "lines": {
+        "covered": 7,
+        "total": 62,
+        "pct": 11.29
+      },
+      "statements": {
+        "covered": 7,
+        "total": 63,
+        "pct": 11.11
+      },
+      "functions": {
+        "covered": 0,
+        "total": 8,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 32,
+        "pct": 0
+      }
+    },
+    "src/main/inpainting/qwenControlSampling.ts": {
+      "lines": {
+        "covered": 56,
+        "total": 61,
+        "pct": 91.8
+      },
+      "statements": {
+        "covered": 67,
+        "total": 75,
+        "pct": 89.33
+      },
+      "functions": {
+        "covered": 7,
+        "total": 8,
+        "pct": 87.5
+      },
+      "branches": {
+        "covered": 57,
+        "total": 70,
+        "pct": 81.42
+      }
+    },
+    "src/main/inpainting/qwenControlSession.ts": {
+      "lines": {
+        "covered": 33,
+        "total": 39,
+        "pct": 84.61
+      },
+      "statements": {
+        "covered": 35,
+        "total": 44,
+        "pct": 79.54
+      },
+      "functions": {
+        "covered": 5,
+        "total": 12,
+        "pct": 41.66
+      },
+      "branches": {
+        "covered": 15,
+        "total": 21,
+        "pct": 71.42
+      }
+    },
+    "src/main/inpainting/qwenCoverStock.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 77,
+        "pct": 2.59
+      },
+      "statements": {
+        "covered": 2,
+        "total": 88,
+        "pct": 2.27
+      },
+      "functions": {
+        "covered": 0,
+        "total": 15,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 35,
+        "pct": 0
+      }
+    },
+    "src/main/inpainting/qwenCoverViewTypes.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/qwenCoverViews.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 47,
+        "pct": 17.02
+      },
+      "statements": {
+        "covered": 9,
+        "total": 55,
+        "pct": 16.36
+      },
+      "functions": {
+        "covered": 1,
+        "total": 5,
+        "pct": 20
+      },
+      "branches": {
+        "covered": 9,
+        "total": 30,
+        "pct": 30
+      }
+    },
+    "src/main/inpainting/qwenCreatorCaption.ts": {
+      "lines": {
+        "covered": 77,
+        "total": 77,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 93,
+        "total": 95,
+        "pct": 97.89
+      },
+      "functions": {
+        "covered": 23,
+        "total": 23,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 41,
+        "total": 44,
+        "pct": 93.18
+      }
+    },
+    "src/main/inpainting/qwenCurvedDotStock.ts": {
+      "lines": {
+        "covered": 94,
+        "total": 94,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 106,
+        "total": 108,
+        "pct": 98.14
+      },
+      "functions": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 54,
+        "total": 58,
+        "pct": 93.1
+      }
+    },
+    "src/main/inpainting/qwenDetectedPrintEdge.ts": {
+      "lines": {
+        "covered": 35,
+        "total": 37,
+        "pct": 94.59
+      },
+      "statements": {
+        "covered": 41,
+        "total": 45,
+        "pct": 91.11
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 39,
+        "total": 48,
+        "pct": 81.25
+      }
+    },
+    "src/main/inpainting/qwenDiamondStock.ts": {
+      "lines": {
+        "covered": 106,
+        "total": 108,
+        "pct": 98.14
+      },
+      "statements": {
+        "covered": 127,
+        "total": 131,
+        "pct": 96.94
+      },
+      "functions": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 62,
+        "total": 68,
+        "pct": 91.17
+      }
+    },
+    "src/main/inpainting/qwenDotModulation.ts": {
+      "lines": {
+        "covered": 138,
+        "total": 138,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 171,
+        "total": 174,
+        "pct": 98.27
+      },
+      "functions": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 67,
+        "total": 70,
+        "pct": 95.71
+      }
+    },
+    "src/main/inpainting/qwenDotPrint.ts": {
+      "lines": {
+        "covered": 114,
+        "total": 114,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 137,
+        "total": 140,
+        "pct": 97.85
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 45,
+        "total": 50,
+        "pct": 90
+      }
+    },
+    "src/main/inpainting/qwenFadingPaper.ts": {
+      "lines": {
+        "covered": 46,
+        "total": 51,
+        "pct": 90.19
+      },
+      "statements": {
+        "covered": 54,
+        "total": 61,
+        "pct": 88.52
+      },
+      "functions": {
+        "covered": 11,
+        "total": 12,
+        "pct": 91.66
+      },
+      "branches": {
+        "covered": 28,
+        "total": 42,
+        "pct": 66.66
+      }
+    },
+    "src/main/inpainting/qwenFlatText.ts": {
+      "lines": {
+        "covered": 56,
+        "total": 57,
+        "pct": 98.24
+      },
+      "statements": {
+        "covered": 69,
+        "total": 78,
+        "pct": 88.46
+      },
+      "functions": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 33,
+        "total": 43,
+        "pct": 76.74
+      }
+    },
+    "src/main/inpainting/qwenFloatInference.ts": {
+      "lines": {
+        "total": 16,
+        "covered": 15,
+        "pct": 93.75
+      },
+      "statements": {
+        "total": 18,
+        "covered": 17,
+        "pct": 94.44
+      },
+      "functions": {
+        "total": 3,
+        "covered": 3,
+        "pct": 100
+      },
+      "branches": {
+        "total": 4,
+        "covered": 3,
+        "pct": 75
+      }
+    },
+    "src/main/inpainting/qwenFloatWorker.ts": {
+      "lines": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "statements": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "functions": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/qwenFrameCorner.ts": {
+      "lines": {
+        "covered": 178,
+        "total": 179,
+        "pct": 99.44
+      },
+      "statements": {
+        "covered": 214,
+        "total": 220,
+        "pct": 97.27
+      },
+      "functions": {
+        "covered": 36,
+        "total": 37,
+        "pct": 97.29
+      },
+      "branches": {
+        "covered": 144,
+        "total": 156,
+        "pct": 92.3
+      }
+    },
+    "src/main/inpainting/qwenFramedScreen.ts": {
+      "lines": {
+        "covered": 74,
+        "total": 74,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 92,
+        "total": 93,
+        "pct": 98.92
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 66,
+        "total": 67,
+        "pct": 98.5
+      }
+    },
+    "src/main/inpainting/qwenGpuBudget.ts": {
+      "lines": {
+        "covered": 65,
+        "total": 79,
+        "pct": 82.27
+      },
+      "statements": {
+        "covered": 71,
+        "total": 89,
+        "pct": 79.77
+      },
+      "functions": {
+        "covered": 14,
+        "total": 16,
+        "pct": 87.5
+      },
+      "branches": {
+        "covered": 29,
+        "total": 43,
+        "pct": 67.44
+      }
+    },
+    "src/main/inpainting/qwenGuideContinuity.ts": {
+      "lines": {
+        "covered": 52,
+        "total": 118,
+        "pct": 44.06
+      },
+      "statements": {
+        "covered": 58,
+        "total": 144,
+        "pct": 40.27
+      },
+      "functions": {
+        "covered": 6,
+        "total": 19,
+        "pct": 31.57
+      },
+      "branches": {
+        "covered": 33,
+        "total": 104,
+        "pct": 31.73
+      }
+    },
+    "src/main/inpainting/qwenHatchBanks.ts": {
+      "lines": {
+        "total": 63,
+        "covered": 63,
+        "pct": 100
+      },
+      "statements": {
+        "total": 70,
+        "covered": 70,
+        "pct": 100
+      },
+      "functions": {
+        "total": 13,
+        "covered": 13,
+        "pct": 100
+      },
+      "branches": {
+        "total": 34,
+        "covered": 32,
+        "pct": 94.11
+      }
+    },
+    "src/main/inpainting/qwenHatchDirection.ts": {
+      "lines": {
+        "total": 46,
+        "covered": 45,
+        "pct": 97.82
+      },
+      "statements": {
+        "total": 52,
+        "covered": 51,
+        "pct": 98.07
+      },
+      "functions": {
+        "total": 11,
+        "covered": 11,
+        "pct": 100
+      },
+      "branches": {
+        "total": 14,
+        "covered": 13,
+        "pct": 92.85
+      }
+    },
+    "src/main/inpainting/qwenHatchedSound.ts": {
+      "lines": {
+        "total": 45,
+        "covered": 45,
+        "pct": 100
+      },
+      "statements": {
+        "total": 61,
+        "covered": 59,
+        "pct": 96.72
+      },
+      "functions": {
+        "total": 13,
+        "covered": 13,
+        "pct": 100
+      },
+      "branches": {
+        "total": 39,
+        "covered": 37,
+        "pct": 94.87
+      }
+    },
+    "src/main/inpainting/qwenHollowSound.ts": {
+      "lines": {
+        "covered": 56,
+        "total": 56,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 65,
+        "total": 67,
+        "pct": 97.01
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 42,
+        "total": 44,
+        "pct": 95.45
+      }
+    },
+    "src/main/inpainting/qwenHorizontalSound.ts": {
+      "lines": {
+        "covered": 81,
+        "total": 84,
+        "pct": 96.42
+      },
+      "statements": {
+        "covered": 93,
+        "total": 99,
+        "pct": 93.93
+      },
+      "functions": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 55,
+        "total": 79,
+        "pct": 69.62
+      }
+    },
+    "src/main/inpainting/qwenIllustratedPlate.ts": {
+      "lines": {
+        "covered": 77,
+        "total": 83,
+        "pct": 92.77
+      },
+      "statements": {
+        "covered": 91,
+        "total": 106,
+        "pct": 85.84
+      },
+      "functions": {
+        "covered": 14,
+        "total": 16,
+        "pct": 87.5
+      },
+      "branches": {
+        "covered": 60,
+        "total": 70,
+        "pct": 85.71
+      }
+    },
+    "src/main/inpainting/qwenIllustratedTitleGroups.ts": {
+      "lines": {
+        "covered": 77,
+        "total": 85,
+        "pct": 90.58
+      },
+      "statements": {
+        "covered": 84,
+        "total": 95,
+        "pct": 88.42
+      },
+      "functions": {
+        "covered": 25,
+        "total": 26,
+        "pct": 96.15
+      },
+      "branches": {
+        "covered": 83,
+        "total": 104,
+        "pct": 79.8
+      }
+    },
+    "src/main/inpainting/qwenImageAssets.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 13,
+        "pct": 30.76
+      },
+      "statements": {
+        "covered": 4,
+        "total": 13,
+        "pct": 30.76
+      },
+      "functions": {
+        "covered": 0,
+        "total": 3,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/qwenImageEngine.ts": {
+      "lines": {
+        "covered": 3,
+        "total": 45,
+        "pct": 6.66
+      },
+      "statements": {
+        "covered": 3,
+        "total": 46,
+        "pct": 6.52
+      },
+      "functions": {
+        "covered": 1,
+        "total": 12,
+        "pct": 8.33
+      },
+      "branches": {
+        "covered": 0,
+        "total": 23,
+        "pct": 0
+      }
+    },
+    "src/main/inpainting/qwenImageWorker.ts": {
+      "lines": {
+        "covered": 10,
+        "total": 122,
+        "pct": 8.19
+      },
+      "statements": {
+        "covered": 11,
+        "total": 133,
+        "pct": 8.27
+      },
+      "functions": {
+        "covered": 1,
+        "total": 19,
+        "pct": 5.26
+      },
+      "branches": {
+        "covered": 10,
+        "total": 78,
+        "pct": 12.82
+      }
+    },
+    "src/main/inpainting/qwenJacketVerifier.ts": {
+      "lines": {
+        "covered": 21,
+        "total": 69,
+        "pct": 30.43
+      },
+      "statements": {
+        "covered": 24,
+        "total": 79,
+        "pct": 30.37
+      },
+      "functions": {
+        "covered": 4,
+        "total": 9,
+        "pct": 44.44
+      },
+      "branches": {
+        "covered": 4,
+        "total": 15,
+        "pct": 26.66
+      }
+    },
+    "src/main/inpainting/qwenJacketView.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 34,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 38,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 5,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 8,
+        "pct": 0
+      }
+    },
+    "src/main/inpainting/qwenLuminousLettering.ts": {
+      "lines": {
+        "covered": 111,
+        "total": 139,
+        "pct": 79.85
+      },
+      "statements": {
+        "covered": 126,
+        "total": 158,
+        "pct": 79.74
+      },
+      "functions": {
+        "covered": 31,
+        "total": 34,
+        "pct": 91.17
+      },
+      "branches": {
+        "covered": 109,
+        "total": 144,
+        "pct": 75.69
+      }
+    },
+    "src/main/inpainting/qwenMagazineGroups.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 37,
+        "pct": 2.7
+      },
+      "statements": {
+        "covered": 2,
+        "total": 42,
+        "pct": 4.76
+      },
+      "functions": {
+        "covered": 1,
+        "total": 7,
+        "pct": 14.28
+      },
+      "branches": {
+        "covered": 1,
+        "total": 32,
+        "pct": 3.12
+      }
+    },
+    "src/main/inpainting/qwenMagazineInsets.ts": {
+      "lines": {
+        "covered": 77,
+        "total": 78,
+        "pct": 98.71
+      },
+      "statements": {
+        "covered": 92,
+        "total": 96,
+        "pct": 95.83
+      },
+      "functions": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 51,
+        "total": 58,
+        "pct": 87.93
+      }
+    },
+    "src/main/inpainting/qwenMarginCaption.ts": {
+      "lines": {
+        "covered": 97,
+        "total": 124,
+        "pct": 78.22
+      },
+      "statements": {
+        "covered": 119,
+        "total": 161,
+        "pct": 73.91
+      },
+      "functions": {
+        "covered": 16,
+        "total": 20,
+        "pct": 80
+      },
+      "branches": {
+        "covered": 51,
+        "total": 82,
+        "pct": 62.19
+      }
+    },
+    "src/main/inpainting/qwenNativePrintRegistration.ts": {
+      "lines": {
+        "covered": 30,
+        "total": 32,
+        "pct": 93.75
+      },
+      "statements": {
+        "covered": 31,
+        "total": 33,
+        "pct": 93.93
+      },
+      "functions": {
+        "covered": 4,
+        "total": 5,
+        "pct": 80
+      },
+      "branches": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/qwenNativeReference.ts": {
+      "lines": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 27,
+        "total": 28,
+        "pct": 96.42
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 26,
+        "pct": 65.38
+      }
+    },
+    "src/main/inpainting/qwenOutlinedColumns.ts": {
+      "lines": {
+        "covered": 75,
+        "total": 77,
+        "pct": 97.4
+      },
+      "statements": {
+        "covered": 81,
+        "total": 85,
+        "pct": 95.29
+      },
+      "functions": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 57,
+        "total": 62,
+        "pct": 91.93
+      }
+    },
+    "src/main/inpainting/qwenOutlinedLettering.ts": {
+      "lines": {
+        "covered": 57,
+        "total": 57,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 70,
+        "total": 74,
+        "pct": 94.59
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 46,
+        "total": 52,
+        "pct": 88.46
+      }
+    },
+    "src/main/inpainting/qwenOverlappingPrint.ts": {
+      "lines": {
+        "covered": 77,
+        "total": 78,
+        "pct": 98.71
+      },
+      "statements": {
+        "covered": 88,
+        "total": 95,
+        "pct": 92.63
+      },
+      "functions": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 58,
+        "total": 65,
+        "pct": 89.23
+      }
+    },
+    "src/main/inpainting/qwenOverlayStock.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 47,
+        "pct": 2.12
+      },
+      "statements": {
+        "covered": 1,
+        "total": 58,
+        "pct": 1.72
+      },
+      "functions": {
+        "covered": 0,
+        "total": 4,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 20,
+        "pct": 0
+      }
+    },
+    "src/main/inpainting/qwenOverprint.ts": {
+      "lines": {
+        "covered": 28,
+        "total": 47,
+        "pct": 59.57
+      },
+      "statements": {
+        "covered": 31,
+        "total": 56,
+        "pct": 55.35
+      },
+      "functions": {
+        "covered": 3,
+        "total": 5,
+        "pct": 60
+      },
+      "branches": {
+        "covered": 15,
+        "total": 34,
+        "pct": 44.11
+      }
+    },
+    "src/main/inpainting/qwenPanelCrossingPrint.ts": {
+      "lines": {
+        "covered": 127,
+        "total": 129,
+        "pct": 98.44
+      },
+      "statements": {
+        "covered": 145,
+        "total": 153,
+        "pct": 94.77
+      },
+      "functions": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 107,
+        "total": 117,
+        "pct": 91.45
+      }
+    },
+    "src/main/inpainting/qwenPaper.ts": {
+      "lines": {
+        "covered": 84,
+        "total": 97,
+        "pct": 86.59
+      },
+      "statements": {
+        "covered": 105,
+        "total": 127,
+        "pct": 82.67
+      },
+      "functions": {
+        "covered": 10,
+        "total": 14,
+        "pct": 71.42
+      },
+      "branches": {
+        "covered": 53,
+        "total": 67,
+        "pct": 79.1
+      }
+    },
+    "src/main/inpainting/qwenPaperBank.ts": {
+      "lines": {
+        "covered": 27,
+        "total": 28,
+        "pct": 96.42
+      },
+      "statements": {
+        "covered": 38,
+        "total": 40,
+        "pct": 95
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 25,
+        "pct": 88
+      }
+    },
+    "src/main/inpainting/qwenPaperGradient.ts": {
+      "lines": {
+        "covered": 126,
+        "total": 155,
+        "pct": 81.29
+      },
+      "statements": {
+        "covered": 151,
+        "total": 190,
+        "pct": 79.47
+      },
+      "functions": {
+        "covered": 21,
+        "total": 26,
+        "pct": 80.76
+      },
+      "branches": {
+        "covered": 76,
+        "total": 112,
+        "pct": 67.85
+      }
+    },
+    "src/main/inpainting/qwenPaperLettering.ts": {
+      "lines": {
+        "covered": 78,
+        "total": 81,
+        "pct": 96.29
+      },
+      "statements": {
+        "covered": 92,
+        "total": 99,
+        "pct": 92.92
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 46,
+        "total": 53,
+        "pct": 86.79
+      }
+    },
+    "src/main/inpainting/qwenPaperOwnership.ts": {
+      "lines": {
+        "covered": 27,
+        "total": 36,
+        "pct": 75
+      },
+      "statements": {
+        "covered": 36,
+        "total": 48,
+        "pct": 75
+      },
+      "functions": {
+        "covered": 8,
+        "total": 10,
+        "pct": 80
+      },
+      "branches": {
+        "covered": 21,
+        "total": 33,
+        "pct": 63.63
+      }
+    },
+    "src/main/inpainting/qwenPaperStops.ts": {
+      "lines": {
+        "covered": 50,
+        "total": 54,
+        "pct": 92.59
+      },
+      "statements": {
+        "covered": 67,
+        "total": 74,
+        "pct": 90.54
+      },
+      "functions": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 45,
+        "total": 54,
+        "pct": 83.33
+      }
+    },
+    "src/main/inpainting/qwenPenContinuation.ts": {
+      "lines": {
+        "covered": 114,
+        "total": 116,
+        "pct": 98.27
+      },
+      "statements": {
+        "covered": 136,
+        "total": 144,
+        "pct": 94.44
+      },
+      "functions": {
+        "covered": 31,
+        "total": 32,
+        "pct": 96.87
+      },
+      "branches": {
+        "covered": 55,
+        "total": 65,
+        "pct": 84.61
+      }
+    },
+    "src/main/inpainting/qwenPlatformGpu.ts": {
+      "lines": {
+        "covered": 62,
+        "total": 63,
+        "pct": 98.41
+      },
+      "statements": {
+        "covered": 69,
+        "total": 70,
+        "pct": 98.57
+      },
+      "functions": {
+        "covered": 21,
+        "total": 22,
+        "pct": 95.45
+      },
+      "branches": {
+        "covered": 30,
+        "total": 33,
+        "pct": 90.9
+      }
+    },
+    "src/main/inpainting/qwenPrintChroma.ts": {
+      "lines": {
+        "covered": 66,
+        "total": 66,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 76,
+        "total": 76,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 38,
+        "total": 40,
+        "pct": 95
+      }
+    },
+    "src/main/inpainting/qwenPrintGlow.ts": {
+      "lines": {
+        "covered": 83,
+        "total": 84,
+        "pct": 98.8
+      },
+      "statements": {
+        "covered": 109,
+        "total": 113,
+        "pct": 96.46
+      },
+      "functions": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 56,
+        "total": 63,
+        "pct": 88.88
+      }
+    },
+    "src/main/inpainting/qwenPrintTone.ts": {
+      "lines": {
+        "covered": 65,
+        "total": 167,
+        "pct": 38.92
+      },
+      "statements": {
+        "covered": 80,
+        "total": 208,
+        "pct": 38.46
+      },
+      "functions": {
+        "covered": 19,
+        "total": 44,
+        "pct": 43.18
+      },
+      "branches": {
+        "covered": 43,
+        "total": 122,
+        "pct": 35.24
+      }
+    },
+    "src/main/inpainting/qwenPrintedContours.ts": {
+      "lines": {
+        "covered": 94,
+        "total": 94,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 116,
+        "total": 119,
+        "pct": 97.47
+      },
+      "functions": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 60,
+        "total": 63,
+        "pct": 95.23
+      }
+    },
+    "src/main/inpainting/qwenPrintedDash.ts": {
+      "lines": {
+        "covered": 44,
+        "total": 44,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 53,
+        "total": 53,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 32,
+        "total": 32,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/qwenPrintedKeyline.ts": {
+      "lines": {
+        "covered": 136,
+        "total": 136,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 168,
+        "total": 169,
+        "pct": 99.4
+      },
+      "functions": {
+        "covered": 31,
+        "total": 31,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 105,
+        "total": 107,
+        "pct": 98.13
+      }
+    },
+    "src/main/inpainting/qwenPrintedPigment.ts": {
+      "lines": {
+        "covered": 170,
+        "total": 172,
+        "pct": 98.83
+      },
+      "statements": {
+        "covered": 215,
+        "total": 230,
+        "pct": 93.47
+      },
+      "functions": {
+        "covered": 41,
+        "total": 42,
+        "pct": 97.61
+      },
+      "branches": {
+        "covered": 79,
+        "total": 98,
+        "pct": 80.61
+      }
+    },
+    "src/main/inpainting/qwenPrintedReference.ts": {
+      "lines": {
+        "covered": 98,
+        "total": 109,
+        "pct": 89.9
+      },
+      "statements": {
+        "covered": 114,
+        "total": 129,
+        "pct": 88.37
+      },
+      "functions": {
+        "covered": 9,
+        "total": 12,
+        "pct": 75
+      },
+      "branches": {
+        "covered": 66,
+        "total": 78,
+        "pct": 84.61
+      }
+    },
+    "src/main/inpainting/qwenPrintedStock.ts": {
+      "lines": {
+        "covered": 88,
+        "total": 88,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 105,
+        "total": 108,
+        "pct": 97.22
+      },
+      "functions": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 85,
+        "total": 88,
+        "pct": 96.59
+      }
+    },
+    "src/main/inpainting/qwenPrintedSubtitle.ts": {
+      "lines": {
+        "covered": 61,
+        "total": 63,
+        "pct": 96.82
+      },
+      "statements": {
+        "covered": 74,
+        "total": 77,
+        "pct": 96.1
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 37,
+        "total": 40,
+        "pct": 92.5
+      }
+    },
+    "src/main/inpainting/qwenPublisherGlow.ts": {
+      "lines": {
+        "covered": 16,
+        "total": 112,
+        "pct": 14.28
+      },
+      "statements": {
+        "covered": 17,
+        "total": 145,
+        "pct": 11.72
+      },
+      "functions": {
+        "covered": 4,
+        "total": 40,
+        "pct": 10
+      },
+      "branches": {
+        "covered": 15,
+        "total": 97,
+        "pct": 15.46
+      }
+    },
+    "src/main/inpainting/qwenPublisherRows.ts": {
+      "lines": {
+        "covered": 92,
+        "total": 161,
+        "pct": 57.14
+      },
+      "statements": {
+        "covered": 114,
+        "total": 200,
+        "pct": 57
+      },
+      "functions": {
+        "covered": 27,
+        "total": 41,
+        "pct": 65.85
+      },
+      "branches": {
+        "covered": 77,
+        "total": 151,
+        "pct": 50.99
+      }
+    },
+    "src/main/inpainting/qwenRepeatedBrush.ts": {
+      "lines": {
+        "covered": 63,
+        "total": 63,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 86,
+        "total": 87,
+        "pct": 98.85
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 50,
+        "total": 51,
+        "pct": 98.03
+      }
+    },
+    "src/main/inpainting/qwenRepeatedGlyphs.ts": {
+      "lines": {
+        "covered": 86,
+        "total": 86,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 94,
+        "total": 96,
+        "pct": 97.91
+      },
+      "functions": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 50,
+        "total": 55,
+        "pct": 90.9
+      }
+    },
+    "src/main/inpainting/qwenRuledHeader.ts": {
+      "lines": {
+        "covered": 74,
+        "total": 74,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 95,
+        "total": 96,
+        "pct": 98.95
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 70,
+        "total": 71,
+        "pct": 98.59
+      }
+    },
+    "src/main/inpainting/qwenRuledPaper.ts": {
+      "lines": {
+        "covered": 97,
+        "total": 100,
+        "pct": 97
+      },
+      "statements": {
+        "covered": 116,
+        "total": 127,
+        "pct": 91.33
+      },
+      "functions": {
+        "covered": 14,
+        "total": 15,
+        "pct": 93.33
+      },
+      "branches": {
+        "covered": 85,
+        "total": 101,
+        "pct": 84.15
+      }
+    },
+    "src/main/inpainting/qwenRuledShadow.ts": {
+      "lines": {
+        "covered": 48,
+        "total": 132,
+        "pct": 36.36
+      },
+      "statements": {
+        "covered": 57,
+        "total": 163,
+        "pct": 34.96
+      },
+      "functions": {
+        "covered": 5,
+        "total": 20,
+        "pct": 25
+      },
+      "branches": {
+        "covered": 41,
+        "total": 99,
+        "pct": 41.41
+      }
+    },
+    "src/main/inpainting/qwenRuledTitle.ts": {
+      "lines": {
+        "covered": 86,
+        "total": 123,
+        "pct": 69.91
+      },
+      "statements": {
+        "covered": 107,
+        "total": 155,
+        "pct": 69.03
+      },
+      "functions": {
+        "covered": 18,
+        "total": 22,
+        "pct": 81.81
+      },
+      "branches": {
+        "covered": 56,
+        "total": 104,
+        "pct": 53.84
+      }
+    },
+    "src/main/inpainting/qwenScreenCurve.ts": {
+      "lines": {
+        "covered": 108,
+        "total": 109,
+        "pct": 99.08
+      },
+      "statements": {
+        "covered": 126,
+        "total": 130,
+        "pct": 96.92
+      },
+      "functions": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 47,
+        "total": 53,
+        "pct": 88.67
+      }
+    },
+    "src/main/inpainting/qwenScreenedGuide.ts": {
+      "lines": {
+        "covered": 152,
+        "total": 156,
+        "pct": 97.43
+      },
+      "statements": {
+        "covered": 171,
+        "total": 181,
+        "pct": 94.47
+      },
+      "functions": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 80,
+        "total": 91,
+        "pct": 87.91
+      }
+    },
+    "src/main/inpainting/qwenSelectedPlan.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 23,
+        "pct": 52.17
+      },
+      "statements": {
+        "covered": 13,
+        "total": 25,
+        "pct": 52
+      },
+      "functions": {
+        "covered": 4,
+        "total": 5,
+        "pct": 80
+      },
+      "branches": {
+        "covered": 22,
+        "total": 32,
+        "pct": 68.75
+      }
+    },
+    "src/main/inpainting/qwenSelectedPrint.ts": {
+      "lines": {
+        "covered": 51,
+        "total": 51,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 61,
+        "total": 65,
+        "pct": 93.84
+      },
+      "functions": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 40,
+        "total": 45,
+        "pct": 88.88
+      }
+    },
+    "src/main/inpainting/qwenSignType.ts": {
+      "lines": {
+        "covered": 106,
+        "total": 112,
+        "pct": 94.64
+      },
+      "statements": {
+        "covered": 128,
+        "total": 144,
+        "pct": 88.88
+      },
+      "functions": {
+        "covered": 34,
+        "total": 34,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 91,
+        "total": 107,
+        "pct": 85.04
+      }
+    },
+    "src/main/inpainting/qwenSingleCropModel.ts": {
+      "lines": {
+        "covered": 28,
+        "total": 37,
+        "pct": 75.67
+      },
+      "statements": {
+        "covered": 29,
+        "total": 40,
+        "pct": 72.5
+      },
+      "functions": {
+        "covered": 6,
+        "total": 8,
+        "pct": 75
+      },
+      "branches": {
+        "covered": 12,
+        "total": 24,
+        "pct": 50
+      }
+    },
+    "src/main/inpainting/qwenSmallSound.ts": {
+      "lines": {
+        "covered": 79,
+        "total": 79,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 90,
+        "total": 96,
+        "pct": 93.75
+      },
+      "functions": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 61,
+        "total": 67,
+        "pct": 91.04
+      }
+    },
+    "src/main/inpainting/qwenSoundPen.ts": {
+      "lines": {
+        "covered": 42,
+        "total": 46,
+        "pct": 91.3
+      },
+      "statements": {
+        "covered": 53,
+        "total": 60,
+        "pct": 88.33
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 26,
+        "total": 33,
+        "pct": 78.78
+      }
+    },
+    "src/main/inpainting/qwenSoundReference.ts": {
+      "lines": {
+        "total": 107,
+        "covered": 106,
+        "pct": 99.06
+      },
+      "statements": {
+        "total": 123,
+        "covered": 120,
+        "pct": 97.56
+      },
+      "functions": {
+        "total": 24,
+        "covered": 24,
+        "pct": 100
+      },
+      "branches": {
+        "total": 103,
+        "covered": 100,
+        "pct": 97.08
+      }
+    },
+    "src/main/inpainting/qwenSoundRim.ts": {
+      "lines": {
+        "covered": 21,
+        "total": 26,
+        "pct": 80.76
+      },
+      "statements": {
+        "covered": 26,
+        "total": 36,
+        "pct": 72.22
+      },
+      "functions": {
+        "covered": 9,
+        "total": 14,
+        "pct": 64.28
+      },
+      "branches": {
+        "covered": 20,
+        "total": 32,
+        "pct": 62.5
+      }
+    },
+    "src/main/inpainting/qwenSpotColour.ts": {
+      "lines": {
+        "covered": 141,
+        "total": 143,
+        "pct": 98.6
+      },
+      "statements": {
+        "covered": 178,
+        "total": 190,
+        "pct": 93.68
+      },
+      "functions": {
+        "covered": 40,
+        "total": 41,
+        "pct": 97.56
+      },
+      "branches": {
+        "covered": 96,
+        "total": 108,
+        "pct": 88.88
+      }
+    },
+    "src/main/inpainting/qwenStockCrossing.ts": {
+      "lines": {
+        "covered": 42,
+        "total": 42,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 46,
+        "total": 46,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/qwenStoneTexture.ts": {
+      "lines": {
+        "covered": 92,
+        "total": 92,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 113,
+        "total": 114,
+        "pct": 99.12
+      },
+      "functions": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 35,
+        "total": 36,
+        "pct": 97.22
+      }
+    },
+    "src/main/inpainting/qwenSubstrate.ts": {
+      "lines": {
+        "covered": 65,
+        "total": 68,
+        "pct": 95.58
+      },
+      "statements": {
+        "covered": 71,
+        "total": 75,
+        "pct": 94.66
+      },
+      "functions": {
+        "covered": 7,
+        "total": 8,
+        "pct": 87.5
+      },
+      "branches": {
+        "covered": 8,
+        "total": 10,
+        "pct": 80
+      }
+    },
+    "src/main/inpainting/qwenTextArtwork.ts": {
+      "lines": {
+        "covered": 54,
+        "total": 55,
+        "pct": 98.18
+      },
+      "statements": {
+        "covered": 63,
+        "total": 65,
+        "pct": 96.92
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 36,
+        "total": 40,
+        "pct": 90
+      }
+    },
+    "src/main/inpainting/qwenUndetectedDisplay.ts": {
+      "lines": {
+        "covered": 109,
+        "total": 187,
+        "pct": 58.28
+      },
+      "statements": {
+        "covered": 134,
+        "total": 232,
+        "pct": 57.75
+      },
+      "functions": {
+        "covered": 22,
+        "total": 31,
+        "pct": 70.96
+      },
+      "branches": {
+        "covered": 82,
+        "total": 150,
+        "pct": 54.66
+      }
+    },
+    "src/main/inpainting/qwenUniformScreen.ts": {
+      "lines": {
+        "covered": 107,
+        "total": 107,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 130,
+        "total": 132,
+        "pct": 98.48
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 41,
+        "total": 43,
+        "pct": 95.34
+      }
+    },
+    "src/main/inpainting/qwenVerticalCaptionStock.ts": {
+      "lines": {
+        "covered": 103,
+        "total": 108,
+        "pct": 95.37
+      },
+      "statements": {
+        "covered": 128,
+        "total": 138,
+        "pct": 92.75
+      },
+      "functions": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 63,
+        "total": 77,
+        "pct": 81.81
+      }
+    },
+    "src/main/inpainting/qwenVocalStrokes.ts": {
+      "lines": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 21,
+        "total": 24,
+        "pct": 87.5
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 23,
+        "total": 28,
+        "pct": 82.14
       }
     },
     "src/main/inpainting/retouchPoisson.ts": {
@@ -37728,6 +40192,28 @@
         "pct": 100
       }
     },
+    "src/main/runtime/qwen-native-session.cjs": {
+      "lines": {
+        "covered": 60,
+        "total": 76,
+        "pct": 78.94
+      },
+      "statements": {
+        "covered": 66,
+        "total": 85,
+        "pct": 77.64
+      },
+      "functions": {
+        "covered": 10,
+        "total": 14,
+        "pct": 71.42
+      },
+      "branches": {
+        "covered": 30,
+        "total": 47,
+        "pct": 63.82
+      }
+    },
     "src/main/runtime/semantic-ocr/box-geometry.cjs": {
       "lines": {
         "total": 20,
@@ -38210,6 +40696,50 @@
         "total": 27,
         "covered": 18,
         "pct": 66.66
+      }
+    },
+    "src/main/runtimeSupport/inferenceUtilityHost.ts": {
+      "lines": {
+        "total": 6,
+        "covered": 6,
+        "pct": 100
+      },
+      "statements": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "functions": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "branches": {
+        "total": 4,
+        "covered": 3,
+        "pct": 75
+      }
+    },
+    "src/main/runtimeSupport/inferenceUtilityProcess.ts": {
+      "lines": {
+        "total": 66,
+        "covered": 66,
+        "pct": 100
+      },
+      "statements": {
+        "total": 71,
+        "covered": 71,
+        "pct": 100
+      },
+      "functions": {
+        "total": 20,
+        "covered": 20,
+        "pct": 100
+      },
+      "branches": {
+        "total": 24,
+        "covered": 23,
+        "pct": 95.83
       }
     },
     "src/main/runtimeSupport/localInferenceSection.ts": {

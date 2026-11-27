@@ -27,7 +27,7 @@ import { isBubbleLayoutBlockEligible } from "./bubbleLayoutBlockEligibility";
 import { refineKoharuBubbleMask } from "./koharuMaskRefinement";
 
 const BUBBLE_LAYOUT_MODEL_ID =
-  "koharu-layout-rfdetr-seg-2xl-1152+explicit-padding-v2+ownership-partition-v1";
+  "koharu-layout-rfdetr-highres-1920+explicit-padding-v2+ownership-partition-v1";
 
 const POLICY_CONFIDENCE_THRESHOLD = {
   safe: 0.72,

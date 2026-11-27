@@ -1,3 +1,8 @@
+import { DEFAULT_INPAINTING_MODEL } from "../../shared/inpaintingSettingsTypes";
+import {
+  usesRegionInpainting,
+  type InpaintingModel,
+} from "../../shared/inpaintingSettingsTypes";
 import type { InpaintingWindowMask } from "../inpainting/inpaintingEngine";
 import type { StartInpaintingRequest } from "../../shared/inpaintingTypes";
 import type {
@@ -65,6 +70,8 @@ export async function prepareBubbleLayoutJob({
     appSettings,
     config,
     runner: runtime.createBubbleLayoutRunner({
+      ...((appSettings.inpainting?.model ?? DEFAULT_INPAINTING_MODEL) ===
+        "qwen-image-2.1" && { prepareQwenContext: true }),
       dataRoot: context.appPaths.dataRoot,
       decodeFallback: context.decodeImage,
       directMl: {
@@ -100,7 +107,7 @@ function needsFluxMaskPrepass(
     request.mode !== "page-pattern-drawn" &&
     request.mode !== "page-bubble-layout" &&
     !("engine" in request && request.engine === "codex") &&
-    (settings.inpainting?.model ?? "flux-klein") === "flux-klein"
+    usesRegionInpainting(settings.inpainting?.model ?? DEFAULT_INPAINTING_MODEL)
   );
 }
 
@@ -175,6 +182,7 @@ export async function runBubbleLayoutMaskPrepass({
   blockId,
   blockIds,
   config,
+  model,
   page,
   runner,
   signal,
@@ -182,6 +190,7 @@ export async function runBubbleLayoutMaskPrepass({
   blockId?: string;
   blockIds?: readonly string[];
   config: BubbleLayoutPostprocessConfig;
+  model?: InpaintingModel | "codex";
   page: MangaPage;
   runner: BubbleLayoutRunner;
   signal: AbortSignal;
@@ -228,7 +237,8 @@ export async function runBubbleLayoutMaskPrepass({
       overwriteManual: false,
     },
     failureMode: "best-effort",
-    includeTypographySegmentation: true,
+    includeTypographySegmentation:
+      model === "qwen-image-2.1" ? "qwen-print" : true,
     sourceEraseMask: true,
     page: maskBaselinePage,
     runner,

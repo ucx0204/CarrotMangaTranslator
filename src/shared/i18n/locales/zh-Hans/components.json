@@ -2250,6 +2250,10 @@
         }
       },
       "inpaintingModels": {
+        "qwen": {
+          "label": "Qwen Image 2.1",
+          "description": "使用 Qwen Image 2.1 移除选区内的原文，支持 NVIDIA CUDA、AMD ROCm 或 Vulkan，以及 Apple Silicon Metal (macOS 26+)。"
+        },
         "aot": {
           "label": "AOT 最低",
           "description": "最轻量的Koharu AOT图像修复模型。"
@@ -2535,6 +2539,7 @@
       "fluxMode": "FLUX 图像修复模式",
       "fluxModeNormal": "普通",
       "fluxModeLight": "轻量",
+      "qwenBackend": "Qwen 运行后端",
       "fluxBackend": "Flux图像修复后端",
       "inpaintingModel": "图像修复模型",
       "amdOcrExperimental": "AMD GPU OCR为实验功能。如失败，可仅将OCR切换到CPU。",

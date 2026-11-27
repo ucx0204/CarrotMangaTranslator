@@ -1,4 +1,5 @@
 import type { InpaintingWindowMask } from "./inpaintingEngine";
+import type { IllustratedTitleHint } from "./fluxWorkerTypes";
 
 type FluxMaskOptions = {
   compositeConstraints?: Array<InpaintingWindowMask | null>;
@@ -6,7 +7,23 @@ type FluxMaskOptions = {
   compositeMasks?: InpaintingWindowMask[];
   windowMasks?: InpaintingWindowMask[];
   speechBubbleWindows?: boolean[];
+  illustratedTitleWindows?: IllustratedTitleHint[];
+  windowProcessingOrder?: readonly number[];
 };
+
+function assertWindowProcessingOrder(
+  order: readonly number[] | undefined,
+  windowCount: number,
+) {
+  if (
+    order &&
+    (order.length !== windowCount ||
+      new Set(order).size !== windowCount ||
+      order.some((i) => !Number.isInteger(i) || i < 0 || i >= windowCount))
+  ) {
+    throw new Error("Window processing order must include each window once.");
+  }
+}
 
 export function assertFluxMaskContracts(options: {
   isolateWindowMasks: boolean;
@@ -14,6 +31,7 @@ export function assertFluxMaskContracts(options: {
   windowCount: number;
 }): void {
   const { isolateWindowMasks, runOptions, windowCount } = options;
+  assertWindowProcessingOrder(runOptions.windowProcessingOrder, windowCount);
   const alignedMetadata = [
     [
       isolateWindowMasks ? runOptions.windowMasks : undefined,
@@ -21,6 +39,7 @@ export function assertFluxMaskContracts(options: {
     ],
     [runOptions.compositeMasks, "Composite mask"],
     [runOptions.speechBubbleWindows, "Speech bubble hint"],
+    [runOptions.illustratedTitleWindows, "Illustrated title hint"],
   ] as const;
   for (const [values, label] of alignedMetadata) {
     if (values && values.length !== windowCount) {

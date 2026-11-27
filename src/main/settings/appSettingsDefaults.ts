@@ -81,7 +81,11 @@ export function resolveDefaultAppSettings(
     api,
     ocr: resolveDefaultOcrSettings(env, hardwareDefaults, pipeline),
     ui: resolveDefaultUiSettings(env),
-    inpainting: resolveDefaultInpaintingSettings(env, hardwareDefaults),
+    inpainting: resolveDefaultInpaintingSettings(
+      env,
+      hardwareDefaults,
+      typeof detectedGpu === "object" ? detectedGpu : null,
+    ),
     blockFormatDefaults: {
       ...DEFAULT_BLOCK_FORMAT_DEFAULTS,
       wordBreak: "keep-all-overflow",
@@ -305,11 +309,17 @@ function resolveDefaultUiSettings(
 function resolveDefaultInpaintingSettings(
   env: NodeJS.ProcessEnv,
   hardwareDefaults: HardwareDefaults,
+  gpu?: DetectedGpuInfo | null,
 ): NonNullable<AppSettings["inpainting"]> {
   const defaultModel =
     hardwareDefaults.fluxBackend === "cpu-native"
       ? "aot-inpainting"
-      : "flux-klein";
+      : gpu?.vendor === "apple" &&
+          (gpu.unifiedMemoryMb ?? gpu.memoryMb ?? 0) < 16 * 1024
+        ? "lama-manga"
+        : gpu?.supportsQwenMetal === false
+          ? "flux-klein"
+          : undefined;
   return {
     model: resolveInpaintingModel(
       env.MANGA_TRANSLATOR_INPAINTING_MODEL ?? env.MGT_INPAINTING_MODEL,

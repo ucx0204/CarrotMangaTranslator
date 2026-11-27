@@ -1,5 +1,9 @@
 import type { FluxCropStrategy } from "./fluxCropTiling";
-import type { FluxWorker } from "./fluxWorker";
+import type {
+  FluxWorkerRequest,
+  FluxWorkerCropResult,
+  IllustratedTitleHint,
+} from "./fluxWorkerTypes";
 import type { FluxInpaintSummary } from "./fluxInpaintSummary";
 import type { InpaintingWindowMask } from "./inpaintingEngine";
 import type { ExclusiveInpaintingWindowMasks } from "./inpaintingWindowMask";
@@ -14,6 +18,8 @@ export type FluxInpaintRunOptions = {
   maxPixels?: number;
   windowMasks?: InpaintingWindowMask[];
   speechBubbleWindows?: boolean[];
+  illustratedTitleWindows?: IllustratedTitleHint[];
+  windowProcessingOrder?: readonly number[];
   compositeMasks?: InpaintingWindowMask[];
   compositeFeatherPx?: number[];
   compositeConstraints?: Array<InpaintingWindowMask | null>;
@@ -29,9 +35,15 @@ export type ResolvedFluxInpaintOptions = {
 
 export type FluxInpaintRunnerArgs = {
   bitmap: Buffer;
-  getWorker: () => FluxWorker;
+  getWorker: () => {
+    inpaint(
+      request: FluxWorkerRequest,
+      signal?: AbortSignal,
+    ): Promise<FluxWorkerCropResult>;
+  };
   height: number;
   isolateWindowMasks: boolean;
+  modelMaskIsTypography?: boolean;
   cropStrategy: FluxCropStrategy;
   mask: Uint8Array;
   runOptions: FluxInpaintRunOptions;
@@ -48,7 +60,7 @@ export type FluxWindowProcessArgs = {
   bitmap: Buffer;
   sourceBitmap: Buffer;
   contextBitmap: Buffer;
-  getWorker: () => FluxWorker;
+  getWorker: FluxInpaintRunnerArgs["getWorker"];
   height: number;
   index: number;
   isolateWindowMasks: boolean;

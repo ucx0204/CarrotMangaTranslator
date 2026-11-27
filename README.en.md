@@ -85,13 +85,13 @@ Set the **interface language** in **Settings → General** and the **source/tran
 
 **The AI subtabs configure different jobs.** Changing the translation engine does not also change every OCR, removal, Codex image, and research setting.
 
-| AI subtab        | Controls                                                                                                                |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Translation**  | Languages, Gemma/Codex/API, generation limits                                                                           |
-| **OCR**          | HayaiOCR/PaddleOCR and supported devices. Compare on the same page if detection or reading is poor.                     |
-| **Image**        | **AOT / LaMa / Flux** removal, supported backends, separate **Codex image model and reasoning effort**, image redaction |
-| **Web research** | Accounts/keys, search-result analysis model, usage limits                                                               |
-| **Hardware**     | App graphics GPU, local AI compute GPU, detected-device recommendations. Restart after saving a graphics GPU change.    |
+| AI subtab        | Controls                                                                                                                                       |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Translation**  | Languages, Gemma/Codex/API, generation limits                                                                                                  |
+| **OCR**          | HayaiOCR/PaddleOCR and supported devices. Compare on the same page if detection or reading is poor.                                            |
+| **Image**        | **Qwen Image 2.1 / FLUX Klein / LaMa / AOT** removal, supported backends, separate **Codex image model and reasoning effort**, image redaction |
+| **Web research** | Accounts/keys, search-result analysis model, usage limits                                                                                      |
+| **Hardware**     | App graphics GPU, local AI compute GPU, detected-device recommendations. Restart after saving a graphics GPU change.                           |
 
 <details>
 <summary>Advanced settings and more screenshots</summary>

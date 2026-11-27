@@ -2250,6 +2250,10 @@
         }
       },
       "inpaintingModels": {
+        "qwen": {
+          "label": "Qwen Image 2.1",
+          "description": "Qwen Image 2.1로 선택 영역의 원문을 제거합니다. NVIDIA CUDA, AMD ROCm·Vulkan, Apple Silicon Metal (macOS 26+)을 지원합니다."
+        },
         "aot": {
           "label": "AOT 최소",
           "description": "가장 가벼운 Koharu AOT 인페인팅입니다."
@@ -2535,6 +2539,7 @@
       "fluxMode": "FLUX 인페인팅 모드",
       "fluxModeNormal": "일반",
       "fluxModeLight": "경량",
+      "qwenBackend": "Qwen 실행 백엔드",
       "fluxBackend": "Flux 인페인팅 백엔드",
       "inpaintingModel": "인페인팅 모델",
       "amdOcrExperimental": "AMD OCR GPU는 실험 기능입니다. 실패하면 OCR만 CPU로 바꿀 수 있습니다.",

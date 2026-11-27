@@ -4,15 +4,24 @@ import {
   ModelCleanupError,
 } from "../runtimeSupport/modelCleanupBarrier";
 import { availableParallelism } from "node:os";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import type * as Ort from "onnxruntime-node";
-import { onnxRuntimeNode as ort } from "../runtimeSupport/nativeOnnxRuntime";
+import { InferenceUtilityProcess } from "../runtimeSupport/inferenceUtilityProcess";
+import type {
+  NativeLayoutRequest,
+  ComicPageDetectionResult,
+  KoharuExecutionProvider,
+} from "./contracts";
+import { disposeCudaLayout } from "./cudaDetector";
 import { disposeKoharuWasmInferenceWorker } from "./wasmWorkerClient";
 import type { DirectMlDeviceRequest } from "../runtimeSupport/directMlAdapterPolicy";
 import { queryWindowsDirectMlAdapter } from "../runtimeSupport/windowsDirectMlAdapter";
-import { logInfo, logWarn } from "../logger";
+import { getLogPath, logInfo, logWarn } from "../logger";
 
-export type KoharuExecutionProvider = "dml" | "cpu";
+export const nativeLayoutProcess = new InferenceUtilityProcess<
+  NativeLayoutRequest,
+  ComicPageDetectionResult
+>(join(__dirname, "nativeLayoutWorker.js"), "KoharuLayout", () => getLogPath());
 
 export type KoharuLayoutSessionHandle = {
   session: Ort.InferenceSession;
@@ -44,8 +53,10 @@ export async function getKoharuLayoutSession(options: {
   }
   assertModelCleanupComplete();
   const modelPath = resolve(options.modelPath);
-  const providers =
-    options.providerPreference ?? resolveKoharuProviderPreference();
+  // The fused 1920px graph can trigger DXGI_ERROR_DEVICE_HUNG on Windows.
+  // Keep automatic detection on CPU and leave VRAM available for inpainting.
+  const providers: readonly KoharuExecutionProvider[] =
+    options.providerPreference ?? ["cpu"];
   const errors: unknown[] = [];
   for (const provider of providers) {
     const directMl = options.directMl ?? {};
@@ -97,6 +108,8 @@ export async function getKoharuLayoutSession(options: {
 export async function disposeCachedKoharuLayoutSessions(): Promise<boolean> {
   const settled = await Promise.allSettled([
     disposeCachedNativeKoharuLayoutSessions(),
+    nativeLayoutProcess.dispose(),
+    disposeCudaLayout(),
     disposeKoharuWasmInferenceWorker(),
   ]);
   const errors = settled.flatMap((result) =>
@@ -160,12 +173,6 @@ async function releaseKoharuLayoutSession(
   );
   sessionRunTails.delete(session);
   await releaseNativeSessionOnce(session);
-}
-
-function resolveKoharuProviderPreference(
-  platform: NodeJS.Platform = process.platform,
-): readonly KoharuExecutionProvider[] {
-  return platform === "win32" ? ["dml", "cpu"] : ["cpu"];
 }
 
 export function resolveKoharuCpuThreadCount(): number {
@@ -313,6 +320,8 @@ async function createNativeSession(
 ): Promise<Ort.InferenceSession> {
   const adapter =
     provider === "dml" ? await queryWindowsDirectMlAdapter(directMl) : null;
+  const { onnxRuntimeNode: ort } =
+    await import("../runtimeSupport/nativeOnnxRuntime.js");
   const session = await ort.InferenceSession.create(modelPath, {
     executionProviders: [
       adapter ? { name: "dml", deviceId: adapter.deviceId } : "cpu",

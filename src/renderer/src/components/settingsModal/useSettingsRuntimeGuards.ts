@@ -32,8 +32,10 @@ export type SettingsRuntimeGuards = {
   usesSm75Hardware: boolean;
   supportsOcrRocm: boolean | undefined;
   supportsFluxZluda: boolean | undefined;
+  supportsQwenRocm?: boolean;
   usesAppleHardware: boolean;
   unifiedMemoryMb: number | null;
+  supportsQwenMetal?: boolean;
   usesAmdOcrContext: boolean;
   usesNvidiaOcrContext: boolean;
   isLlamaRuntimeOptionDisabled: (profile: LlamaRuntimeProfile) => boolean;
@@ -137,7 +139,13 @@ function resolveDetectedRuntimeContext(
     ...hardwareFlags,
     ...nvidiaFeatures,
     supportsFluxZluda: hardware?.supportsFluxZluda,
+    ...(hardware?.supportsQwenRocm === undefined
+      ? {}
+      : { supportsQwenRocm: hardware.supportsQwenRocm }),
     unifiedMemoryMb: hardware?.unifiedMemoryMb ?? null,
+    ...(hardware?.supportsQwenMetal === undefined
+      ? {}
+      : { supportsQwenMetal: hardware.supportsQwenMetal }),
   };
 }
 

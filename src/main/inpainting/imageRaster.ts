@@ -1,4 +1,3 @@
-import { nativeImage } from "electron";
 import { readFile, writeFile } from "node:fs/promises";
 import { clamp } from "../../shared/geometry";
 import type { PixelRect } from "./maskGeometry";
@@ -24,6 +23,7 @@ export async function writePngFromBitmap(
   height: number,
   processSize: { width: number; height: number },
 ): Promise<void> {
+  const { nativeImage } = await import("electron");
   let image = nativeImage.createFromBitmap(bitmap, { width, height });
   if (processSize.width !== width || processSize.height !== height) {
     image = image.resize({
@@ -45,6 +45,16 @@ export async function writePngFromMask(
   height: number,
   processSize: { width: number; height: number },
 ): Promise<void> {
+  const image = await nativeImageFromMask(mask, width, height, processSize);
+  await writeFile(filePath, image.toPNG());
+}
+
+export async function nativeImageFromMask(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  processSize: { width: number; height: number },
+) {
   const bitmap = Buffer.alloc(processSize.width * processSize.height * 4);
   for (let y = 0; y < processSize.height; y += 1) {
     const sourceY = clamp(
@@ -66,22 +76,22 @@ export async function writePngFromMask(
       bitmap[offset + 3] = 255;
     }
   }
-  const image = nativeImage.createFromBitmap(bitmap, {
-    width: processSize.width,
-    height: processSize.height,
-  });
-  if (image.isEmpty()) {
+  const { nativeImage } = await import("electron");
+  const size = { width: processSize.width, height: processSize.height };
+  const image = nativeImage.createFromBitmap(bitmap, size);
+  if (image.isEmpty())
     throw new Error("Flux 마스크 이미지를 만들지 못했습니다.");
-  }
-  await writeFile(filePath, image.toPNG());
+  return image;
 }
 
 export async function readGeneratedBitmap(
   filePath: string,
   targetWidth: number,
   targetHeight: number,
+  expected?: { width: number; height: number },
 ): Promise<Buffer> {
   const buffer = await readFile(filePath);
+  const { nativeImage } = await import("electron");
   let image = nativeImage.createFromBuffer(buffer);
   if (image.isEmpty()) {
     image = nativeImage.createFromPath(filePath);
@@ -90,6 +100,11 @@ export async function readGeneratedBitmap(
     throw new Error("Flux 결과 이미지를 읽지 못했습니다.");
   }
   const size = image.getSize();
+  if (
+    expected &&
+    (size.width !== expected.width || size.height !== expected.height)
+  )
+    throw new Error("출력 이미지의 크기가 요청한 영역과 다릅니다.");
   if (size.width !== targetWidth || size.height !== targetHeight) {
     image = image.resize({
       width: targetWidth,
@@ -312,9 +327,7 @@ function dilateMaskSquare(
   height: number,
   radius: number,
 ): Uint8Array {
-  if (radius <= 0) {
-    return mask;
-  }
+  if (radius <= 0) return mask;
   return dilateMaskVertically(
     dilateMaskHorizontally(mask, width, height, radius),
     width,

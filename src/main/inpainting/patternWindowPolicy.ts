@@ -1,3 +1,4 @@
+import { usesRegionInpainting } from "../../shared/inpaintingSettingsTypes";
 import type { InpaintingEngine } from "./inpaintingEngine";
 import { mergeRects, type PixelRect } from "./maskGeometry";
 
@@ -8,7 +9,7 @@ export function resolvePatternInpaintWindows(
 ): PixelRect[] {
   if (
     (engine.model === "codex" && options.preserveBlockOwnership) ||
-    (engine.model === "flux-klein" &&
+    (usesRegionInpainting(engine.model) &&
       (engine.backend === "metal-native" || options.preserveBlockOwnership))
   ) {
     return windows.map((window) => ({ ...window }));

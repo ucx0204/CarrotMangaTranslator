@@ -145,7 +145,10 @@ const allowedElectronLocales = new Set([
 // Remove their former 49-file / 615 MiB allowance from the payload ceiling.
 // In-app NSIS updates restore the single required resources/elevate.exe helper.
 // Local Gemma streaming adds resources/app-runtime/transport/gemma-chat-stream.cjs.
-const MAX_PACKAGED_FILES = 332;
+// Qwen ships its crop worker, 43 drawing-restoration modules, the native
+// session and its small FFI binding. Weights and accelerators are on demand.
+// Includes the sparse layout manifest, CUDA worker and persistent print worker.
+const MAX_PACKAGED_FILES = 379;
 const MAX_PACKAGED_BYTES = 1080 * 1024 * 1024;
 
 for (const name of ["c", "claude"]) {
@@ -165,6 +168,39 @@ for (const fontRuntimeDir of forbiddenPackagedFontRuntimeDirs) {
   }
 }
 assertPackagedOnnxNodeInventory();
+const qwenSourceDir = join(root, "src", "main", "runtime");
+const qwenWorkers = readdirSync(qwenSourceDir).filter((file) =>
+  /^qwen[-_].*\.py$/u.test(file),
+);
+if (qwenWorkers.length !== 45) throw new Error("Qwen worker inventory changed");
+for (const file of [
+  ...qwenWorkers,
+  "qwen-native-session.cjs",
+  "koharu-layout-cuda.py",
+  "koharu-sparse-model.json",
+]) {
+  const packaged = readFileSync(join(resourcesDir, "app-runtime", file));
+  if (!packaged.equals(readFileSync(join(qwenSourceDir, file)))) {
+    throw new Error(`Packaged Qwen worker differs from its source: ${file}`);
+  }
+}
+if (
+  !readFileSync(join(resourcesDir, "app-runtime", "koffi.node")).equals(
+    readFileSync(
+      join(
+        root,
+        "node_modules",
+        "@koromix",
+        "koffi-win32-x64",
+        "win32_x64",
+        "koffi.node",
+      ),
+    ),
+  )
+)
+  throw new Error(
+    "Packaged Qwen native binding differs from the Windows x64 dependency",
+  );
 for (const forbiddenFluxCpuRunnerPath of forbiddenFluxCpuRunnerPaths) {
   if (existsSync(forbiddenFluxCpuRunnerPath)) {
     throw new Error(
@@ -254,6 +290,37 @@ const onnxNodeResult = spawnSync(
   },
 );
 assertSmokeSucceeded(onnxNodeResult, "Packaged native ONNX runtime");
+const maskWorkerSmoke = spawnSync(
+  appExecutable,
+  [
+    "-e",
+    `const { Worker } = require("node:worker_threads");
+  const worker = new Worker(process.argv[1], { workerData: {
+    kind: "pattern-page-mask", options: { page: {blocks:[],width:2,height:2}, width:2, height:2, bitmap:Buffer.alloc(16,255), mode:"flux-region", conditionOnTypography:true }
+  }});
+  worker.once("message", value => {
+    if(value.pageMask.length !== 4 || value.blocksErased !== 0) throw Error("Invalid mask worker response");
+    console.log("packaged-pattern-mask-worker-ok");
+  });`,
+    join(
+      resourcesDir,
+      "app.asar",
+      "out",
+      "main",
+      "inpainting",
+      "patternMaskWorker.js",
+    ),
+  ],
+  {
+    encoding: "utf8",
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+    timeout: 30_000,
+    windowsHide: true,
+  },
+);
+assertSmokeSucceeded(maskWorkerSmoke, "Packaged original erasure mask worker");
+if (!maskWorkerSmoke.stdout.includes("packaged-pattern-mask-worker-ok"))
+  throw Error("Mask worker exited before returning its result");
 const mainRuntimeSmokeMessage = runPackagedMainRuntimeSmoke();
 const imageResult = spawnSync(
   appExecutable,

@@ -1,4 +1,8 @@
 import {
+  INPAINTING_MODELS,
+  type InpaintingModel,
+} from "../../shared/inpaintingSettingsTypes";
+import {
   McpWorkFileCreateSchema,
   matchesWorkFileReceipt,
   type McpWorkFileReceipt,
@@ -18,6 +22,13 @@ import { McpDiscoverChaptersSchema } from "../../shared/mcpChapterDiscovery";
 import type { McpImportReceipt } from "../../shared/mcpLibraryImport";
 import { validMcpExchangeJobReferences } from "./mcpExchangeJobPolicy";
 import { validMcpOutputSyncJobReference } from "./mcpOutputSyncJobPolicy";
+
+export const mcpErasureTargetFields = {
+  engine: z.enum(["local", "codex"]).optional(),
+  localModel: z.enum(INPAINTING_MODELS).optional(),
+  expectedModel: z.string().min(1).max(128).optional(),
+  allowExternalProcessing: z.boolean().optional(),
+};
 
 type JobReferenceInput = {
   id?: string;
@@ -178,7 +189,7 @@ export function validErasureJobTarget(
   kind: string,
   target: {
     engine?: "local" | "codex";
-    localModel?: "flux-klein" | "lama-manga" | "aot-inpainting";
+    localModel?: InpaintingModel;
     expectedModel?: string;
     allowExternalProcessing?: boolean;
   },

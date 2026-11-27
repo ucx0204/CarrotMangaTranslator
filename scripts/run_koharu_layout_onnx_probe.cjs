@@ -4,7 +4,7 @@ const { availableParallelism } = require("node:os");
 const { resolve } = require("node:path");
 const { app, nativeImage } = require("electron");
 
-const INPUT_SIZE = 1152;
+const LEGACY_INPUT_SIZE = 1152;
 const QUERY_COUNT = 300;
 const CLASS_THRESHOLDS = [0.25, 0.2, 0.5, 0.5];
 const CLASS_NAMES = ["text", "onomatopoeia", "bubble", "panel"];
@@ -47,14 +47,14 @@ function parseArgs(argv) {
 }
 
 /** @param {Electron.NativeImage} source */
-function prepareInput(source) {
+function prepareLegacyInput(source) {
   const resized = source.resize({
-    width: INPUT_SIZE,
-    height: INPUT_SIZE,
+    width: LEGACY_INPUT_SIZE,
+    height: LEGACY_INPUT_SIZE,
     quality: "best",
   });
   const bitmap = resized.toBitmap();
-  const pixels = INPUT_SIZE * INPUT_SIZE;
+  const pixels = LEGACY_INPUT_SIZE * LEGACY_INPUT_SIZE;
   const output = new Float32Array(pixels * 3);
   const mean = [0.485, 0.456, 0.406];
   const std = [0.229, 0.224, 0.225];
@@ -110,16 +110,51 @@ async function main() {
     enableMemPattern: args.provider === "cpu",
   });
   const sessionMs = performance.now() - started;
-  const inputData = prepareInput(source);
+  const metadata = session.inputMetadata[0];
+  const shape = metadata?.isTensor ? metadata.shape : [];
+  const side = shape[2];
+  if (typeof side !== "number" || side !== shape[3]) {
+    fail(
+      `Expected a fixed square detector input, got ${JSON.stringify(shape)}`,
+    );
+  }
+  const legacy = side === LEGACY_INPUT_SIZE;
+  let inputData;
+  if (legacy) {
+    inputData = prepareLegacyInput(source);
+  } else {
+    const builtLayout = resolve(__dirname, "../out/main/bubbleLayout");
+    const { KOHARU_LAYOUT_INPUT_SIZE } = require(
+      resolve(builtLayout, "constants.js"),
+    );
+    if (side !== KOHARU_LAYOUT_INPUT_SIZE)
+      fail(`Unsupported detector input size: ${side}`);
+    const { prepareComicDetectorImage } = require(
+      resolve(builtLayout, "preprocess.js"),
+    );
+    inputData = prepareComicDetectorImage(source).rgbChw;
+  }
   const input = new ort.Tensor("float32", inputData, [
     1,
     3,
-    INPUT_SIZE,
-    INPUT_SIZE,
+    Number(side),
+    Number(side),
   ]);
   const inferenceStarted = performance.now();
   const outputs = await session.run({ input }, ["dets", "labels", "masks"]);
   const inferenceMs = performance.now() - inferenceStarted;
+  const labels = summarizeLabels(
+    /** @type {ArrayLike<number | bigint>} */ (outputs.labels.data),
+  );
+  if (!legacy) {
+    const { parseKoharuLayoutOutputs } = require(
+      resolve(__dirname, "../out/main/bubbleLayout/outputs.js"),
+    );
+    const detections = parseKoharuLayoutOutputs(outputs, source.getSize());
+    const counts = Object.fromEntries(CLASS_NAMES.map((name) => [name, 0]));
+    for (const detection of detections) counts[detection.label]++;
+    labels.keptClassCounts = counts;
+  }
   const result = {
     ok: true,
     provider: args.provider,
@@ -131,9 +166,7 @@ async function main() {
     outputs: Object.fromEntries(
       session.outputNames.map((name) => [name, outputs[name]?.dims ?? null]),
     ),
-    labels: summarizeLabels(
-      /** @type {ArrayLike<number | bigint>} */ (outputs.labels.data),
-    ),
+    labels,
     rssBytes: process.memoryUsage().rss,
   };
   process.stdout.write(`${JSON.stringify(result)}\n`);

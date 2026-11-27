@@ -91,7 +91,7 @@ function clampUnit(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-function distanceToMask(
+export function distanceToMask(
   mask: Uint8Array,
   width: number,
   height: number,

@@ -57,7 +57,7 @@ function absorbTouchingRects(
   }
 }
 
-function unionRects(left: PixelRect, right: PixelRect): PixelRect {
+export function unionRects(left: PixelRect, right: PixelRect): PixelRect {
   const x1 = Math.min(left.x, right.x);
   const y1 = Math.min(left.y, right.y);
   const x2 = Math.max(left.x + left.w, right.x + right.w);
@@ -289,11 +289,25 @@ export function resolveFluxProcessSize(
   };
 }
 
-function rectsTouchOrOverlap(left: PixelRect, right: PixelRect): boolean {
+export function rectsTouchOrOverlap(
+  left: PixelRect,
+  right: PixelRect,
+): boolean {
   return (
     left.x <= right.x + right.w &&
     left.x + left.w >= right.x &&
     left.y <= right.y + right.h &&
     left.y + left.h >= right.y
+  );
+}
+export function pointInRect(
+  point: { x: number; y: number },
+  rect: PixelRect,
+): boolean {
+  return (
+    point.x >= rect.x &&
+    point.y >= rect.y &&
+    point.x < rect.x + rect.w &&
+    point.y < rect.y + rect.h
   );
 }

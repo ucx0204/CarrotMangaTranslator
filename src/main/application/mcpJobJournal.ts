@@ -14,6 +14,7 @@ import {
   McpImportBatchReferenceSchema,
 } from "../../shared/mcpImportBatch";
 import {
+  mcpErasureTargetFields,
   validMcpJobReferences,
   validErasureJobTarget,
   retainedContextProposalSchema,
@@ -90,12 +91,7 @@ export const mcpJobTargetSchema = z
     pageId: id,
     blockId: id.optional(),
     contextMode: z.enum(["none", "saved"]).optional(),
-    engine: z.enum(["local", "codex"]).optional(),
-    localModel: z
-      .enum(["flux-klein", "lama-manga", "aot-inpainting"])
-      .optional(),
-    expectedModel: z.string().min(1).max(128).optional(),
-    allowExternalProcessing: z.boolean().optional(),
+    ...mcpErasureTargetFields,
     revision: z.string().regex(/^page-v1:[a-f0-9]{16}$/),
     requestId: z.string().uuid(),
   })

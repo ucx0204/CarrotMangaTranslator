@@ -1,3 +1,4 @@
+import { usesRegionInpainting } from "../../shared/inpaintingSettingsTypes";
 import { normalizeBboxTo1000 } from "../../shared/bboxNormalization";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { InpaintingRetouchGeometry } from "../../shared/inpaintingTypes";
@@ -49,8 +50,9 @@ export function buildMcpImageEditMasks(
           width: page.width,
           height: page.height,
           blockIds: command.blockIds,
-          mode:
-            command.expectedEngine === "flux-klein" ? "flux-region" : "glyph",
+          mode: usesRegionInpainting(command.expectedEngine)
+            ? "flux-region"
+            : "glyph",
           signal,
         }).pageMask
       : rasterizeGeometry(page, geometries);

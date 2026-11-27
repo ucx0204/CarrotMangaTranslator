@@ -50,7 +50,7 @@
     "inpaintingGuideHidden": false
   },
   "inpainting": {
-    "model": "flux-klein",
+    "model": "qwen-image-2.1",
     "fluxBackend": "cuda-native",
     "fluxMode": "normal",
     "koharuBackend": "auto"

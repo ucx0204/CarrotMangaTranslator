@@ -27,10 +27,11 @@ export function imageEditingBudget(usage: ImageEditingUsage) {
     generation,
     maxAttemptsPerRegion: constrained ? 0 : comfortable ? 1 + Number(pro) : 1,
     simpleBackground: "aot-inpainting" as const,
-    ordinaryBackground: "flux-klein" as const,
-    complexBackground: generation === "complex-only" ? "codex" : "flux-klein",
+    ordinaryBackground: "qwen-image-2.1" as const,
+    complexBackground:
+      generation === "complex-only" ? "codex" : "qwen-image-2.1",
     instruction:
-      "Explicit user engine/model choices take precedence over these automatic defaults; never silently switch a requested engine. Inspect original pixels to classify each region. Use native solid fill/AOT for simple clean backgrounds, FLUX for ordinary erasure, and ImageGen for complex reconstruction when the budget allows. local-first means reserve one generation for a visually confirmed local failure; avoid means no automatic generation. Pro receives more headroom, never unlimited generation. Usage is account-wide Codex pressure, NOT an image-generation allowance. Unknown usage is not zero usage. Recheck before another generation batch; quota/rate-limit errors stop generation until reset. Never buy credits or consume a reset automatically. Keep existing per-region cumulative attempt ceilings, source protection and terminal policy-refusal rules. A successful erasure is not visual acceptance.",
+      "Explicit user engine/model choices take precedence over these automatic defaults; never silently switch a requested engine. Inspect original pixels to classify each region. Use native solid fill/AOT for simple clean backgrounds, Qwen Image 2.1 for ordinary erasure (FLUX is available as a fallback), and ImageGen for complex reconstruction when the budget allows. local-first means reserve one generation for a visually confirmed local failure; avoid means no automatic generation. Pro receives more headroom, never unlimited generation. Usage is account-wide Codex pressure, NOT an image-generation allowance. Unknown usage is not zero usage. Recheck before another generation batch; quota/rate-limit errors stop generation until reset. Never buy credits or consume a reset automatically. Keep existing per-region cumulative attempt ceilings, source protection and terminal policy-refusal rules. A successful erasure is not visual acceptance.",
   };
 }
 
@@ -47,8 +48,8 @@ export const ImageEditingBudgetSchema = z
     generation: z.enum(["avoid", "complex-only", "local-first"]),
     maxAttemptsPerRegion: z.number().int().min(0).max(2),
     simpleBackground: z.literal("aot-inpainting"),
-    ordinaryBackground: z.literal("flux-klein"),
-    complexBackground: z.enum(["codex", "flux-klein"]),
+    ordinaryBackground: z.literal("qwen-image-2.1"),
+    complexBackground: z.enum(["codex", "qwen-image-2.1"]),
     instruction: z.string(),
   })
   .strict();

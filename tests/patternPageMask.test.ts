@@ -13,6 +13,112 @@ import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("pattern page text masks", () => {
+  it("pastes a vertical sound only as far as its measured white rim", () => {
+    const width = 150,
+      height = 220;
+    const bitmap = Buffer.alloc(width * height * 4, 255);
+    fillRect(bitmap, width, { x: 0, y: 0, w: width, h: height }, 145);
+    fillRect(bitmap, width, { x: 88, y: 0, w: 3, h: height }, 8);
+    for (const y of [37, 89, 144]) {
+      fillRect(bitmap, width, { x: 41, y: y - 5, w: 43, h: 43 }, 253);
+      fillRect(bitmap, width, { x: 46, y, w: 33, h: 33 }, 17);
+    }
+    const block = {
+      ...createBlock("vertical", 207, { y: 109, w: 440, h: 750 }),
+      sourceText: "ザワ",
+      textRole: "sound" as const,
+    };
+    const result = buildPatternPageMask({
+      page: createPage(width, height, [block]),
+      width,
+      height,
+      bitmap,
+      mode: "flux-region",
+      conditionOnTypography: true,
+      typographySegmentation: {
+        imageWidth: width,
+        imageHeight: height,
+        detections: [],
+      },
+    });
+    const model = expandWindowMaskToPage(
+      result.inpaintWindowMasks[0],
+      width,
+      height,
+    );
+    const pasted = expandWindowMaskToPage(
+      result.inpaintCompositeMasks[0],
+      width,
+      height,
+    );
+    expect(model[105 * width + 82]).toBe(1);
+    expect(model[105 * width + 89]).toBe(0);
+    expect(pasted).toEqual(model);
+  });
+
+  it("finishes a detected letter across two selected balloon lobes and protects a deselected lobe", () => {
+    const width = 200,
+      height = 120;
+    const blocks = [
+      createBlock("left", 100, { y: 250, w: 325, h: 360 }),
+      createBlock("right", 520, { y: 260, w: 230, h: 340 }),
+    ];
+    const raster = (x: number, w: number) => ({
+      bounds: { x, y: 12, w, h: 90 },
+      data: new Uint8Array(w * 90).fill(1),
+    });
+    const logits = new Float32Array(width * height).fill(-20);
+    for (let y = 41; y < 54; y++)
+      logits.fill(20, y * width + 62, y * width + 86);
+    const options = {
+      page: createPage(width, height, blocks),
+      width,
+      height,
+      bitmap: Buffer.alloc(width * height * 4, 255),
+      mode: "flux-region" as const,
+      conditionOnTypography: true,
+      bubbleLayoutConstraintBlockIds: ["left", "right"],
+      sourceEraseConstraintsByBlock: {
+        left: raster(10, 65),
+        right: raster(75, 98),
+      },
+      sharedInpaintGroupIdsByBlock: { left: ["balloon"], right: ["balloon"] },
+      typographySegmentation: {
+        imageWidth: width,
+        imageHeight: height,
+        detections: [
+          {
+            labelId: 1 as const,
+            label: "text" as const,
+            score: 0.99,
+            box: [62, 41, 86, 54] as [number, number, number, number],
+            mask: { logits, width, height },
+          },
+        ],
+      },
+    };
+    const mask = (blockIds: string[]) =>
+      expandWindowMaskToPage(
+        buildPatternPageMask({ ...options, blockIds }).inpaintCompositeMasks[0],
+        width,
+        height,
+      );
+    expect(mask(["left"])[48 * width + 83]).toBe(0);
+    expect(mask(["left", "right"])[48 * width + 83]).toBe(1);
+    expect(mask(["left", "right"])[48 * width + 174]).toBe(0);
+    const withoutRightOwner = buildPatternPageMask({
+      ...options,
+      blockIds: ["left", "right"],
+      bubbleLayoutConstraintBlockIds: ["left"],
+    });
+    expect(
+      expandWindowMaskToPage(
+        withoutRightOwner.inpaintWindowMasks[0],
+        width,
+        height,
+      )[48 * width + 69],
+    ).toBe(1);
+  });
   it("does not confine artwork SFX to a neighboring detected balloon", () => {
     const block = {
       ...createBlock("effect", 100, { y: 100, w: 200, h: 400 }),
@@ -123,8 +229,16 @@ describe("pattern page text masks", () => {
           for (let x = 43; x < 77; x++) expect(pixels[y * width + x]).toBe(0);
         expect(pixels[25 * width + 25]).toBe(1);
       }
-      // Conditioning keeps its original shape; only the final write is clipped.
+      // Flux retains its full context. Qwen's typography stencil has the same
+      // ownership as the final edit, so nearby artwork can guide the model.
       expect(partial.pageMask[40 * width + 50]).toBe(1);
+      const typography = buildPatternPageMask({
+        ...options,
+        ...selection,
+        conditionOnTypography: true,
+      });
+      expect(typography.pageMask[40 * width + 50]).toBe(0);
+      expect(typography.pageMask[25 * width + 25]).toBe(1);
       expect(raster.data.every(Boolean)).toBe(true);
       const full = buildPatternPageMask({
         ...options,

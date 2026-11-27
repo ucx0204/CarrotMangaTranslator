@@ -4,7 +4,10 @@ import { useTranslation } from "react-i18next";
 import { OCR_DEVICE_OPTIONS, OCR_QUALITY_OPTIONS } from "../settingsOptions";
 import { SettingsSection } from "./SettingsSection";
 import { GpuAssignmentSettings } from "./GpuAssignmentSettings";
-import { FluxBackendSettings } from "./FluxBackendSettings";
+import {
+  FluxBackendSettings,
+  QwenBackendSettings,
+} from "./FluxBackendSettings";
 import { HardwareStatusSummary } from "./HardwareStatusSummary";
 import type { HardwareSettingsPanelProps } from "./hardwareSettingsTypes";
 import { SegmentedControl } from "../ui/SegmentedControl";
@@ -160,21 +163,26 @@ function OcrPipelineSettings({
   );
 }
 
-export function InpaintingSettingsSection({
-  clearTestState,
-  controlsBusy,
-  fluxBackend,
-  fluxMode,
-  setFluxMode,
-  inpaintingModel,
-  isFluxBackendOptionDisabled,
-  setFluxBackend,
-  usesAmdHardware,
-  usesAppleHardware,
-  detectedGpuName,
-  supportsFluxZluda,
-}: HardwareSettingsPanelProps): React.JSX.Element {
+export function InpaintingSettingsSection(
+  props: HardwareSettingsPanelProps,
+): React.JSX.Element {
+  const {
+    clearTestState,
+    controlsBusy,
+    fluxBackend,
+    fluxMode,
+    setFluxMode,
+    inpaintingModel,
+    isFluxBackendOptionDisabled,
+    setFluxBackend,
+    usesAmdHardware,
+    usesAppleHardware,
+    detectedGpuName,
+    supportsFluxZluda,
+  } = props;
   const { t } = useTranslation("components");
+  if (inpaintingModel === "qwen-image-2.1")
+    return <QwenBackendSettings {...props} />;
   if (inpaintingModel !== "flux-klein") return <></>;
   return (
     <div className="settings-subsection-stack">

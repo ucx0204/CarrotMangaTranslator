@@ -81,7 +81,10 @@ function solveThinPlateSplineAxis(
   };
 }
 
-function solveLinearSystem(matrix: number[][], right: number[]): number[] {
+export function solveLinearSystem(
+  matrix: number[][],
+  right: number[],
+): number[] {
   const size = right.length;
   const augmented = matrix.map((row, index) => [...row, right[index]]);
   for (let pivot = 0; pivot < size; pivot += 1) {

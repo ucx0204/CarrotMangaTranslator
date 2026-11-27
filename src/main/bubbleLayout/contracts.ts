@@ -1,4 +1,6 @@
+import type { DirectMlDeviceRequest } from "../runtimeSupport/directMlAdapterPolicy";
 import { KOHARU_LAYOUT_LABELS } from "./constants";
+import type { InpaintingWindowMask } from "../inpainting/inpaintingEngine";
 
 export type ComicDetectionLabel = (typeof KOHARU_LAYOUT_LABELS)[number];
 export type ComicDetectionLabelId = 0 | 1 | 2 | 3;
@@ -21,11 +23,26 @@ export type ComicPageDetection = {
   mask?: KoharuInstanceMask;
 };
 
+export type KoharuExecutionProvider = "dml" | "cpu";
+
+export type NativeLayoutRequest = {
+  bitmap: Uint8Array;
+  width: number;
+  height: number;
+  modelPath: string;
+  directMl?: DirectMlDeviceRequest;
+  providerPreference?: readonly KoharuExecutionProvider[];
+};
+
 export type ComicPageDetectionResult = {
   imageWidth: number;
   imageHeight: number;
   detections: ComicPageDetection[];
-  executionProvider?: "dml" | "cpu" | "wasm";
+  executionProvider?: "dml" | "cpu" | "wasm" | "cuda";
+  preparedText?: ReadonlyMap<
+    string,
+    (InpaintingWindowMask & { label?: "onomatopoeia" }) | null
+  >;
 };
 
 /**
@@ -36,7 +53,13 @@ export type ComicPageDetectionResult = {
 export type KoharuTypographySegmentation = Pick<
   ComicPageDetectionResult,
   "imageWidth" | "imageHeight" | "detections"
->;
+> & {
+  /** Original-page coordinates, checked against the same block's full-page instance. */
+  contextualText?: ReadonlyMap<
+    string,
+    InpaintingWindowMask & { label?: "onomatopoeia" }
+  >;
+};
 
 export type AssociatedComicBubble = {
   bubble: ComicPageDetection;
@@ -50,8 +73,8 @@ export type ComicDetectionAssociations = {
 };
 
 export function resolveComicDetectionLabel(
-  labelId: number,
-): ComicDetectionLabel | undefined {
+  labelId: ComicDetectionLabelId,
+): ComicDetectionLabel {
   return KOHARU_LAYOUT_LABELS[labelId];
 }
 

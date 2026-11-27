@@ -169,6 +169,47 @@ describe("native inference launch", () => {
     ).rejects.toThrow("HIP unavailable");
     expect(mock.install).toHaveBeenCalledTimes(1);
   });
+  it("uses the Koharu HIP probe to select the kernel for the separate Qwen executable", async () => {
+    vi.stubEnv("MGT_KOHARU_RUNNER_EXE", executable);
+    const inference = join(root, "sd-cli");
+    mock.install.mockImplementation(async ({ engine }) => ({
+      directory: root,
+      manifest: join(root, engine + ".json"),
+      executable: engine === "qwen-image" ? inference : undefined,
+      pathDirectories: [root],
+    }));
+    const result = await prepareNativeInferenceLaunch({
+      runtimeDir: root,
+      engine: "qwen-image",
+      backend: "rocm",
+      computeGpuIndex: 1,
+    });
+    const [probe, args] = mock.exec.mock.calls[0];
+    expect(await readFile(probe, "utf8")).toBe("runner");
+    expect(probe).not.toBe(inference);
+    expect(args).toEqual(["--probe-rocm", join(root, "rocm-probe.json"), "1"]);
+    expect(mock.install.mock.calls.map(([request]) => request)).toMatchObject([
+      { engine: "rocm-probe", qwenRocmProbe: true },
+      { engine: "qwen-image", rocmTarget: "gfx1100" },
+    ]);
+    expect(result.executable).toBe(inference);
+  });
+  it("starts an installed Metal executable already next to its dylibs", async () => {
+    vi.stubGlobal("process", { ...process, platform: "darwin" });
+    mock.install.mockResolvedValue({
+      directory: root,
+      executable,
+      manifest: join(root, "qwen-image.json"),
+      pathDirectories: [root],
+    });
+    const result = await prepareNativeInferenceLaunch({
+      runtimeDir: root,
+      engine: "qwen-image",
+      backend: "metal",
+    });
+    expect(result.executable).toBe(executable);
+    expect(await readFile(executable, "utf8")).toBe("runner");
+  });
   it("colocates the macOS worker with its installed dylibs", async () => {
     vi.stubGlobal("process", { ...process, platform: "darwin" });
     const directory = join(root, "native-metal");

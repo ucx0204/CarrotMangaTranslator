@@ -1,3 +1,4 @@
+import { usesRegionInpainting } from "../../shared/inpaintingSettingsTypes";
 import type { InpaintingWindowMask } from "../inpainting/inpaintingEngine";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
@@ -343,7 +344,7 @@ async function preparePatternMaskPage({
   typographySegmentation?: KoharuTypographySegmentation;
 }> {
   const engineModel = state.inpaintingEngineLease?.engine.model;
-  if (engineModel !== "flux-klein" || !state.bubbleLayoutRunner) {
+  if (!usesRegionInpainting(engineModel) || !state.bubbleLayoutRunner) {
     return { page };
   }
   const previouslyErasedBlockIds = resolvePreviouslyErasedBlockIds(
@@ -362,6 +363,7 @@ async function preparePatternMaskPage({
     ? { ...page, inpaintedImagePath: undefined }
     : page;
   const prepared = await runBubbleLayoutMaskPrepass({
+    model: engineModel,
     blockId: target.blockId,
     ...(retryBlockIds ? { blockIds: retryBlockIds } : {}),
     config: state.bubbleLayoutPostprocess ?? {

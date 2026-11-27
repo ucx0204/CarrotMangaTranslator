@@ -15,6 +15,9 @@ if (orphans.length > 0) {
 module.exports = {
   entry: [
     "src/main/bootstrap.ts",
+    "src/main/bubbleLayout/nativeLayoutWorker.ts",
+    "src/main/inpainting/qwenFloatWorker.ts",
+    "src/main/runtime/qwen-native-session.cjs",
     "src/preload/index.ts",
     "src/renderer/src/main.tsx",
     "src/renderer/src/pageExport/browserEntry.tsx",

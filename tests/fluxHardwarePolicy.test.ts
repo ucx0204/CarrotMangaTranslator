@@ -59,7 +59,8 @@ describe("Flux hardware defaults", () => {
       expect(resolveDefaultFluxNvidiaBackend(gpu)).toBe(expected);
       expect(defaults.inpainting?.fluxBackend).toBe(expected);
       expect(recommendation.fluxBackend).toBe(expected);
-      const model = expected === "cpu-native" ? "aot-inpainting" : "flux-klein";
+      const model =
+        expected === "cpu-native" ? "aot-inpainting" : "qwen-image-2.1";
       expect(defaults.inpainting?.model).toBe(model);
       expect(recommendation.inpaintingModel).toBe(model);
     },

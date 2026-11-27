@@ -30,7 +30,10 @@ import { RuntimeHardwareNote } from "../src/renderer/src/components/settingsModa
 import { FluxHardwareContextNote } from "../src/renderer/src/components/settingsModal/HardwareContextNotes";
 import { resolveHardwareRecommendation } from "../src/renderer/src/components/settingsModal/hardwareRecommendation";
 import { OCR_FULL_RECOMMENDED_GPU_MEMORY_MB } from "../src/shared/ocrMemoryPolicy";
-import { FluxBackendSettings } from "../src/renderer/src/components/settingsModal/FluxBackendSettings";
+import {
+  FluxBackendSettings,
+  QwenBackendSettings,
+} from "../src/renderer/src/components/settingsModal/FluxBackendSettings";
 import type { FluxBackend } from "../src/shared/inpaintingSettingsTypes";
 
 afterEach(() => {
@@ -164,8 +167,8 @@ describe("HardwareSettingsPanel", () => {
     });
 
     expect(unsupported).toMatchObject({
-      fluxBackend: "cpu-native",
-      inpaintingModel: "aot-inpainting",
+      fluxBackend: "vulkan-native",
+      inpaintingModel: "qwen-image-2.1",
       ocrDevice: "cpu",
       ocrGpuBackend: "cuda",
       ocrQualityMode: "economy",
@@ -177,8 +180,8 @@ describe("HardwareSettingsPanel", () => {
       ocrQualityMode: "full",
     });
     expect(manualUnknown).toMatchObject({
-      fluxBackend: "cpu-native",
-      inpaintingModel: "aot-inpainting",
+      fluxBackend: "vulkan-native",
+      inpaintingModel: "qwen-image-2.1",
       ocrDevice: "cpu",
       ocrGpuBackend: "cuda",
       ocrQualityMode: "economy",
@@ -713,3 +716,42 @@ describe("HardwareSettingsPanel", () => {
     expect(screen.queryByRole("button", { name: "SM75 CUDA" })).toBeNull();
   });
 });
+
+it.each([
+  [true, false, false, "cpu-native", "Metal"],
+  [false, true, false, "cuda-native", "Vulkan"],
+  [false, true, true, "rocm-native", "AMD ROCm"],
+  [false, false, false, "cpu-native", "CUDA"],
+] as const)(
+  "routes the Qwen control to usable devices (%s %s %s)",
+  (apple, amd, rocm, fluxBackend, active) => {
+    const clearTestState = vi.fn(),
+      setFluxBackend = vi.fn();
+    render(
+      <QwenBackendSettings
+        usesAppleHardware={apple}
+        usesAmdHardware={amd}
+        supportsQwenRocm={rocm}
+        fluxBackend={fluxBackend}
+        controlsBusy={false}
+        clearTestState={clearTestState}
+        setFluxBackend={setFluxBackend}
+      />,
+    );
+    expect(
+      screen
+        .getByRole("radio", { name: new RegExp(active, "i") })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    if (amd && !rocm)
+      expect(
+        (screen.getByRole("radio", { name: /ROCm/i }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+    if (!apple) {
+      fireEvent.click(screen.getByRole("radio", { name: "Vulkan" }));
+      expect(clearTestState).toHaveBeenCalledOnce();
+      expect(setFluxBackend).toHaveBeenCalledWith("vulkan-native");
+    }
+  },
+);

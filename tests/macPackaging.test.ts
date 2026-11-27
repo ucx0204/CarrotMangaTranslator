@@ -729,6 +729,10 @@ describe("Apple Silicon Alpha packaging", () => {
       });
       expect(alphaConfig.mac.extraResources).toEqual([
         {
+          from: "node_modules/@koromix/koffi-darwin-arm64/darwin_arm64/koffi.node",
+          to: "app-runtime/koffi.node",
+        },
+        {
           from: join(temporaryRoot, "tools"),
           to: "tools",
         },

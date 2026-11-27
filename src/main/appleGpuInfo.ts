@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { cpus, totalmem } from "node:os";
+import { cpus, release, totalmem } from "node:os";
 import type { DetectedGpuInfo } from "./gpuInfoTypes";
 
 export async function detectAppleGpuInfo(): Promise<DetectedGpuInfo | null> {
@@ -19,7 +19,10 @@ export async function detectAppleGpuInfo(): Promise<DetectedGpuInfo | null> {
     // error-policy-allow: os.cpus() is the intentional Apple chip-name fallback.
     // os.cpus() still provides a safe Apple Silicon fallback.
   }
-  return buildAppleGpuInfo(chipName, totalmem());
+  return {
+    ...buildAppleGpuInfo(chipName, totalmem()),
+    supportsQwenMetal: Number(release().split(".")[0]) >= 25,
+  };
 }
 
 export function buildAppleGpuInfo(

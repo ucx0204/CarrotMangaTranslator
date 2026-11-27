@@ -1,3 +1,4 @@
+import { DEFAULT_INPAINTING_MODEL } from "../../shared/inpaintingSettingsTypes";
 import {
   DEFAULT_GEMMA_MMPROJ_FILE,
   DEFAULT_GEMMA_MMPROJ_REPO,
@@ -130,7 +131,7 @@ export function resolveStoredInpaintingModel(
 ): InpaintingModel {
   return resolveInpaintingModel(
     inpainting?.model,
-    defaults.inpainting?.model ?? "flux-klein",
+    defaults.inpainting?.model ?? DEFAULT_INPAINTING_MODEL,
   );
 }
 
@@ -161,7 +162,9 @@ function resolveAmdStoredFluxBackend(
     return requested;
   }
   const defaultBackend = defaults.inpainting?.fluxBackend;
-  return defaultBackend === "cpu-native" ? "cpu-native" : "rocm-native";
+  return defaultBackend === "cpu-native" || defaultBackend === "vulkan-native"
+    ? defaultBackend
+    : "rocm-native";
 }
 
 function resolveNvidiaStoredFluxBackend(

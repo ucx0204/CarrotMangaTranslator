@@ -1,3 +1,4 @@
+import { DEFAULT_INPAINTING_MODEL } from "../../../../shared/inpaintingSettingsTypes";
 import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
 import { resolveRecommendedOcrQualityMode } from "../../../../shared/ocrMemoryPolicy";
 import {
@@ -18,12 +19,14 @@ export type HardwareRecommendationInput = {
   gpuMemoryMb?: number | null;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
+  supportsQwenMetal?: boolean;
   usesNvidiaHardware: boolean;
   usesSm75Hardware?: boolean;
   computeCapability?: number | null;
   rtxGeneration?: number | null;
   supportsOcrRocm?: boolean;
   supportsFluxZluda?: boolean;
+  supportsQwenRocm?: boolean;
 };
 
 export type HardwareRecommendation = {
@@ -45,7 +48,11 @@ export function resolveHardwareRecommendation(
       fluxMode: "normal",
       graphicsGpuPreference: "auto",
       inpaintingModel:
-        (props.unifiedMemoryMb ?? 0) >= 16 * 1024 ? "flux-klein" : "lama-manga",
+        (props.unifiedMemoryMb ?? 0) < 16 * 1024
+          ? "lama-manga"
+          : props.supportsQwenMetal === false
+            ? "flux-klein"
+            : DEFAULT_INPAINTING_MODEL,
       ocrDevice: "cpu",
       ocrGpuBackend: "cuda",
       ocrQualityMode: "economy",
@@ -62,7 +69,9 @@ export function resolveHardwareRecommendation(
     const recommendation = createGpuRecommendation(
       props,
       "rocm-transformers",
-      props.supportsFluxZluda === true ? "rocm-native" : "cpu-native",
+      (props.supportsQwenRocm ?? props.supportsFluxZluda) === true
+        ? "rocm-native"
+        : "vulkan-native",
     );
     return props.supportsOcrRocm === true
       ? recommendation
@@ -95,7 +104,9 @@ function createGpuRecommendation(
     fluxMode: resolveDefaultFluxMode(props.usesAmdHardware, props.gpuMemoryMb),
     graphicsGpuPreference: "high-performance",
     inpaintingModel:
-      fluxBackend === "cpu-native" ? "aot-inpainting" : "flux-klein",
+      fluxBackend === "cpu-native"
+        ? "aot-inpainting"
+        : DEFAULT_INPAINTING_MODEL,
     ocrDevice,
     ocrGpuBackend,
     ocrQualityMode: resolveRecommendedOcrQualityMode({

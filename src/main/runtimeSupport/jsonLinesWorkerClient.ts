@@ -27,6 +27,8 @@ type JsonLinesWorkerClientOptions = {
   env: NodeJS.ProcessEnv;
   workerName: string;
   requestTimeoutMs?: number;
+  /** Per-stage deadline for a graceful exit and for forced tree termination. */
+  shutdownTimeoutMs?: number;
   buildExitError: (code: number | null, stderr: string) => Error;
   buildNotRunningError: (stderr: string) => Error;
   sanitizeStderr: (text: string) => string;
@@ -120,7 +122,19 @@ export class JsonLinesWorkerClient<
     this.requestTimeoutMs = normalizeRequestTimeout(
       options.requestTimeoutMs ?? DEFAULT_WORKER_REQUEST_TIMEOUT_MS,
     );
-    this.runtime = resolveClientRuntime(options.runtime);
+    this.runtime = resolveClientRuntime({
+      ...(options.shutdownTimeoutMs === undefined
+        ? {}
+        : {
+            shutdownGraceMs: options.shutdownTimeoutMs,
+            forceTerminateProcessTree: async (child) => {
+              await forceTerminateChildProcessTree(child, {
+                timeoutMs: options.shutdownTimeoutMs,
+              });
+            },
+          }),
+      ...options.runtime,
+    });
     this.child = this.runtime.spawnWorker(options);
     this.childExitReceipt = createChildExitReceipt(this.child);
     observeProcessErrors(
@@ -170,6 +184,14 @@ export class JsonLinesWorkerClient<
       this.child.signalCode === null &&
       this.child.stdin.writable
     );
+  }
+
+  get pid() {
+    return this.child.pid;
+  }
+
+  get exited() {
+    return this.childExitReceipt.promise;
   }
 
   getStderr(): string {

@@ -1,5 +1,6 @@
 import type { InpaintingModel } from "../../shared/inpaintingSettingsTypes";
 import type { PixelRect } from "./maskGeometry";
+import type { IllustratedTitleHint } from "./fluxWorkerTypes";
 import type { CodexErasureTarget } from "../application/codexTypesettingContracts";
 
 export type InpaintingRuntimeProgress = {
@@ -15,6 +16,8 @@ export type InpaintingRuntimeProgress = {
 export type InpaintingWindowMask = {
   bounds: PixelRect;
   data: Uint8Array;
+  /** Ink straddling a freshly detected balloon on the original page. */
+  outlinedReading?: { bounds: PixelRect; data: Uint8Array };
 };
 
 /** Native bitmap work owned by one Codex erasure invocation. */
@@ -34,7 +37,7 @@ export type CodexRepairRequest = {
   targets?: CodexErasureTarget[];
 };
 
-type InpaintRunOptions = {
+export type InpaintRunOptions = {
   sourceImagePath?: string;
   /** Actual decoded asset; existing inpainting remains distinct from its reviewed original. */
   inputImagePath?: string;
@@ -51,6 +54,8 @@ type InpaintRunOptions = {
   windowMasks?: InpaintingWindowMask[];
   /** Job-local bubble detection, aligned with processing windows; not a write mask. */
   speechBubbleWindows?: boolean[];
+  illustratedTitleWindows?: IllustratedTitleHint[];
+  windowProcessingOrder?: readonly number[];
   /** Fully opaque output cores; windowMasks remain the broader model masks. */
   compositeMasks?: InpaintingWindowMask[];
   /** Per-window outward feather widths in source-page pixels. */

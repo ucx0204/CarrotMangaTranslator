@@ -522,7 +522,7 @@ describe("Gemma VRAM tuning settings form", () => {
       ocrPipeline: "paddle-legacy",
       ocrGpuBackend: "cuda",
       ocrQualityMode: "economy",
-      inpaintingModel: "flux-klein",
+      inpaintingModel: "qwen-image-2.1",
       fluxBackend: "cuda-native",
     });
   });

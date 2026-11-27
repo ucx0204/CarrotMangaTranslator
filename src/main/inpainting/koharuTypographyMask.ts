@@ -1,3 +1,4 @@
+import { bboxOverlapRatio } from "../../shared/geometry";
 import type { KoharuTypographySegmentation } from "../bubbleLayout/contracts";
 import { resolveEffectiveTextOutlineWidthPx } from "../../shared/textOutline";
 import type { MangaPage } from "../../shared/libraryTypes";
@@ -6,25 +7,25 @@ import { projectWindowMask } from "./bubbleLayoutConstraintMask";
 import type { InpaintingWindowMask } from "./inpaintingEngine";
 import {
   expandRect,
+  pointInRect,
   resolvePatternBlockMarginPx,
+  unionRects,
   type PixelRect,
 } from "./maskGeometry";
 import { dilateBinaryMaskDisk } from "./patternMaskMorphology";
+import { maskBoundsInRect } from "./imageRaster";
 
+export type MeasuredBrush = boolean | "solid-impact";
 export type KoharuTypographyCompositeMask = {
+  measuredBrush?: MeasuredBrush;
+  instance: InpaintingWindowMask;
   core: InpaintingWindowMask;
   featherEnvelope: InpaintingWindowMask;
   detectionCount: number;
   coreDilationPx: number;
 };
 
-/**
- * Converts Koharu text/SFX instance masks into a fully opaque erase core plus
- * an outer envelope used only by Flux's distance feather. The detector's raw
- * mask is deliberately thickened before feathering so outlined source glyphs
- * cannot survive as a bright fringe.
- */
-export function buildKoharuTypographyCompositeMask(options: {
+type TypographyMaskOptions = {
   block: TranslationBlock;
   /** Explicit source-mask policy; omitted preserves the production Flux geometry. */
   coreDilationPx?: number;
@@ -35,11 +36,32 @@ export function buildKoharuTypographyCompositeMask(options: {
    * connected balloon can contain typography outside the compact OCR box.
    */
   ownedRegionMask?: InpaintingWindowMask;
+  /** For free-standing Qwen lettering a box intersection must contain actual ink. */
+  requireInkInSourceRect?: boolean;
+  completeOutline?: (
+    instance: InpaintingWindowMask,
+    detections: KoharuTypographySegmentation["detections"],
+  ) =>
+    | (InpaintingWindowMask & {
+        measuredBrush?: MeasuredBrush;
+        compositeOutline?: InpaintingWindowMask;
+      })
+    | undefined;
   page: MangaPage;
   segmentation: KoharuTypographySegmentation;
   sourceRect: PixelRect;
   width: number;
-}): KoharuTypographyCompositeMask | null {
+};
+
+/**
+ * Converts Koharu text/SFX instance masks into a fully opaque erase core plus
+ * an outer envelope used only by Flux's distance feather. The detector's raw
+ * mask is deliberately thickened before feathering so outlined source glyphs
+ * cannot survive as a bright fringe.
+ */
+export function buildKoharuTypographyCompositeMask(
+  options: TypographyMaskOptions,
+): KoharuTypographyCompositeMask | null {
   assertMatchingImageSize(options);
   const associationRect = expandRect(
     options.sourceRect,
@@ -56,26 +78,27 @@ export function buildKoharuTypographyCompositeMask(options: {
           boxCenterBelongsToOwnedRegion(
             detection.box,
             options.ownedRegionMask,
-          ))),
+          ))) &&
+      selectedInkMatches(detection, options),
   );
   if (detections.length === 0) return null;
 
   const rawBounds = detections
     .map((detection) => clampDetectionBox(detection.box, options))
     .filter((bounds): bounds is PixelRect => bounds !== null)
-    .reduce<PixelRect | null>(unionOptionalRect, null);
+    .reduce<PixelRect | null>(
+      (bounds, next) => (bounds ? unionRects(bounds, next) : next),
+      null,
+    );
   if (!rawBounds) return null;
 
   const coreDilationPx =
     options.coreDilationPx ??
     resolveKoharuTypographyCoreDilationPx(options.block, options.page);
   const featherPx = Math.max(0, Math.round(options.featherPx));
-  const bounds = expandRect(
-    rawBounds,
-    options.width,
-    options.height,
-    coreDilationPx + featherPx + 2,
-  );
+  const padding = coreDilationPx + featherPx + 2;
+  const { width, height } = options;
+  const bounds = expandRect(rawBounds, width, height, padding);
   const raw = new Uint8Array(bounds.w * bounds.h);
   for (const detection of detections) {
     const mask = detection.mask;
@@ -90,18 +113,74 @@ export function buildKoharuTypographyCompositeMask(options: {
     );
   }
   if (!raw.some(Boolean)) return null;
-
-  const core = dilateBinaryMaskDisk(raw, bounds.w, bounds.h, coreDilationPx);
-  const featherEnvelope = dilateBinaryMaskDisk(
-    core,
-    bounds.w,
-    bounds.h,
+  const raster = { bounds, data: raw };
+  const outline = options.completeOutline?.(trimWindowMask(raster), detections);
+  if (outline?.measuredBrush) {
+    const core = trimWindowMask(outline.compositeOutline ?? outline);
+    return {
+      instance: trimWindowMask(outline),
+      core,
+      featherEnvelope: core,
+      detectionCount: detections.length,
+      coreDilationPx: 0,
+      measuredBrush: outline.measuredBrush,
+    };
+  }
+  const completed = paddedOutline(raster, outline, options, padding);
+  return dilateTypographyInstance(
+    completed,
+    coreDilationPx,
     featherPx,
+    detections.length,
   );
+}
+
+function paddedOutline(
+  raster: InpaintingWindowMask,
+  outline: InpaintingWindowMask | undefined,
+  size: { width: number; height: number },
+  padding: number,
+) {
+  if (!outline) return raster;
+  const complete = unionWindowMasks(raster, outline);
+  const bounds = expandRect(complete.bounds, size.width, size.height, padding);
+  return { bounds, data: projectWindowMask(complete, bounds) };
+}
+
+function selectedInkMatches(
+  detection: KoharuTypographySegmentation["detections"][number],
+  options: Parameters<typeof buildKoharuTypographyCompositeMask>[0],
+) {
+  if (!options.requireInkInSourceRect) return true;
+  return (
+    !!detection.mask &&
+    rasterizeInstanceMaskInto(
+      undefined,
+      options.sourceRect,
+      detection.box,
+      detection.mask,
+      options,
+    )
+  );
+}
+
+function dilateTypographyInstance(
+  completed: InpaintingWindowMask,
+  coreDilationPx: number,
+  featherPx: number,
+  detectionCount: number,
+): KoharuTypographyCompositeMask {
+  const { w, h } = completed.bounds;
+  const core = dilateBinaryMaskDisk(completed.data, w, h, coreDilationPx);
+  const featherEnvelope = dilateBinaryMaskDisk(core, w, h, featherPx);
   return {
-    core: trimWindowMask({ bounds, data: core }),
-    featherEnvelope: trimWindowMask({ bounds, data: featherEnvelope }),
-    detectionCount: detections.length,
+    instance: trimWindowMask(completed),
+    core: trimWindowMask({ bounds: completed.bounds, data: core }),
+    featherEnvelope: trimWindowMask({
+      bounds: completed.bounds,
+      data: featherEnvelope,
+    }),
+    detectionCount,
     coreDilationPx,
   };
 }
@@ -167,8 +246,8 @@ function boxesAssociate(
   // Context padding can contain another word. It must not turn that neighbor
   // into the entire erase core when the selected lettering was not detected.
   // Connected balloons retain their explicit owned-region association above.
-  const intersection = intersectionArea(detectionRect, sourceRect);
-  if (intersection <= 0) return false;
+  const overlap = bboxOverlapRatio(detectionRect, sourceRect);
+  if (overlap <= 0) return false;
   const detectionCenter = {
     x: detectionRect.x + detectionRect.w / 2,
     y: detectionRect.y + detectionRect.h / 2,
@@ -180,8 +259,7 @@ function boxesAssociate(
   return (
     pointInRect(detectionCenter, associationRect) ||
     pointInRect(sourceCenter, detectionRect) ||
-    intersection / Math.max(1, detectionRect.w * detectionRect.h) >= 0.08 ||
-    intersection / Math.max(1, sourceRect.w * sourceRect.h) >= 0.08
+    overlap >= 0.08
   );
 }
 
@@ -219,15 +297,15 @@ function readWindowMaskPixel(
 }
 
 function rasterizeInstanceMaskInto(
-  output: Uint8Array,
+  output: Uint8Array | undefined,
   bounds: PixelRect,
   detectionBox: readonly [number, number, number, number],
   mask: NonNullable<KoharuTypographySegmentation["detections"][number]["mask"]>,
   imageSize: { width: number; height: number },
   clipRect: PixelRect = { x: 0, y: 0, w: imageSize.width, h: imageSize.height },
-): void {
+): boolean {
   const detectionBounds = boxToRect(detectionBox);
-  if (!detectionBounds) return;
+  if (!detectionBounds) return false;
   const sampleBounds = expandRect(
     detectionBounds,
     imageSize.width,
@@ -249,15 +327,32 @@ function rasterizeInstanceMaskInto(
     sampleBounds.y + sampleBounds.h,
     clipRect.y + clipRect.h,
   );
+  let found = false;
   for (let y = top; y < bottom; y += 1) {
     const maskY = ((y + 0.5) / imageSize.height) * mask.height - 0.5;
     for (let x = left; x < right; x += 1) {
       const maskX = ((x + 0.5) / imageSize.width) * mask.width - 0.5;
-      if (bilinearSample(mask, maskX, maskY) >= 0) {
-        output[(y - bounds.y) * bounds.w + x - bounds.x] = 1;
-      }
+      if (!(bilinearSample(mask, maskX, maskY) > 0)) continue;
+      if (!output) return true;
+      found = true;
+      output[(y - bounds.y) * bounds.w + x - bounds.x] = 1;
     }
   }
+  return found;
+}
+
+/** Sample a detector instance on the same native grid as its composite mask. */
+export function nativeKoharuTextInstance(
+  detection: KoharuTypographySegmentation["detections"][number],
+  size: { width: number; height: number },
+  label: "text" | "onomatopoeia" = "text",
+): InpaintingWindowMask | undefined {
+  if (detection.label !== label || !detection.mask) return;
+  const bounds = clampDetectionBox(detection.box, size);
+  if (!bounds) return;
+  const data = new Uint8Array(bounds.w * bounds.h);
+  rasterizeInstanceMaskInto(data, bounds, detection.box, detection.mask, size);
+  return { bounds, data };
 }
 
 function bilinearSample(
@@ -282,34 +377,16 @@ function bilinearSample(
   return topValue * (1 - fractionY) + bottomValue * fractionY;
 }
 
-function trimWindowMask(mask: InpaintingWindowMask): InpaintingWindowMask {
+export function trimWindowMask(
+  mask: InpaintingWindowMask,
+): InpaintingWindowMask {
   const { bounds, data } = mask;
-  let left = bounds.w;
-  let top = bounds.h;
-  let right = -1;
-  let bottom = -1;
-  for (let y = 0; y < bounds.h; y += 1) {
-    for (let x = 0; x < bounds.w; x += 1) {
-      if (!data[y * bounds.w + x]) continue;
-      left = Math.min(left, x);
-      top = Math.min(top, y);
-      right = Math.max(right, x);
-      bottom = Math.max(bottom, y);
-    }
-  }
-  if (right < left || bottom < top) {
+  const active = maskBoundsInRect(data, bounds.w, { ...bounds, x: 0, y: 0 });
+  if (!active) {
     throw new Error("Koharu typography mask unexpectedly became empty.");
   }
-  if (
-    left === 0 &&
-    top === 0 &&
-    right === bounds.w - 1 &&
-    bottom === bounds.h - 1
-  ) {
-    return mask;
-  }
-  const width = right - left + 1;
-  const height = bottom - top + 1;
+  const { x: left, y: top, w: width, h: height } = active;
+  if (width === bounds.w && height === bounds.h) return mask;
   const trimmed = new Uint8Array(width * height);
   for (let y = 0; y < height; y += 1) {
     const sourceStart = (top + y) * bounds.w + left;
@@ -356,46 +433,6 @@ function boxToRect(
   const right = Math.ceil(box[2]);
   const bottom = Math.ceil(box[3]);
   return right > x && bottom > y ? { x, y, w: right - x, h: bottom - y } : null;
-}
-
-function unionOptionalRect(
-  current: PixelRect | null,
-  next: PixelRect,
-): PixelRect {
-  return current ? unionRects(current, next) : next;
-}
-
-function unionRects(left: PixelRect, right: PixelRect): PixelRect {
-  const x = Math.min(left.x, right.x);
-  const y = Math.min(left.y, right.y);
-  const rightEdge = Math.max(left.x + left.w, right.x + right.w);
-  const bottomEdge = Math.max(left.y + left.h, right.y + right.h);
-  return { x, y, w: rightEdge - x, h: bottomEdge - y };
-}
-
-function intersectionArea(left: PixelRect, right: PixelRect): number {
-  return (
-    Math.max(
-      0,
-      Math.min(left.x + left.w, right.x + right.w) - Math.max(left.x, right.x),
-    ) *
-    Math.max(
-      0,
-      Math.min(left.y + left.h, right.y + right.h) - Math.max(left.y, right.y),
-    )
-  );
-}
-
-function pointInRect(
-  point: { x: number; y: number },
-  rect: PixelRect,
-): boolean {
-  return (
-    point.x >= rect.x &&
-    point.y >= rect.y &&
-    point.x < rect.x + rect.w &&
-    point.y < rect.y + rect.h
-  );
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

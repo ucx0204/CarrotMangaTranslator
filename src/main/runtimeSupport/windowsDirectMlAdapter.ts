@@ -3,7 +3,10 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
+import {
+  normalizeComputeGpuIndex,
+  normalizeNvidiaGpuUuid,
+} from "../../shared/gpuSettings";
 import {
   selectDirectMlAdapter,
   type DirectMlAdapter,
@@ -35,6 +38,15 @@ export async function queryWindowsDirectMlAdapter(
     request.computeGpuBackend === "cuda"
       ? normalizeComputeGpuIndex(request.computeGpuIndex)
       : undefined;
+  const result = await enumerateWindowsAdapters(cudaIndex);
+  return selectDirectMlAdapter(
+    request,
+    result.adapters,
+    result.cudaLuid ?? undefined,
+  );
+}
+
+async function enumerateWindowsAdapters(cudaIndex?: number) {
   const command = [
     "$ErrorActionPreference = 'Stop'",
     "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)",
@@ -51,12 +63,41 @@ export async function queryWindowsDirectMlAdapter(
     env.CUDA_VISIBLE_DEVICES = String(cudaIndex);
   }
   const stdout = await runProbe(command, env);
-  const result = probeResultSchema.parse(JSON.parse(stdout.trim()));
-  return selectDirectMlAdapter(
-    request,
-    result.adapters,
-    result.cudaLuid ?? undefined,
+  return probeResultSchema.parse(JSON.parse(stdout.trim()));
+}
+
+/** Match the model runner's device description to DXGI before looking up WDDM counters. */
+export async function queryWindowsGpuMemoryAdapters(name: string) {
+  const result = await enumerateWindowsAdapters();
+  const normalize = (value: string) =>
+    value.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const matches = result.adapters.filter(
+    (device) => normalize(device.name) === normalize(name),
   );
+  if (!matches.length)
+    throw new Error(
+      "선택한 Qwen GPU의 Windows 메모리 카운터를 찾지 못했습니다: " + name,
+    );
+  return matches;
+}
+
+/** Resolve the exact CUDA device used by a child to its Windows performance counters. */
+export async function queryWindowsCudaLuid(gpuUuid: string): Promise<string> {
+  const selected = normalizeNvidiaGpuUuid(gpuUuid);
+  if (!selected) throw new Error("잘못된 NVIDIA GPU 식별자입니다.");
+  const command = [
+    "$ErrorActionPreference = 'Stop'",
+    `Add-Type -TypeDefinition @'\n${WINDOWS_DIRECT_ML_PROBE}\n'@`,
+    "[MgtDirectMlProbe]::CudaLuid()",
+  ].join("\n");
+  const output = await runProbe(command, {
+    ...process.env,
+    CUDA_VISIBLE_DEVICES: selected,
+  });
+  return z
+    .string()
+    .regex(/^[0-9a-f]{16}$/)
+    .parse(output.trim().toLowerCase());
 }
 
 async function runProbe(

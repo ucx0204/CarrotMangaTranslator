@@ -1,3 +1,4 @@
+import { DEFAULT_INPAINTING_MODEL } from "../../shared/inpaintingSettingsTypes";
 import type { AppSettings } from "../../shared/settingsTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
@@ -40,7 +41,7 @@ export async function acquireInpaintingEngineIfNeeded({
   const inpainting = appSettings.inpainting ?? {};
   return runtime.acquireEngine({
     appPaths: context.appPaths,
-    model: inpainting.model ?? "flux-klein",
+    model: inpainting.model ?? DEFAULT_INPAINTING_MODEL,
     fluxBackend: inpainting.fluxBackend,
     fluxMode: inpainting.fluxMode,
     koharuBackend: inpainting.koharuBackend,

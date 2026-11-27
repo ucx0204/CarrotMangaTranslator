@@ -80,7 +80,7 @@ describe("KoharuLayout macOS WASM isolation", () => {
   it("transfers inference input and accepts a matching WASM result", async () => {
     const worker = new FakeWorker();
     const client = makeClient(worker);
-    const input = new Float32Array(3 * 1152 * 1152);
+    const input = new Float32Array(3 * 1920 * 1920);
     const pending = client.infer({
       modelPath: resolve("koharu.onnx"),
       imageWidth: 1200,
@@ -124,7 +124,7 @@ describe("KoharuLayout macOS WASM isolation", () => {
       modelPath: resolve("koharu.onnx"),
       imageWidth: 1,
       imageHeight: 1,
-      rgbChw: new Float32Array(3 * 1152 * 1152),
+      rgbChw: new Float32Array(3 * 1920 * 1920),
     });
     await vi.waitFor(() => expect(worker.messages).toHaveLength(1));
     worker.emit("error", new Error("worker crash"));
@@ -139,7 +139,7 @@ describe("KoharuLayout macOS WASM isolation", () => {
       modelPath: resolve("koharu.onnx"),
       imageWidth: 1,
       imageHeight: 1,
-      rgbChw: new Float32Array(3 * 1152 * 1152),
+      rgbChw: new Float32Array(3 * 1920 * 1920),
       signal: controller.signal,
     });
     await vi.waitFor(() => expect(worker.messages).toHaveLength(1));
@@ -159,7 +159,7 @@ describe("KoharuLayout macOS WASM isolation", () => {
       modelPath: resolve("koharu.onnx"),
       imageWidth: 100,
       imageHeight: 200,
-      rgbChw: new Float32Array(3 * 1152 * 1152),
+      rgbChw: new Float32Array(3 * 1920 * 1920),
     });
     await vi.waitFor(() => expect(worker.messages).toHaveLength(1));
     const request = worker.messages[0];

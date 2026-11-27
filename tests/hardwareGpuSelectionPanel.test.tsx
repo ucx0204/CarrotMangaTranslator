@@ -94,7 +94,7 @@ describe("HardwareSettingsPanel GPU selection", () => {
   });
 
   it.each(["normal", "light"] as const)(
-    "detects and applies the recommended FLUX mode on an 8 GB Radeon from %s",
+    "preserves Qwen recommendation status and sets the fallback FLUX mode on an 8 GB Radeon from %s",
     async (fluxMode) => {
       const setFluxMode = vi.fn();
       renderPanel({
@@ -113,9 +113,7 @@ describe("HardwareSettingsPanel GPU selection", () => {
       const apply = screen.getByRole("button", { name: "권장값 적용" });
       fireEvent.focus(apply);
       expect(screen.getByRole("tooltip").textContent).toContain(
-        fluxMode === "light"
-          ? "이 하드웨어의 권장 설정을 사용 중입니다."
-          : "권장값과 다른 고급 설정이 있습니다.",
+        "이 하드웨어의 권장 설정을 사용 중입니다.",
       );
       fireEvent.click(apply);
       await waitFor(() => expect(setFluxMode).toHaveBeenCalledWith("light"));
@@ -135,6 +133,25 @@ describe("HardwareSettingsPanel GPU selection", () => {
     expect(setInpaintingModel).toHaveBeenCalledOnce();
     expect(screen.queryByRole("alert")).toBeNull();
   });
+  it.each(["normal", "light"] as const)(
+    "compares the fallback FLUX mode on a Mac that cannot run Qwen Metal (%s)",
+    (fluxMode) => {
+      renderPanel({
+        usesAppleHardware: true,
+        usesNvidiaHardware: false,
+        supportsQwenMetal: false,
+        unifiedMemoryMb: 24 * 1024,
+        inpaintingModel: "flux-klein",
+        fluxBackend: "metal-native",
+        fluxMode,
+        ocrDevice: "cpu",
+      });
+      fireEvent.focus(screen.getByRole("button", { name: "권장값 적용" }));
+      expect(screen.getByRole("tooltip").textContent).toContain(
+        fluxMode === "normal" ? "이 하드웨어의 권장 설정" : "권장값과 다른",
+      );
+    },
+  );
 });
 
 function renderPanel(
@@ -149,7 +166,7 @@ function renderPanel(
     controlsBusy: false,
     fluxBackend: "cuda-native",
     graphicsGpuPreference: "auto",
-    inpaintingModel: "flux-klein",
+    inpaintingModel: "qwen-image-2.1",
     isFluxBackendOptionDisabled: () => false,
     ocrDevice: "gpu",
     ocrGpuBackend: "cuda",

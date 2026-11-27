@@ -1,8 +1,10 @@
 import React from "react";
 import { ControlTooltip } from "../ui/ControlTooltip";
 import { useTranslation } from "react-i18next";
-import type { InpaintingModel } from "../../../../shared/settingsTypes";
-import { OCR_DEVICE_OPTIONS } from "../settingsOptions";
+import {
+  INPAINTING_MODEL_OPTIONS,
+  OCR_DEVICE_OPTIONS,
+} from "../settingsOptions";
 import { Button } from "../ui/Button";
 import {
   resolveHardwareRecommendation,
@@ -20,9 +22,12 @@ export function HardwareStatusSummary(
     (option) =>
       option.id === (props.ocrDevice === "cpu" ? "cpu" : props.ocrGpuBackend),
   );
-  const modelLabel = t(
-    `settings.options.inpaintingModels.${resolveInpaintingModelKey(props.inpaintingModel)}.label`,
+  const modelOption = INPAINTING_MODEL_OPTIONS.find(
+    (option) => option.id === props.inpaintingModel,
   );
+  const modelLabel = modelOption
+    ? t(modelOption.labelKey)
+    : props.inpaintingModel;
   const computeRouteLabel =
     props.computeGpuIndex === null
       ? t("settings.hardware.computeRouteAuto")
@@ -84,6 +89,8 @@ function hardwareRecommendationMatches(
     props.ocrGpuBackend === recommendation.ocrGpuBackend &&
     props.ocrQualityMode === recommendation.ocrQualityMode &&
     props.inpaintingModel === recommendation.inpaintingModel &&
+    (props.inpaintingModel !== "qwen-image-2.1" ||
+      props.fluxBackend === recommendation.fluxBackend) &&
     (props.inpaintingModel !== "flux-klein" ||
       (props.fluxBackend === recommendation.fluxBackend &&
         props.fluxMode === recommendation.fluxMode))
@@ -104,14 +111,6 @@ function applyHardwareRecommendation(
   props.setFluxBackend(recommendation.fluxBackend);
   props.setFluxMode(recommendation.fluxMode);
   props.setAllowUnsafeLowMemoryFlux(false);
-}
-
-function resolveInpaintingModelKey(
-  model: InpaintingModel,
-): "aot" | "lama" | "flux" {
-  if (model === "aot-inpainting") return "aot";
-  if (model === "lama-manga") return "lama";
-  return "flux";
 }
 
 function formatMemoryGb(memoryMb: number): string {

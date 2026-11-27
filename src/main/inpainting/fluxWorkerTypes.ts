@@ -1,3 +1,27 @@
+export type IllustratedTitleHint =
+  | boolean
+  | "masthead"
+  | "lettering"
+  | "caption"
+  | "brush"
+  | "solid-impact"
+  | "upright-jacket"
+  | "ruled-sound-shadow"
+  | "balloon-edge-reading"
+  | "duotone-overlay"
+  | "isolated-title-stock"
+  | `pigment:${string}`
+  | `layered-title:${string}`
+  | `washed-title:${string}`
+  | `sound:${string}`
+  | `edition:${string}`
+  | `masthead:${string}`
+  | `cover-columns:${string}`
+  | `jacket:${string}`
+  | `jacket-promo:${string}`
+  | `jacket-strap:${string}`
+  | `cover-title:${string}`;
+
 export type FluxWorkerRequest = {
   input: string;
   mask: string;
@@ -7,7 +31,11 @@ export type FluxWorkerRequest = {
   maxPixels: number;
   maskPadding: number;
   speechBubble?: boolean;
+  illustratedTitle?: IllustratedTitleHint;
 };
+
+/** A native paper repair already contains the final source-resolution pixels. */
+export type FluxWorkerCropResult = "native-paper" | void;
 
 export type FluxWorkerBackend =
   | "cuda-native"

@@ -2,6 +2,22 @@ import { describe, expect, it } from "vitest";
 import { resolveNativeRocmGpuSupport } from "../src/main/settings/fluxZludaSupport";
 
 describe("Native ROCm package availability", () => {
+  it("matches the selected model's ROCm SDK for an older Instinct adapter", () => {
+    const gpu = {
+      vendor: "amd" as const,
+      name: "Instinct MI100",
+      rocmArch: "gfx908",
+      memoryMb: 32768,
+      computeCapability: null,
+      rtxGeneration: null,
+    };
+    expect(resolveNativeRocmGpuSupport(gpu)).toBe(true);
+    expect(resolveNativeRocmGpuSupport(gpu, "qwen")).toBe(false);
+    expect(
+      resolveNativeRocmGpuSupport({ ...gpu, rocmArch: "gfx1100" }, "qwen"),
+    ).toBe(true);
+  });
+
   it.each([
     ["AMD Radeon RX 7900 XTX", undefined],
     ["AMD Radeon RX 7600", undefined],

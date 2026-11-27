@@ -9,7 +9,26 @@ export type FluxBackend =
   | "metal-native"
   | "cpu-native";
 
-export type InpaintingModel = "flux-klein" | "lama-manga" | "aot-inpainting";
+export const DEFAULT_INPAINTING_MODEL = "qwen-image-2.1" as const;
+
+export const INPAINTING_MODELS = [
+  "flux-klein",
+  "lama-manga",
+  "aot-inpainting",
+  "qwen-image-2.1",
+] as const;
+
+export type InpaintingModel = (typeof INPAINTING_MODELS)[number];
+export type KoharuInpaintingModel = Extract<
+  InpaintingModel,
+  "lama-manga" | "aot-inpainting"
+>;
+
+export function usesRegionInpainting(
+  model: InpaintingModel | "codex" | undefined,
+): boolean {
+  return model === "flux-klein" || model === "qwen-image-2.1";
+}
 
 export type KoharuInpaintingBackend =
   | "auto"

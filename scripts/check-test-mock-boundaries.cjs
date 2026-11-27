@@ -37,6 +37,8 @@ const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/workContextResearchAudit.test.ts::../src/main/translationRuntime",
   "tests/bubbleOnnxRuntime.test.ts::../src/main/runtimeSupport/modelDownloads",
   "tests/bubbleOnnxRuntime.test.ts::../src/main/runtimeSupport/nativeOnnxRuntime",
+  // Exercise Qwen's real crop, mask and session cleanup logic at the native ONNX binding.
+  "tests/qwenControlCrop.test.ts::../src/main/runtimeSupport/nativeOnnxRuntime.js",
   "tests/bubbleOnnxRuntime.test.ts::../src/main/logger",
   "tests/fontMatchingRuntimeAssets.test.ts::../src/main/runtimeSupport/modelDownloads",
   // Optional glyph verifier: isolate only its managed network gateway; cold-cache install is smoke-tested.

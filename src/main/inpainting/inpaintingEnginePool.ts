@@ -21,12 +21,20 @@ import {
 } from "./koharuEnginePool";
 import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
 import { assertModelCleanupComplete } from "../runtimeSupport/modelCleanupBarrier";
+import {
+  acquireQwenInpaintingEngine,
+  disposeCachedQwenInpaintingEngine,
+} from "./qwenImageEngine";
 
 export type InpaintingEngineLease = {
   engine: InpaintingEngine;
   release: () => void | Promise<void>;
 };
 export type InpaintingEnginePoolDependencies = {
+  qwen?: {
+    acquire: typeof acquireQwenInpaintingEngine;
+    dispose: typeof disposeCachedQwenInpaintingEngine;
+  };
   acquireFlux: (
     options: Parameters<typeof acquireFluxInpaintingEngine>[0],
   ) => Promise<InpaintingEngineLease>;
@@ -38,6 +46,10 @@ export type InpaintingEnginePoolDependencies = {
   totalMemoryBytes: () => number;
 };
 const defaultDependencies: InpaintingEnginePoolDependencies = {
+  qwen: {
+    acquire: acquireQwenInpaintingEngine,
+    dispose: disposeCachedQwenInpaintingEngine,
+  },
   acquireFlux: acquireFluxInpaintingEngine,
   acquireKoharu: acquireKoharuInpaintingEngine,
   disposeFlux: disposeCachedFluxInpaintingEngine,
@@ -88,6 +100,9 @@ async function acquireNativeEngine(
   assertModelCleanupComplete();
   options.signal?.throwIfAborted();
   const computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
+  if (options.model === "qwen-image-2.1")
+    return switchToQwenEngine(options, computeGpuIndex, dependencies);
+  await dependencies.qwen?.dispose("switch-from-qwen");
   if (options.model === "flux-klein") {
     assertFluxMemoryPolicy({
       backend:
@@ -125,6 +140,33 @@ async function acquireNativeEngine(
     }),
     dependencies.disposeKoharu,
   );
+}
+
+async function switchToQwenEngine(
+  {
+    appPaths,
+    fluxBackend,
+    signal,
+    onProgress,
+  }: Parameters<typeof acquireInpaintingEngine>[0],
+  computeGpuIndex: ReturnType<typeof normalizeComputeGpuIndex>,
+  dependencies: InpaintingEnginePoolDependencies,
+) {
+  const qwen = dependencies.qwen;
+  if (!qwen) throw new Error("Qwen Image 2.1 실행기를 찾을 수 없습니다.");
+  await Promise.all([
+    dependencies.disposeFlux("switch-to-qwen"),
+    dependencies.disposeKoharu("switch-to-qwen"),
+  ]);
+  signal?.throwIfAborted();
+  const lease = await qwen.acquire({
+    appPaths,
+    fluxBackend,
+    computeGpuIndex,
+    signal,
+    onProgress,
+  });
+  return workloadLease(lease, qwen.dispose);
 }
 
 /** The existing job owns one lease for all its sequential pages. Release means
@@ -169,6 +211,7 @@ export async function disposeCachedInpaintingEngines(
   const settled = await Promise.allSettled([
     dependencies.disposeFlux(reason),
     dependencies.disposeKoharu(reason),
+    ...(dependencies.qwen ? [dependencies.qwen.dispose(reason)] : []),
   ]);
   const errors = settled.flatMap((result) =>
     result.status === "rejected" ? [result.reason] : [],
