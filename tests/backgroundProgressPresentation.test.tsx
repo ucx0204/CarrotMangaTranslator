@@ -188,6 +188,15 @@ describe("background progress presentation", () => {
       ["work-share-export", "statusDock.operation.kind.shareExport"],
       ["environment-backup", "statusDock.operation.kind.environmentBackup"],
       ["environment-restore", "statusDock.operation.kind.environmentRestore"],
+      [
+        "environment-backup-preview",
+        "statusDock.operation.kind.environmentPreview",
+      ],
+      [
+        "environment-restore",
+        "statusDock.operation.kind.environmentPreview",
+        { phase: "share-reading", status: "completed" },
+      ],
       ["model-test", "statusDock.operation.kind.modelTest"],
       ["codex-auth", "statusDock.operation.kind.codexAuth"],
     ];

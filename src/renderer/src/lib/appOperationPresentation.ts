@@ -26,10 +26,13 @@ function resolveAppOperationKindLabel(
   activity: AppOperationActivityPresentation,
   t: TFunction<"renderer">,
 ): string {
-  if (activity.kind === "environment-backup")
-    return t("statusDock.operation.kind.environmentBackup");
-  if (activity.kind === "environment-restore")
-    return t("statusDock.operation.kind.environmentRestore");
+  // Earlier releases recorded completed ZIP inspections under the restore kind.
+  if (
+    activity.kind === "environment-restore" &&
+    activity.status === "completed" &&
+    activity.phase === "share-reading"
+  )
+    return t("statusDock.operation.kind.environmentPreview");
   if (activity.kind === "library-import-preview") {
     return t("statusDock.operation.kind.importPreview", {
       source: activity.sourceKind
@@ -37,32 +40,25 @@ function resolveAppOperationKindLabel(
         : t("statusDock.operation.source.files"),
     });
   }
-  if (activity.kind === "library-import") {
-    return t("statusDock.operation.kind.libraryImport");
-  }
   if (activity.kind === "web-import-preview") {
     return activity.phase === "web-preparing"
       ? t("statusDock.operation.kind.webPrepare")
       : t("statusDock.operation.kind.webScan");
   }
-  if (activity.kind === "work-share-import") {
-    return t("statusDock.operation.kind.shareImport");
-  }
-  if (activity.kind === "work-share-export") {
-    return t("statusDock.operation.kind.shareExport");
-  }
-  if (activity.kind === "model-test") {
-    return t("statusDock.operation.kind.modelTest");
-  }
-  const authenticationLabels = {
+  const labels = {
+    "environment-backup": "statusDock.operation.kind.environmentBackup",
+    "environment-backup-preview":
+      "statusDock.operation.kind.environmentPreview",
+    "environment-restore": "statusDock.operation.kind.environmentRestore",
+    "library-import": "statusDock.operation.kind.libraryImport",
+    "work-share-import": "statusDock.operation.kind.shareImport",
+    "work-share-export": "statusDock.operation.kind.shareExport",
+    "model-test": "statusDock.operation.kind.modelTest",
     "claude-auth": "statusDock.operation.kind.claudeAuth",
     "codex-auth": "statusDock.operation.kind.codexAuth",
     "grok-auth": "statusDock.operation.kind.grokAuth",
   } as const;
-  return t(
-    authenticationLabels[activity.kind as keyof typeof authenticationLabels] ??
-      "statusDock.operation.kind.background",
-  );
+  return t(labels[activity.kind] ?? "statusDock.operation.kind.background");
 }
 
 function resolveAppOperationPhaseLabel(

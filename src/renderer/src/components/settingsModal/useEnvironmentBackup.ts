@@ -6,23 +6,30 @@ import type {
 import type { AppOperationActivityEvent } from "../../../../shared/appOperationTypes";
 import { environmentBackupGateway as gateway } from "../../api/environmentBackupGateway";
 import { readBackupPreferences } from "../../lib/environmentBackupPreferences";
+import { isAppOperationActive } from "../../lib/appOperationPresentation";
 import { pendingPageEdits } from "../../lib/pageEditBarrier";
 
 export function useEnvironmentBackup() {
   const [status, setStatus] = React.useState<BackupStatus | null>(null);
-  const [preview, setPreview] = React.useState<BackupPreview | null>(null);
+  // An explicit local choice takes precedence over an earlier status request.
+  const [selectedPreview, setPreview] = React.useState<BackupPreview | null>();
+  const preview =
+    selectedPreview === undefined
+      ? (status?.pendingPreview ?? null)
+      : selectedPreview;
   const [recoveryId, setRecoveryId] = React.useState<string | null>(null);
   const [activity, setActivity] =
     React.useState<AppOperationActivityEvent | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const [savedPath, setSavedPath] = React.useState("");
-  useDiscardPreviewOnUnmount(preview);
-  const discard = () => {
+  const chooseRecovery = (id: string | null) => {
     if (preview)
       void gateway
         .discardEnvironmentBackup(preview.id)
         .catch((cause: unknown) => setError(String(cause)));
+    setPreview(null);
+    setRecoveryId(id);
   };
   useBackupSubscription(setStatus, setActivity, setError);
   const run = async (action: () => Promise<void>) => {
@@ -44,7 +51,7 @@ export function useEnvironmentBackup() {
     preview,
     recoveryId,
     activity,
-    busy,
+    busy: busy || isAppOperationActive(activity),
     error,
     savedPath,
     exportBackup: () =>
@@ -59,16 +66,8 @@ export function useEnvironmentBackup() {
         setRecoveryId(null);
         setPreview(await gateway.previewEnvironmentBackup());
       }),
-    chooseRecovery: (id: string) => {
-      discard();
-      setPreview(null);
-      setRecoveryId(id);
-    },
-    dismiss: () => {
-      discard();
-      setPreview(null);
-      setRecoveryId(null);
-    },
+    chooseRecovery,
+    dismiss: () => chooseRecovery(null),
     apply: () =>
       run(async () => {
         if (preview)
@@ -81,24 +80,11 @@ export function useEnvironmentBackup() {
             recoveryId,
             readBackupPreferences(),
           );
+        setPreview(null);
+        setRecoveryId(null);
       }),
     cancel: () => cancelBackupActivity(activity, setError),
   };
-}
-
-function useDiscardPreviewOnUnmount(preview: BackupPreview | null): void {
-  const id = preview?.id;
-  React.useEffect(
-    () => () => {
-      if (id)
-        void gateway
-          .discardEnvironmentBackup(id)
-          .catch((error: unknown) =>
-            console.error("Backup preview cleanup failed", error),
-          );
-    },
-    [id],
-  );
 }
 
 function useBackupSubscription(
@@ -109,18 +95,53 @@ function useBackupSubscription(
   setError: React.Dispatch<React.SetStateAction<string>>,
 ): void {
   React.useEffect(() => {
-    void gateway
-      .getEnvironmentBackupStatus()
-      .then(setStatus)
-      .catch((cause: unknown) => setError(String(cause)));
-    return gateway.onAppOperationActivity((event) => {
+    let mounted = true;
+    let revision = 0;
+    let receivedActivity = false;
+    function refreshStatus() {
+      const request = ++revision;
+      void gateway.getEnvironmentBackupStatus().then(
+        (status) => {
+          if (mounted && request === revision) setStatus(status);
+        },
+        (cause: unknown) => {
+          if (mounted && request === revision) setError(String(cause));
+        },
+      );
+    }
+    const unsubscribe = gateway.onAppOperationActivity((event) => {
+      if (!isBackupOperation(event)) return;
+      receivedActivity = true;
+      setActivity(event);
       if (
-        event.kind === "environment-backup" ||
-        event.kind === "environment-restore"
+        event.kind === "environment-backup-preview" &&
+        event.status === "completed"
       )
-        setActivity(event);
+        refreshStatus();
     });
+    refreshStatus();
+    void gateway.getActiveAppOperations().then(
+      (events) => {
+        if (mounted && !receivedActivity)
+          setActivity(events.find(isBackupOperation) ?? null);
+      },
+      (cause: unknown) => {
+        if (mounted) setError(String(cause));
+      },
+    );
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, [setStatus, setActivity, setError]);
+}
+
+function isBackupOperation(event: AppOperationActivityEvent): boolean {
+  return (
+    event.kind === "environment-backup" ||
+    event.kind === "environment-backup-preview" ||
+    event.kind === "environment-restore"
+  );
 }
 
 function cancelBackupActivity(

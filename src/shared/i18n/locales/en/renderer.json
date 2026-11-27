@@ -582,7 +582,8 @@
         "grokAuth": "Connect Grok account",
         "background": "Background task",
         "environmentBackup": "Export backup",
-        "environmentRestore": "Import backup",
+        "environmentPreview": "Verify backup ZIP",
+        "environmentRestore": "Schedule backup restore",
         "claudeAuth": "Claude account"
       },
       "source": {

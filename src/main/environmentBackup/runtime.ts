@@ -43,6 +43,12 @@ export function createEnvironmentBackupService(
   });
 }
 
+const initialPhase = {
+  "environment-backup": "backup-copying",
+  "environment-backup-preview": "backup-verifying",
+  "environment-restore": "share-applying",
+} as const;
+
 function createExclusiveOperation(
   context: IpcContext,
 ): EnvironmentBackupPorts["exclusive"] {
@@ -52,8 +58,7 @@ function createExclusiveOperation(
       kind,
       mutatesLibrary: true,
       presentation: {
-        phase:
-          kind === "environment-backup" ? "backup-copying" : "share-reading",
+        phase: initialPhase[kind],
         cancellable: true,
         progressUnit: "bytes",
       },

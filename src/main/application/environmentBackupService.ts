@@ -12,7 +12,10 @@ export type EnvironmentBackupPorts = {
   pickExport: () => Promise<string | null>;
   pickImport: () => Promise<string | null>;
   exclusive: <T>(
-    kind: "environment-backup" | "environment-restore",
+    kind:
+      | "environment-backup"
+      | "environment-backup-preview"
+      | "environment-restore",
     action: (
       signal: AbortSignal,
       progress: BackupProgress,
@@ -36,13 +39,15 @@ export type EnvironmentBackupPorts = {
 };
 
 export class EnvironmentBackupService {
-  private readonly previews = new Set<string>();
+  private pendingPreview: BackupPreview | null = null;
+  private inspection: Promise<BackupPreview | null> | null = null;
   constructor(private readonly ports: EnvironmentBackupPorts) {}
   receipt(): Promise<BackupStatus["restored"]> {
     return this.ports.receipt();
   }
-  status(): Promise<BackupStatus> {
-    return this.ports.status();
+  async status(): Promise<BackupStatus> {
+    const status = await this.ports.status();
+    return { ...status, pendingPreview: this.pendingPreview };
   }
   async export(ui: BackupUiPreferences): Promise<string | null> {
     const target = await this.ports.pickExport();
@@ -53,25 +58,38 @@ export class EnvironmentBackupService {
     return target;
   }
   async discard(id: string): Promise<null> {
-    if (this.previews.delete(id)) await this.ports.discard(id);
+    if (this.pendingPreview?.id !== id) return null;
+    this.pendingPreview = null;
+    await this.ports.discard(id);
     return null;
   }
-  async preview(): Promise<BackupPreview | null> {
+  preview(): Promise<BackupPreview | null> {
+    this.inspection ??= this.inspectArchive().finally(() => {
+      this.inspection = null;
+    });
+    return this.inspection;
+  }
+  private async inspectArchive(): Promise<BackupPreview | null> {
     const archive = await this.ports.pickImport();
     if (!archive) return null;
-    for (const id of this.previews) await this.discard(id);
-    const preview = await this.ports.exclusive(
-      "environment-restore",
-      (signal, progress) => this.ports.preview(archive, signal, progress),
+    return this.ports.exclusive(
+      "environment-backup-preview",
+      async (signal, progress) => {
+        if (this.pendingPreview) await this.discard(this.pendingPreview.id);
+        this.pendingPreview = await this.ports.preview(
+          archive,
+          signal,
+          progress,
+        );
+        return this.pendingPreview;
+      },
     );
-    this.previews.add(preview.id);
-    return preview;
   }
   async restore(id: string, ui: BackupUiPreferences): Promise<null> {
-    if (!this.previews.has(id))
+    if (this.pendingPreview?.id !== id)
       throw new Error("Select and validate the backup again before restoring.");
     await this.apply(id, ui, false);
-    this.previews.delete(id);
+    this.pendingPreview = null;
     return null;
   }
   async recover(id: string, ui: BackupUiPreferences): Promise<null> {

@@ -5,6 +5,7 @@ import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway
 import { useEnvironmentBackup } from "../src/renderer/src/components/settingsModal/useEnvironmentBackup";
 import { pendingPageEdits } from "../src/renderer/src/lib/pageEditBarrier";
 import { usePageEditHandoff } from "../src/renderer/src/hooks/usePageEditHandoff";
+import type { AppOperationActivityEvent } from "../src/shared/appOperationTypes";
 
 afterEach(() => {
   cleanup();
@@ -81,11 +82,78 @@ describe("backup settings actions", () => {
     await act(() => result.current.inspectBackup());
     expect(result.current.preview).toEqual(preview);
     expect(restore).not.toHaveBeenCalled();
-    await act(() => result.current.apply());
-    expect(restore).toHaveBeenCalledWith(preview.id, {});
     act(() => result.current.dismiss());
-    expect(discard).toHaveBeenCalledWith(preview.id);
+    expect(discard).toHaveBeenCalledExactlyOnceWith(preview.id);
     expect(result.current.preview).toBeNull();
+    await act(() => result.current.inspectBackup());
+    await act(() => result.current.apply());
+    expect(restore).toHaveBeenCalledExactlyOnceWith(preview.id, {});
+    expect(result.current.preview).toBeNull();
+    expect(discard).toHaveBeenCalledTimes(1);
+  });
+  it("can resume confirmation after leaving settings while the ZIP is being checked", async () => {
+    let complete!: (value: typeof preview) => void;
+    const checking = new Promise<typeof preview>((resolve) => {
+      complete = resolve;
+    });
+    const inspectZip = vi.fn(() => checking);
+    const restore = vi.fn(async () => null);
+    const discard = vi.fn(async () => null);
+    let ready: typeof preview | null = null;
+    const running: AppOperationActivityEvent = {
+      id: "check",
+      kind: "environment-backup-preview",
+      status: "running",
+      cancellable: true,
+      mutatesLibrary: true,
+      startedAt: 1,
+      updatedAt: 1,
+    };
+    const listeners = new Set<(event: AppOperationActivityEvent) => void>();
+    window.mangaApi = createTestMangaGatewayStub({
+      previewEnvironmentBackup: inspectZip,
+      onAppOperationActivity: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      getActiveAppOperations: async () =>
+        !ready && inspectZip.mock.calls.length ? [running] : [],
+      getEnvironmentBackupStatus: async () => ({
+        summary: { works: 0, pages: 0, bytes: 0 },
+        restored: null,
+        recoveries: [],
+        pendingPreview: ready,
+      }),
+      restoreEnvironmentBackup: restore,
+      discardEnvironmentBackup: discard,
+    });
+    const first = renderHook(useEnvironmentBackup);
+    let inspect!: Promise<void>;
+    act(() => {
+      inspect = first.result.current.inspectBackup();
+    });
+    await waitFor(() => expect(inspectZip).toHaveBeenCalledOnce());
+    first.unmount();
+    const second = renderHook(useEnvironmentBackup);
+    await waitFor(() => expect(second.result.current.busy).toBe(true));
+    expect(second.result.current.preview).toBeNull();
+    await act(async () => {
+      ready = preview;
+      complete(preview);
+      await inspect;
+      for (const listener of listeners)
+        listener({ ...running, status: "completed", cancellable: false });
+    });
+    await waitFor(() => expect(second.result.current.preview).toEqual(preview));
+    second.unmount();
+    expect(discard).not.toHaveBeenCalled();
+    expect(restore).not.toHaveBeenCalled();
+    const third = renderHook(useEnvironmentBackup);
+    await waitFor(() => expect(third.result.current.preview).toEqual(preview));
+    await act(() => third.result.current.apply());
+    expect(restore).toHaveBeenCalledExactlyOnceWith(preview.id, {});
   });
   it("surfaces failure, clears busy state and allows a later recovery request", async () => {
     const recover = vi.fn(async () => null);

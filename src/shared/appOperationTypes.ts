@@ -2,6 +2,7 @@ import type { ImportSourceKind } from "./libraryTypes";
 
 export const APP_OPERATION_KINDS = [
   "environment-backup",
+  "environment-backup-preview",
   "environment-restore",
   "library-import",
   "library-import-preview",

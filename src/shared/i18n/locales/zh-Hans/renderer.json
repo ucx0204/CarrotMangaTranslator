@@ -582,7 +582,8 @@
         "grokAuth": "连接 Grok 账户",
         "background": "后台任务",
         "environmentBackup": "导出备份",
-        "environmentRestore": "导入备份",
+        "environmentPreview": "校验备份 ZIP",
+        "environmentRestore": "安排恢复备份",
         "claudeAuth": "Claude 账户"
       },
       "source": {

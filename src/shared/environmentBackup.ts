@@ -35,6 +35,7 @@ export const backupPreviewSchema = backupSummarySchema.extend({
 export type BackupPreview = z.infer<typeof backupPreviewSchema>;
 export const backupStatusSchema = z.object({
   summary: backupSummarySchema,
+  pendingPreview: backupPreviewSchema.nullable().optional(),
   recoveries: z.array(
     z.object({
       id: z.string().uuid(),

@@ -582,7 +582,8 @@
         "grokAuth": "Grok アカウント接続",
         "background": "バックグラウンド処理",
         "environmentBackup": "バックアップを書き出す",
-        "environmentRestore": "バックアップを読み込む",
+        "environmentPreview": "バックアップ ZIP の検証",
+        "environmentRestore": "バックアップ復元の予約",
         "claudeAuth": "Claude アカウント"
       },
       "source": {

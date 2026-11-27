@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
 import * as appPaths from "../src/main/appPaths";
 import { listLibrary } from "../src/main/library/libraryReadFacade";
+import { readWorkStyleGuide } from "../src/main/libraryStore/workContextFiles";
 import type { LibraryChapter } from "../src/shared/libraryTypes";
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import {
@@ -327,6 +328,32 @@ describe("environment backup", () => {
         out = await temp();
       await fixture(source);
       const workOrder = workIndexed ? ["work-a"] : [];
+      const stamp = "2026-09-24T00:00:00.000Z";
+      const glossary = [
+        {
+          id: "term-1",
+          source: "魔王",
+          target: "마왕",
+          category: "term",
+          enabled: true,
+          createdAt: stamp,
+          updatedAt: stamp,
+        },
+      ];
+      await put(source, "library/works/work-a/style-guide.json", {
+        schemaVersion: 1,
+        workId: "work-a",
+        glossary,
+        characters: [],
+        rules: {
+          prompt: "",
+          honorifics: "adapt",
+          sfxMode: "translate",
+          defaultTone: "natural_korean",
+        },
+        createdAt: stamp,
+        updatedAt: stamp,
+      });
       await put(source, "library/index.json", { workOrder });
       const workPath = "library/works/work-a/work.json";
       const work = JSON.parse(await readFile(join(source, workPath), "utf8"));
@@ -344,6 +371,7 @@ describe("environment backup", () => {
         .spyOn(appPaths, "getAppPaths")
         .mockReturnValue(paths(target));
       try {
+        expect((await readWorkStyleGuide("work-a")).glossary).toEqual(glossary);
         expect(await listLibrary()).toMatchObject({
           workOrder: ["work-a"],
           works: [

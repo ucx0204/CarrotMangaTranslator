@@ -582,7 +582,8 @@
         "grokAuth": "Grok 계정 연결",
         "background": "백그라운드 작업",
         "environmentBackup": "백업 내보내기",
-        "environmentRestore": "백업 가져오기",
+        "environmentPreview": "백업 ZIP 검사",
+        "environmentRestore": "백업 복원 예약",
         "claudeAuth": "Claude 계정 연결"
       },
       "source": {

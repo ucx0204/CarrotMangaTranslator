@@ -54,10 +54,36 @@ function fixture() {
       order.push("restart");
     }),
   };
-  return { service: new EnvironmentBackupService(ports), ports, order };
+  return {
+    service: new EnvironmentBackupService(ports),
+    ports,
+    order,
+    preview,
+  };
 }
 
 describe("environment backup orchestration", () => {
+  it("returns the staged ZIP on reopening settings, including during validation", async () => {
+    const { service, ports, preview: ready } = fixture();
+    let complete!: (value: typeof ready) => void;
+    const checking = new Promise<typeof ready>((resolve) => {
+      complete = resolve;
+    });
+    ports.preview = vi.fn(() => checking);
+    const first = service.preview();
+    const repeated = service.preview();
+    expect((await service.status()).pendingPreview).toBeNull();
+    complete(ready);
+    await expect(first).resolves.toEqual(ready);
+    await expect(repeated).resolves.toEqual(ready);
+    await expect(service.status()).resolves.toMatchObject({
+      pendingPreview: ready,
+    });
+    expect(ports.preview).toHaveBeenCalledTimes(1);
+    expect(ports.schedule).not.toHaveBeenCalled();
+    await service.discard(ready.id);
+    expect((await service.status()).pendingPreview).toBeNull();
+  });
   it("only schedules an explicitly validated preview and restarts after scheduling", async () => {
     const { service, ports, order } = fixture();
     await expect(service.restore("unknown", {})).rejects.toThrow("validate");

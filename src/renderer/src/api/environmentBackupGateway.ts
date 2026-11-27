@@ -11,6 +11,7 @@ export const environmentBackupGateway = createMangaDomainGateway(
     "restoreEnvironmentBackup",
     "recoverEnvironmentBackup",
     "onAppOperationActivity",
+    "getActiveAppOperations",
     "cancelAppOperation",
   ] as const,
 );
