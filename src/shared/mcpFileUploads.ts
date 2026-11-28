@@ -1,13 +1,11 @@
 import { z } from "zod/v4";
-import {
-  MCP_UPLOAD_CHUNK_BYTES,
-  McpImageUploadChunkSchema,
-  McpImageUploadGetSchema,
-} from "./mcpImageUploads";
+import { McpImageUploadGetSchema } from "./mcpImageUploads";
 import { McpChooseImportSchema } from "./mcpLibraryImport";
 import { MCP_EXCHANGE_BYTES } from "./mcpExchangeFiles";
 
 const MCP_FILE_UPLOAD_BYTES = 128 * 1024 * 1024;
+// A full base64 chunk and its JSON-RPC envelope fit the 8 MiB HTTP body limit.
+export const MCP_FILE_UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024;
 export const MCP_FILE_UPLOAD_SESSION_BYTES = 256 * 1024 * 1024;
 const filename = z
   .string()
@@ -31,8 +29,14 @@ export const McpFileUploadBeginSchema = z
     "Text and context uploads are limited to 4 MiB of encoded bytes.",
   );
 export type McpFileUploadBegin = z.infer<typeof McpFileUploadBeginSchema>;
-export const McpFileUploadChunkSchema = McpImageUploadChunkSchema.extend({
+export const McpFileUploadChunkSchema = McpImageUploadGetSchema.extend({
   offset: z.number().int().min(0).max(MCP_FILE_UPLOAD_BYTES),
+  data: z
+    .string()
+    .min(4)
+    .max(Math.ceil(MCP_FILE_UPLOAD_CHUNK_BYTES / 3) * 4)
+    .regex(/^[A-Za-z0-9+/]+={0,2}$/)
+    .refine((data) => data.length % 4 === 0),
 }).strict();
 export const McpUploadedImportSchema = McpChooseImportSchema.extend({
   uploadId: McpImageUploadGetSchema.shape.uploadId,
@@ -49,7 +53,7 @@ const receipt = z
     receivedBytes: z.number().int().nonnegative().max(MCP_FILE_UPLOAD_BYTES),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     expiresAt: z.number().int().positive(),
-    chunkBytes: z.literal(MCP_UPLOAD_CHUNK_BYTES),
+    chunkBytes: z.literal(MCP_FILE_UPLOAD_CHUNK_BYTES),
     retention: z.literal("session-only"),
     importable: z.literal("not-yet-checked"),
   })

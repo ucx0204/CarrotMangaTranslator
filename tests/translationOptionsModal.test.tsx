@@ -79,6 +79,7 @@ beforeEach(() => {
 });
 
 import { TranslationOptionsModal } from "../src/renderer/src/components/TranslationOptionsModal";
+import { TranslationOverwriteWarning } from "../src/renderer/src/components/TranslationOverwriteWarning";
 import { FontsProvider } from "../src/renderer/src/fonts/FontsProvider";
 import { createCodexTypesettingPreferences } from "../src/shared/codexTypesettingDefaults";
 import {
@@ -223,6 +224,19 @@ afterEach(() => {
 });
 
 describe("TranslationOptionsModal", () => {
+  it("shows the overwrite explanation only when supplied by the caller", () => {
+    const title = "기존 결과가 바뀌는 페이지가 포함됨";
+    const description =
+      "해당 페이지의 수동 수정은 새 결과로 교체될 수 있습니다.";
+    const { rerender } = render(
+      <TranslationOverwriteWarning title={title} description={description} />,
+    );
+    expect(
+      within(screen.getByRole("note")).getByText(description),
+    ).toBeTruthy();
+    rerender(<TranslationOverwriteWarning title={title} />);
+    expect(screen.getByRole("note").textContent).toBe(title);
+  });
   it("starts only the added pages even when older pages are also untranslated", async () => {
     const chapter = makeCheckpointChapter();
     const { onStart } = await renderModal(

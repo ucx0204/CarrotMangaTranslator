@@ -28,12 +28,13 @@ it("receives real ordered bytes, exact retries and integrity without pretending 
     await expect(store.finish("owner", first.uploadId, guard)).rejects.toThrow(
       /incomplete/,
     );
-    for (let offset = 0; offset < bytes.length; offset += first.chunkBytes) {
+    const legacyChunkBytes = 32 * 1024;
+    for (let offset = 0; offset < bytes.length; offset += legacyChunkBytes) {
       const chunk = {
         uploadId: first.uploadId,
         offset,
         data: bytes
-          .subarray(offset, offset + first.chunkBytes)
+          .subarray(offset, offset + legacyChunkBytes)
           .toString("base64"),
       };
       const receipt = await store.chunk("owner", chunk, guard);
@@ -54,6 +55,24 @@ it("receives real ordered bytes, exact retries and integrity without pretending 
         guard,
       ),
     ).rejects.toThrow(/original bytes/);
+  } finally {
+    await store.close();
+  }
+});
+it("rejects a chunk one decoded byte over the advertised limit without advancing the offset", async () => {
+  const store = new McpFileUploadStore();
+  try {
+    const bytes = Buffer.alloc(4 * 1024 * 1024 + 1);
+    const first = await store.begin("owner", input(bytes), null, guard);
+    expect(first.chunkBytes).toBe(bytes.length - 1);
+    await expect(
+      store.chunk(
+        "owner",
+        { uploadId: first.uploadId, offset: 0, data: bytes.toString("base64") },
+        guard,
+      ),
+    ).rejects.toThrow(/decoded bytes/);
+    expect(store.inspect("owner", first.uploadId, guard).receivedBytes).toBe(0);
   } finally {
     await store.close();
   }

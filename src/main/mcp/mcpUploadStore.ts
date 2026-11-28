@@ -3,10 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { hashStableValue } from "../../shared/blockFingerprint";
-import {
-  MCP_UPLOAD_CHUNK_BYTES,
-  MCP_UPLOAD_LIFETIME_MS,
-} from "../../shared/mcpImageUploads";
+import { MCP_UPLOAD_LIFETIME_MS } from "../../shared/mcpImageUploads";
 import { McpEditError } from "../application/mcpEditPolicy";
 import {
   imageUploadDigest,
@@ -18,6 +15,7 @@ type UploadPolicy<I, R, V> = {
   chunk: (value: unknown) => { uploadId: string; offset: number; data: string };
   filename: (input: I, id: string) => string;
   maxFiles: number;
+  chunkBytes: number;
   maxBytes: number;
   capacityMessage: string;
   validate: (input: I, path: string, guard: () => void) => Promise<R>;
@@ -104,12 +102,12 @@ export class McpUploadStore<I extends UploadInput, E, R extends object, V> {
       const bytes = Buffer.from(input.data, "base64");
       if (
         !bytes.length ||
-        bytes.length > MCP_UPLOAD_CHUNK_BYTES ||
+        bytes.length > this.policy.chunkBytes ||
         bytes.toString("base64") !== input.data
       )
         throw new McpEditError(
           "invalid_edit",
-          "Expected canonical base64 for at most 32 KiB of actual file bytes.",
+          `Expected canonical base64 for at most ${this.policy.chunkBytes} decoded bytes.`,
         );
       const digest = imageUploadDigest(bytes),
         prior = entry.chunks.get(input.offset);

@@ -1,8 +1,48 @@
 import { randomUUID, createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { buffer } from "node:stream/consumers";
 import { expect, it } from "vitest";
+import { ZipFile } from "yazl";
 import { libraryImportHttpFixture } from "./mcpLibraryImportHttp.fixture";
 import { receiveIncomingFile } from "./mcpIncomingFiles.fixture";
+
+it("transfers a 42 MiB ZIP over MCP HTTP in eleven writes and verifies its digest", async () => {
+  const f = await libraryImportHttpFixture();
+  try {
+    const archive = (padding: number) => {
+      const zip = new ZipFile();
+      const bytes = buffer(zip.outputStream);
+      zip.addBuffer(f.bytes, "page.png");
+      zip.addBuffer(Buffer.alloc(padding), "padding.bin", { compress: false });
+      zip.end();
+      return bytes;
+    };
+    const size = 42 * 1024 * 1024;
+    const bytes = await archive(size - (await archive(0)).length);
+    expect(bytes.length).toBe(size);
+    let writes = 0;
+    const uploaded = await receiveIncomingFile(
+      async (name, args) => {
+        const { result } = await f.call(name, args);
+        expect(result.isError, JSON.stringify(result.structuredContent)).toBe(
+          false,
+        );
+        if (name === "carrot_write_file_upload") writes++;
+        return result.structuredContent;
+      },
+      bytes,
+      "chapter.zip",
+    );
+    expect(writes).toBe(11);
+    expect(uploaded).toMatchObject({
+      validation: "bytes-verified",
+      receivedBytes: size,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    });
+  } finally {
+    await f.close();
+  }
+});
 
 it("uses scoped OAuth HTTP byte delivery without private paths and keeps durable import separate from upload lifetime", async () => {
   const f = await libraryImportHttpFixture();

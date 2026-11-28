@@ -51,7 +51,7 @@ export function createMcpFileUploadTools(
         scopes,
         write: true,
         description:
-          "Append at most 32 KiB of actual file bytes as canonical base64 at receivedBytes; at most 4096 chunks/file. Exact retries are accepted; gaps, overlaps, changed retries and excess bytes are rejected. Only writes this owned staging file, never a native source or output. No file-reference/URL fetching.",
+          "Append canonical base64 at receivedBytes. For large files, send chunkBytes from the upload receipt per call, measured before base64 encoding. Smaller chunks are accepted, up to 4096 calls with distinct offsets per file. Retrying the same bytes at the same offset is safe.",
         execute: (args, owner, guard) => store.chunk(owner, args, check(guard)),
       }),
       createMcpBatchTool({

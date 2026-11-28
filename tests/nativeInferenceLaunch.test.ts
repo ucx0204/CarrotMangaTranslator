@@ -172,6 +172,7 @@ describe("native inference launch", () => {
   it("uses the Koharu HIP probe to select the kernel for the separate Qwen executable", async () => {
     vi.stubEnv("MGT_KOHARU_RUNNER_EXE", executable);
     const inference = join(root, "sd-cli");
+    await writeFile(inference, "qwen runner");
     mock.install.mockImplementation(async ({ engine }) => ({
       directory: root,
       manifest: join(root, engine + ".json"),
@@ -193,6 +194,7 @@ describe("native inference launch", () => {
       { engine: "qwen-image", rocmTarget: "gfx1100" },
     ]);
     expect(result.executable).toBe(inference);
+    expect(await readFile(result.executable, "utf8")).toBe("qwen runner");
   });
   it("starts an installed Metal executable already next to its dylibs", async () => {
     vi.stubGlobal("process", { ...process, platform: "darwin" });

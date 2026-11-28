@@ -1,6 +1,6 @@
 import { extname } from "node:path";
-import { MCP_UPLOAD_CHUNK_BYTES } from "../../shared/mcpImageUploads";
 import {
+  MCP_FILE_UPLOAD_CHUNK_BYTES,
   MCP_FILE_UPLOAD_SESSION_BYTES,
   McpFileUploadBeginSchema,
   McpFileUploadChunkSchema,
@@ -28,6 +28,7 @@ export class McpFileUploadStore extends McpUploadStore<
         filename: (input, id) =>
           `${id}${extname(input.filename).toLowerCase()}`,
         maxFiles: 16,
+        chunkBytes: MCP_FILE_UPLOAD_CHUNK_BYTES,
         maxBytes: MCP_FILE_UPLOAD_SESSION_BYTES,
         capacityMessage:
           "Incoming files share 16 files / 256 MiB / 256 receipt reservations per session. Discard unused uploads. No library data was changed.",
@@ -44,7 +45,7 @@ export class McpFileUploadStore extends McpUploadStore<
           receivedBytes: received,
           sha256: input.sha256,
           expiresAt,
-          chunkBytes: MCP_UPLOAD_CHUNK_BYTES,
+          chunkBytes: MCP_FILE_UPLOAD_CHUNK_BYTES,
           retention: "session-only",
           importable: "not-yet-checked",
         }),

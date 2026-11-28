@@ -40,6 +40,7 @@ export class McpImageUploadStore extends McpUploadStore<
         chunk: (value) => McpImageUploadChunkSchema.parse(value),
         filename: (_input, id) => `${id}.png`,
         maxFiles: 32,
+        chunkBytes: MCP_UPLOAD_CHUNK_BYTES,
         maxBytes: MCP_UPLOAD_SESSION_BYTES,
         capacityMessage:
           "Upload session capacity reached (32 files / 128 MiB / 256 receipts). Discard unneeded uploads; no source file was changed.",
