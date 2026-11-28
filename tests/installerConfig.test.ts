@@ -278,15 +278,13 @@ describe("Windows installer clean uninstall option", () => {
       "utf8",
     );
 
-    // The trained font matching runtime bundle is externalized out of the
-    // installer (downloaded on first use). The budget includes the audited
-    // official Codex and Claude native payloads while keeping the external
-    // font bundle and training data out of the installer.
+    // The base app includes the Intel OCR lock. The installer gets two
+    // additional slots only after verification of its NSIS updater files.
     expect(packagedRuntimeVerifier).toContain(
       "const MAX_PACKAGED_BYTES = 1080 * 1024 * 1024;",
     );
     expect(packagedRuntimeVerifier).toContain(
-      "const MAX_PACKAGED_FILES = 379;",
+      "const MAX_PACKAGED_FILES = 380;",
     );
     expect(packagedRuntimeVerifier).toContain(
       "const mainRuntimeSmokeMessage = runPackagedMainRuntimeSmoke();",

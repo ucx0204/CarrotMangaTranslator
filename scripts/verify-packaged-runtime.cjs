@@ -1,4 +1,6 @@
+const { deepStrictEqual } = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
+const { createHash } = require("node:crypto");
 const {
   existsSync,
   mkdtempSync,
@@ -148,7 +150,9 @@ const allowedElectronLocales = new Set([
 // Qwen ships its crop worker, 43 drawing-restoration modules, the native
 // session and its small FFI binding. Weights and accelerators are on demand.
 // Includes the sparse layout manifest, CUDA worker and persistent print worker.
-const MAX_PACKAGED_FILES = 379;
+// The Intel Hayai XPU lock is part of the base app. NSIS adds its two
+// verified updater files after electron-builder assembles the unpacked app.
+const MAX_PACKAGED_FILES = 380;
 const MAX_PACKAGED_BYTES = 1080 * 1024 * 1024;
 
 for (const name of ["c", "claude"]) {
@@ -168,6 +172,13 @@ for (const fontRuntimeDir of forbiddenPackagedFontRuntimeDirs) {
   }
 }
 assertPackagedOnnxNodeInventory();
+const intelOcrLock = "ocr/requirements-hayai-xpu-win.lock";
+if (
+  !readFileSync(join(resourcesDir, "app-runtime", intelOcrLock)).equals(
+    readFileSync(join(root, "src", "main", "runtime", intelOcrLock)),
+  )
+)
+  throw new Error("Packaged Hayai XPU dependency lock differs from its source");
 const qwenSourceDir = join(root, "src", "main", "runtime");
 const qwenWorkers = readdirSync(qwenSourceDir).filter((file) =>
   /^qwen[-_].*\.py$/u.test(file),
@@ -352,9 +363,10 @@ if (
 }
 
 const packageStats = countFiles(unpackedDir);
-if (packageStats.files > MAX_PACKAGED_FILES) {
+const fileBudget = MAX_PACKAGED_FILES + verifyNsisUpdaterFiles();
+if (packageStats.files > fileBudget) {
   throw new Error(
-    `Packaged file-count budget exceeded: ${packageStats.files} > ${MAX_PACKAGED_FILES}`,
+    `Packaged file-count budget exceeded: ${packageStats.files} > ${fileBudget}`,
   );
 }
 if (packageStats.bytes > MAX_PACKAGED_BYTES) {
@@ -381,6 +393,34 @@ console.log(
 console.log(
   `[installer] ${zipSafety.entries} ASCII payload entries, longest relative path ${zipSafety.maxRelativePathLength} chars`,
 );
+
+function verifyNsisUpdaterFiles() {
+  const configPath = join(resourcesDir, "app-update.yml");
+  const helperPath = join(resourcesDir, "elevate.exe");
+  // Explicit unpacked-directory checks also support electron-builder --dir.
+  if (process.argv[2] && !existsSync(configPath) && !existsSync(helperPath))
+    return 0;
+  const actual = require("yaml").parse(readFileSync(configPath, "utf8"));
+  const [expected] = require("../electron-builder.config.cjs").publish;
+  deepStrictEqual(
+    actual,
+    {
+      ...expected,
+      updaterCacheDirName: `${require("../package.json").name}-updater`,
+    },
+    "Packaged Windows updater feed differs from the release configuration",
+  );
+  // elevate.exe from electron-builder's pinned NSIS 3.0.4.1 bundle.
+  const helperHash = createHash("sha256")
+    .update(readFileSync(helperPath))
+    .digest("hex");
+  if (
+    helperHash !==
+    "9b1fbf0c11c520ae714af8aa9af12cfd48503eedecd7398d8992ee94d1b4dc37"
+  )
+    throw new Error("Unexpected Windows updater elevation helper");
+  return 2;
+}
 
 /**
  * @param {string} directory
