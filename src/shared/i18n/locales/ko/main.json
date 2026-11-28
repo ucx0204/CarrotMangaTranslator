@@ -1,4 +1,8 @@
 {
+  "backup": {
+    "recoveredWork": "복구한 작품 · {{id}}",
+    "glossaryFull": "이 작품의 용어집이 가득 찼습니다. ‘새 작품으로 추가’를 선택해 주세요."
+  },
   "settings": {
     "localModelDialogTitle": "로컬 GGUF 모델 선택",
     "mmprojDialogTitle": "mmproj 파일 선택",

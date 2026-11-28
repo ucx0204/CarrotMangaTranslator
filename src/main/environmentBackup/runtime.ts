@@ -33,7 +33,8 @@ export function createEnvironmentBackupService(
     },
     exclusive: createExclusiveOperation(context),
     export: (...args) => store.export(...args),
-    preview: (...args) => store.preview(...args),
+    preview: (...args) => store.previewWithRecovery(...args),
+    recoverItems: (...args) => store.recoverItems(...args),
     prepareRecovery: (...args) => store.prepareRecovery(...args),
     schedule: (...args) => store.schedule(...args),
     restart: async () => {
@@ -46,7 +47,7 @@ export function createEnvironmentBackupService(
 const initialPhase = {
   "environment-backup": "backup-copying",
   "environment-backup-preview": "backup-verifying",
-  "environment-restore": "share-applying",
+  "environment-restore": "backup-restoring",
 } as const;
 
 function createExclusiveOperation(
@@ -77,14 +78,23 @@ function createExclusiveOperation(
         lease.signal,
         (current, total, phase) =>
           lease.updateActivity({
-            ...(phase ? { phase } : {}),
+            ...(phase
+              ? {
+                  phase,
+                  progressUnit:
+                    phase === "import-finalizing" ? "items" : "bytes",
+                }
+              : {}),
             progressCurrent: current,
-            progressTotal: total,
+            progressTotal: total > 0 ? total : undefined,
           }),
         () => {
           lease.signal.throwIfAborted();
           sealed = true;
-          lease.updateActivity({ cancellable: false, phase: "share-applying" });
+          lease.updateActivity({
+            cancellable: false,
+            phase: "backup-restoring",
+          });
         },
       );
       // A scheduled restore must keep all writers stopped until the process exits.

@@ -32,7 +32,7 @@ import { reorderRecords } from "./chapterRecords";
 
 const WORK_RESEARCH_PREFERENCES_FILE_NAME = "research-preferences.json";
 
-function createDefaultWorkStyleGuide(workId: string): WorkStyleGuide {
+export function createDefaultWorkStyleGuide(workId: string): WorkStyleGuide {
   const now = new Date().toISOString();
   return {
     schemaVersion: 1,

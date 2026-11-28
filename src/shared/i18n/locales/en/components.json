@@ -2766,6 +2766,16 @@
       "review": "Image review"
     },
     "backup": {
+      "partial": {
+        "title": "Partial recovery",
+        "description": "Recover available items into your current library.",
+        "counts": "{{chapters}} chapters · {{pages}} pages · {{terms}} terms and characters",
+        "destination": "Add glossary to",
+        "newWork": "Add as a new work",
+        "keep": "Existing entries are kept when names match.",
+        "details": "Missing or damaged items ({{count}})",
+        "apply": "Add and restart"
+      },
       "title": "Backup and transfer",
       "description": "Move your workspace to another computer with one ZIP file.",
       "includes": "Includes library originals and edits, settings, custom fonts, presets and redaction drafts.",
@@ -2775,9 +2785,12 @@
       "export": "Export backup",
       "import": "Import backup",
       "recover": "Restore previous environment",
-      "ready": "The backup has been verified. It has not been applied to your current library yet.",
       "confirmTitle": "Confirm environment restore",
-      "confirmDescription": "Replace the current library and settings with this backup. Your existing environment will be preserved at the location below. Reconnect external folders and custom models afterward.",
+      "confirmDescription": "Replace your current library and settings with this backup?",
+      "details": "Details",
+      "previousLocation": "Current environment will be saved to",
+      "restoreFrom": "Restore from",
+      "reconnectFolders": "Folders to reconnect",
       "apply": "Restore and restart app",
       "close": "Close",
       "progress": "Processing your environment. Editing is paused until this finishes.",

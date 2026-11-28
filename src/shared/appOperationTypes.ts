@@ -31,6 +31,7 @@ export const APP_OPERATION_PHASES = [
   "backup-copying",
   "backup-verifying",
   "backup-compressing",
+  "backup-restoring",
   "import-source-reading",
   "import-source-converting",
   "import-source-validating",

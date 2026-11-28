@@ -612,6 +612,7 @@
         "backup-copying": "Copying backup files…",
         "backup-verifying": "Verifying backup files…",
         "backup-compressing": "Compressing backup files…",
+        "backup-restoring": "Restoring backup…",
         "share-packaging": "Creating the shared file…",
         "share-applying": "Applying the shared file to the library…",
         "model-test-preparing": "Preparing the model and runtime…",

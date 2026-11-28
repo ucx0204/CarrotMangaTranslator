@@ -1,4 +1,9 @@
-import { validateBackupUserStores } from "./validate";
+import {
+  validateBackupUserStores,
+  validateBackupStyleGuides,
+} from "./validate";
+import { PartialBackupRestore } from "./partialRestore";
+import type { GlossaryTargets } from "../../shared/environmentBackup";
 import { randomUUID } from "node:crypto";
 import { readdir, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -10,7 +15,7 @@ import {
   type BackupStatus,
   type BackupUiPreferences,
 } from "../../shared/environmentBackup";
-import { writeJsonFile } from "../libraryStore/storage";
+import { writeJsonFile, isSupportedImagePath } from "../libraryStore/storage";
 import { RESTORE_NAMES } from "./policy";
 import {
   copyCategories,
@@ -31,15 +36,21 @@ import {
 } from "./transaction";
 
 export class EnvironmentBackupStore {
+  private readonly partialRestore: PartialBackupRestore;
   constructor(
     private readonly paths: AppPaths,
     private readonly appVersion: string,
-  ) {}
+  ) {
+    this.partialRestore = new PartialBackupRestore(paths, (root) =>
+      this.removeStage(root),
+    );
+  }
   async discard(id: string): Promise<void> {
     if (
       await exists(join(backupWorkspace(this.paths.dataRoot), "journal.json"))
     )
       throw new Error("A restore is awaiting restart.");
+    this.partialRestore.forget(id);
     await this.removeStage(stagePath(this.paths.dataRoot, id));
   }
   async receipt(): Promise<BackupStatus["restored"]> {
@@ -120,6 +131,32 @@ export class EnvironmentBackupStore {
       await this.removeStage(root);
     }
   }
+  async previewWithRecovery(
+    archive: string,
+    signal: AbortSignal,
+    progress: BackupProgress,
+  ): Promise<BackupPreview> {
+    try {
+      return await this.preview(archive, signal, progress);
+    } catch (error) {
+      signal.throwIfAborted();
+      const code = (error as NodeJS.ErrnoException)?.code;
+      if (code && !["ENOENT", "Z_DATA_ERROR", "Z_BUF_ERROR"].includes(code))
+        throw error;
+      return this.partialRestore.preview(archive, signal, progress, error);
+    }
+  }
+  async recoverItems(
+    preview: BackupPreview,
+    choices: GlossaryTargets,
+    signal: AbortSignal,
+    seal: () => void,
+  ) {
+    await this.partialRestore.apply(preview, choices, signal, seal);
+    await this.discard(preview.id).catch((error) =>
+      console.warn("Could not remove completed backup staging", error),
+    );
+  }
   async preview(
     archive: string,
     signal: AbortSignal,
@@ -134,10 +171,13 @@ export class EnvironmentBackupStore {
         signal,
         progress,
       });
+      progress(0, 0, "import-finalizing");
       await validateBackupUserStores(root);
+      const files = manifest.files.map((entry) => entry.path);
+      await validateBackupStyleGuides(root, files);
       const { summary, indexed } = await relocateBackupLibrary(
         root,
-        manifest.files.map((entry) => entry.path),
+        files,
         this.paths.dataRoot,
       );
       if (
@@ -145,6 +185,18 @@ export class EnvironmentBackupStore {
         indexed.pages !== manifest.summary.pages
       )
         throw new Error("Backup counts do not match its library.");
+      if (
+        summary.pages === 0 &&
+        files.some(
+          (path) =>
+            /^library\/works\/[^/]+\/chapters\/[^/.][^/]*\/pages\/[^/]+$/.test(
+              path,
+            ) && isSupportedImagePath(path),
+        )
+      )
+        throw new Error(
+          "Backup contains original images missing from its page list.",
+        );
       await relocateBackupRedaction(root, this.paths.dataRoot);
       await importPortableSettings(
         await readBackupJson(join(root, "portable-settings.json")),
@@ -159,7 +211,7 @@ export class EnvironmentBackupStore {
         ui: manifest.ui,
         connections: manifest.connections,
       });
-      await this.sealStage(root, signal);
+      await this.sealStage(root, signal, progress);
       return {
         id,
         bytes: manifest.summary.bytes,
@@ -226,17 +278,29 @@ export class EnvironmentBackupStore {
         await regularFiles(join(this.paths.dataRoot, name), name);
     scheduleEnvironmentRestore(this.paths.dataRoot, id, ui);
   }
-  private async stageInventory(root: string, signal: AbortSignal) {
+  private async stageInventory(
+    root: string,
+    signal: AbortSignal,
+    progress?: BackupProgress,
+  ) {
     const result = [];
-    for (const path of await regularFiles(root))
-      if (path !== "stage-seal.json")
-        result.push(await hashBackupFile(root, path, signal));
+    const files = (await regularFiles(root, "", signal)).filter(
+      (path) => path !== "stage-seal.json",
+    );
+    for (const path of files) {
+      result.push(await hashBackupFile(root, path, signal));
+      progress?.(result.length, files.length, "import-finalizing");
+    }
     return result;
   }
-  private async sealStage(root: string, signal: AbortSignal): Promise<void> {
+  private async sealStage(
+    root: string,
+    signal: AbortSignal,
+    progress?: BackupProgress,
+  ): Promise<void> {
     await writeJsonFile(
       join(root, "stage-seal.json"),
-      await this.stageInventory(root, signal),
+      await this.stageInventory(root, signal, progress),
     );
   }
   private async removeStage(root: string): Promise<void> {

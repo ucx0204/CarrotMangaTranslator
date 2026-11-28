@@ -17,6 +17,7 @@ function fixture() {
     connections: [],
   };
   const ports: EnvironmentBackupPorts = {
+    recoverItems: vi.fn(async () => undefined),
     receipt: async () => null,
     status: async () => ({
       summary: { works: 1, pages: 2, bytes: 3 },
@@ -63,6 +64,43 @@ function fixture() {
 }
 
 describe("environment backup orchestration", () => {
+  it("protects an applying preview and rejects glossary targets for a full restore", async () => {
+    const { service, ports, preview } = fixture();
+    await service.preview();
+    await expect(
+      service.restore(preview.id, {}, [{ sourceId: "from", workId: "target" }]),
+    ).rejects.toThrow("partial recovery");
+    let finish = () => {};
+    ports.schedule = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const restoring = service.restore(preview.id, {});
+    await expect(service.discard(preview.id)).rejects.toThrow("progress");
+    await expect(service.restore(preview.id, {})).rejects.toThrow("validate");
+    finish();
+    await restoring;
+  });
+  it("commits a partial import once without scheduling an environment replacement", async () => {
+    const { service, ports, preview } = fixture();
+    ports.preview = vi.fn(async () => ({
+      ...preview,
+      partial: { items: [], targets: [], issueCount: 0, issues: [] },
+    }));
+    const ready = await service.preview();
+    await service.restore(preview.id, {}, []);
+    expect(ports.recoverItems).toHaveBeenCalledWith(
+      ready,
+      [],
+      expect.anything(),
+      expect.any(Function),
+    );
+    expect(ports.schedule).not.toHaveBeenCalled();
+    expect(ports.restart).toHaveBeenCalledTimes(1);
+    await expect(service.restore(preview.id, {})).rejects.toThrow("validate");
+  });
   it("returns the staged ZIP on reopening settings, including during validation", async () => {
     const { service, ports, preview: ready } = fixture();
     let complete!: (value: typeof ready) => void;

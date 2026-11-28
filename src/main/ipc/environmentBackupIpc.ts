@@ -27,7 +27,7 @@ export function registerEnvironmentBackupIpc(context: IpcContext): void {
   trustedHandleContract(
     context,
     contracts.restoreEnvironmentBackup,
-    (_event, id, ui) => service.restore(id, ui),
+    (_event, ...args) => service.restore(...args),
   );
   trustedHandleContract(
     context,

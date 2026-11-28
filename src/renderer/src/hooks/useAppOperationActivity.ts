@@ -5,11 +5,13 @@ import { appGateway } from "../api/appGateway";
 import {
   formatAppOperationActivity,
   isAppOperationActive,
+  isBackupPreviewReady,
 } from "../lib/appOperationPresentation";
 import { toastNotificationPort } from "../lib/notificationPort";
 import { createAppOperationEventScheduler } from "./appOperationEventScheduler";
 
 type UseAppOperationActivityOptions = {
+  onBackupPreviewReady?: () => void;
   appendStatusLine: (
     line: string,
     replaceExisting?: (line: string) => boolean,
@@ -18,6 +20,7 @@ type UseAppOperationActivityOptions = {
 
 export function useAppOperationActivity({
   appendStatusLine,
+  onBackupPreviewReady,
 }: UseAppOperationActivityOptions) {
   const { t } = useTranslation("renderer");
   const [activity, setActivity] =
@@ -34,6 +37,7 @@ export function useAppOperationActivity({
     activityRef,
     activitiesRef,
     appendStatusLine,
+    onBackupPreviewReady,
     previousLineByIdRef,
     setActivity,
     setActivities,
@@ -93,6 +97,7 @@ function useAppOperationSubscription({
   activityRef,
   activitiesRef,
   appendStatusLine,
+  onBackupPreviewReady,
   previousLineByIdRef,
   setActivity,
   setActivities,
@@ -120,6 +125,7 @@ function useAppOperationSubscription({
       activityRef.current = next;
       setActivity({ ...next });
       if (!announce) return;
+      if (isBackupPreviewReady(event)) onBackupPreviewReady?.();
       const line = formatAppOperationActivity(event, t);
       const previousLine = previousLineByIdRef.current.get(event.id);
       appendStatusLine(
@@ -160,6 +166,7 @@ function useAppOperationSubscription({
     activityRef,
     activitiesRef,
     appendStatusLine,
+    onBackupPreviewReady,
     previousLineByIdRef,
     setActivity,
     setActivities,

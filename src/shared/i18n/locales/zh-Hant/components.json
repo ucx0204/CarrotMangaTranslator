@@ -2766,6 +2766,16 @@
       "review": "圖像檢查"
     },
     "backup": {
+      "partial": {
+        "title": "部分還原",
+        "description": "將可還原的項目加入目前的書庫。",
+        "counts": "{{chapters}} 章 · {{pages}} 頁 · {{terms}} 個術語與角色",
+        "destination": "將術語表加入",
+        "newWork": "加入為新作品",
+        "keep": "同名術語與角色保留現有內容。",
+        "details": "遺失或損壞的項目（{{count}}）",
+        "apply": "加入並重新啟動"
+      },
       "title": "備份與移轉",
       "description": "使用一個 ZIP 檔案將工作環境移轉到另一台電腦。",
       "includes": "包含資料庫原圖與編輯資料、設定、自訂字型、預設和遮蓋草稿。",
@@ -2775,9 +2785,12 @@
       "export": "匯出備份",
       "import": "匯入備份",
       "recover": "還原先前的環境",
-      "ready": "備份驗證已完成，尚未套用至目前的書庫。",
       "confirmTitle": "確認還原環境",
-      "confirmDescription": "將目前的書庫與設定替換為備份內容。現有環境將保存在以下位置。之後需要重新連接外部資料夾和自訂模型。",
+      "confirmDescription": "要以此備份取代目前的書庫與設定嗎？",
+      "details": "詳細資料",
+      "previousLocation": "目前環境的保存位置",
+      "restoreFrom": "備份來源",
+      "reconnectFolders": "需要重新連接的資料夾",
       "apply": "還原並重新啟動應用程式",
       "close": "關閉",
       "progress": "正在處理工作環境。完成前將暫停編輯。",

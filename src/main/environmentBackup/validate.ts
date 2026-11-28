@@ -5,6 +5,19 @@ import { ConditionalBatchSchemeStore } from "../conditionalBatchSchemeStore";
 import { readPageWorkflowRun } from "../pageWorkflowRunStore";
 import { exists, readBackupJson, regularFiles } from "./files";
 import { backupRelativePath } from "./policy";
+import { WorkStyleGuideSchema } from "../../shared/ipcWorkContextSchemas";
+
+export async function validateBackupStyleGuides(root: string, files: string[]) {
+  for (const path of files) {
+    const match = /^library\/works\/([^/]+)\/style-guide\.json$/.exec(path);
+    if (!match) continue;
+    const guide = WorkStyleGuideSchema.parse(
+      await readBackupJson(join(root, path)),
+    );
+    if (guide.workId !== match[1])
+      throw new Error("Work glossary identity mismatch.");
+  }
+}
 
 export async function validateBackupUserStores(root: string): Promise<void> {
   const blocks = join(root, "block-library.json");

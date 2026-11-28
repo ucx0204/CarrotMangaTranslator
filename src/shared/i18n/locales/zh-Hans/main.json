@@ -1,4 +1,8 @@
 {
+  "backup": {
+    "recoveredWork": "恢复的作品 · {{id}}",
+    "glossaryFull": "此作品的术语表已满。请选择“添加为新作品”。"
+  },
   "settings": {
     "localModelDialogTitle": "选择本地 GGUF 模型",
     "mmprojDialogTitle": "选择 mmproj 文件",

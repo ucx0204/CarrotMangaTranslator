@@ -612,6 +612,7 @@
         "backup-copying": "正在複製備份檔案…",
         "backup-verifying": "正在驗證備份檔案…",
         "backup-compressing": "正在壓縮備份檔案…",
+        "backup-restoring": "正在還原備份…",
         "share-packaging": "正在建立共享檔案…",
         "share-applying": "正在將共享檔案套用到資料庫…",
         "model-test-preparing": "正在準備模型與執行環境…",

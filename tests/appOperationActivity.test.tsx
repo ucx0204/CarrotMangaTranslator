@@ -14,6 +14,47 @@ afterEach(() => {
 });
 
 describe("useAppOperationActivity", () => {
+  it("opens restore review once for a newly completed ZIP inspection", async () => {
+    let receive!: (event: AppOperationActivityEvent) => void;
+    const preview = makeActivity({ kind: "environment-backup-preview" });
+    window.mangaApi = createTestMangaGatewayStub({
+      getActiveAppOperation: async () => ({
+        ...preview,
+        id: "history",
+        status: "completed",
+      }),
+      onAppOperationActivity: (listener) => {
+        receive = listener;
+        return () => undefined;
+      },
+    });
+    const onBackupPreviewReady = vi.fn();
+    const appendStatusLine = vi.fn();
+    const view = renderHook(() =>
+      useAppOperationActivity({ appendStatusLine, onBackupPreviewReady }),
+    );
+    await waitFor(() =>
+      expect(view.result.current.activity?.id).toBe("history"),
+    );
+    act(() => {
+      receive({ ...preview, id: "cancel", status: "cancelled" });
+      receive({ ...preview, id: "failure", status: "failed" });
+      receive({
+        ...preview,
+        kind: "environment-backup",
+        id: "export",
+        status: "completed",
+      });
+      receive(preview);
+    });
+    expect(onBackupPreviewReady).not.toHaveBeenCalled();
+    act(() => {
+      receive({ ...preview, status: "completed" });
+      receive({ ...preview, status: "completed" });
+    });
+    expect(onBackupPreviewReady).toHaveBeenCalledOnce();
+  });
+
   it("hydrates, tracks phases, cancels by id, and ignores stale events", async () => {
     let listener: (event: AppOperationActivityEvent) => void = () => undefined;
     const unsubscribe = vi.fn();

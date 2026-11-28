@@ -2766,6 +2766,16 @@
       "review": "이미지 검수"
     },
     "backup": {
+      "partial": {
+        "title": "부분 복구",
+        "description": "복구 가능한 항목을 현재 보관함에 추가합니다.",
+        "counts": "{{chapters}}화 · {{pages}}페이지 · 용어·캐릭터 {{terms}}개",
+        "destination": "용어집을 붙일 작품",
+        "newWork": "새 작품으로 추가",
+        "keep": "같은 용어와 캐릭터는 기존 내용을 유지합니다.",
+        "details": "누락·손상된 항목 {{count}}개",
+        "apply": "추가하고 앱 다시 시작"
+      },
       "title": "백업 및 이관",
       "description": "ZIP 파일 하나로 다른 컴퓨터에 작업 환경을 옮깁니다.",
       "includes": "보관함 원본·편집 데이터, 설정, 사용자 폰트, 프리셋과 가리기 초안을 포함합니다.",
@@ -2775,9 +2785,12 @@
       "export": "백업 내보내기",
       "import": "백업 가져오기",
       "recover": "이전 환경으로 되돌리기",
-      "ready": "백업 검사가 완료되었습니다. 아직 현재 보관함에는 적용되지 않았습니다.",
       "confirmTitle": "환경 복원 확인",
-      "confirmDescription": "현재 보관함과 설정을 백업 내용으로 교체합니다. 기존 환경은 아래 위치에 보존합니다. 외부 폴더와 사용자 지정 모델은 다시 연결해야 합니다.",
+      "confirmDescription": "현재 보관함과 설정을 이 백업으로 바꿀까요?",
+      "details": "자세히",
+      "previousLocation": "현재 환경 보관 위치",
+      "restoreFrom": "복원할 백업 위치",
+      "reconnectFolders": "다시 연결할 폴더",
       "apply": "복원하고 앱 다시 시작",
       "close": "닫기",
       "progress": "작업 환경을 처리하고 있습니다. 완료될 때까지 편집이 잠시 중지됩니다.",

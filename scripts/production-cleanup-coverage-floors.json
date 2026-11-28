@@ -24440,6 +24440,28 @@
         "pct": 65.9
       }
     },
+    "src/main/environmentBackup/partialRestore.ts": {
+      "lines": {
+        "covered": 84,
+        "total": 89,
+        "pct": 94.38
+      },
+      "statements": {
+        "covered": 89,
+        "total": 96,
+        "pct": 92.7
+      },
+      "functions": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 33,
+        "total": 43,
+        "pct": 76.74
+      }
+    },
     "src/main/environmentBackup/policy.ts": {
       "lines": {
         "covered": 21,
@@ -24504,6 +24526,50 @@
         "covered": 0,
         "total": 14,
         "pct": 0
+      }
+    },
+    "src/main/environmentBackup/salvageLibrary.ts": {
+      "lines": {
+        "covered": 92,
+        "total": 107,
+        "pct": 85.98
+      },
+      "statements": {
+        "covered": 101,
+        "total": 122,
+        "pct": 82.78
+      },
+      "functions": {
+        "covered": 16,
+        "total": 18,
+        "pct": 88.88
+      },
+      "branches": {
+        "covered": 80,
+        "total": 106,
+        "pct": 75.47
+      }
+    },
+    "src/main/environmentBackup/salvagePages.ts": {
+      "lines": {
+        "covered": 66,
+        "total": 94,
+        "pct": 70.21
+      },
+      "statements": {
+        "covered": 71,
+        "total": 104,
+        "pct": 68.26
+      },
+      "functions": {
+        "covered": 9,
+        "total": 10,
+        "pct": 90
+      },
+      "branches": {
+        "covered": 32,
+        "total": 62,
+        "pct": 51.61
       }
     },
     "src/main/environmentBackup/settings.ts": {
@@ -48374,6 +48440,28 @@
         "covered": 24,
         "total": 37,
         "pct": 64.86
+      }
+    },
+    "src/renderer/src/components/settingsModal/PartialBackupContent.tsx": {
+      "lines": {
+        "covered": 12,
+        "total": 13,
+        "pct": 92.3
+      },
+      "statements": {
+        "covered": 12,
+        "total": 13,
+        "pct": 92.3
+      },
+      "functions": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "branches": {
+        "covered": 14,
+        "total": 16,
+        "pct": 87.5
       }
     },
     "src/renderer/src/components/settingsModal/SettingsModalFooter.tsx": {

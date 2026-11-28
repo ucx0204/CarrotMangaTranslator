@@ -639,7 +639,8 @@ describe("production cleanup coverage floor gate", () => {
     // Sparse layout transfer and measured paper, ink, and sound restoration.
     // Constrained FLUX captions add a verified gradient reconstruction.
     // Retained output failure diagnostics are measured separately from rotating session logs.
-    expect(scope.added).toHaveLength(1754);
+    // Partial backup recovery adds three native modules and the recovery choices view.
+    expect(scope.added).toHaveLength(1758);
     expect(scope.deleted).toHaveLength(12);
   });
 });

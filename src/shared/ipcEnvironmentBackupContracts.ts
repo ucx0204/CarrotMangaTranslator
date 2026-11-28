@@ -9,6 +9,7 @@ import {
   backupPreviewSchema,
   backupStatusSchema,
   backupUiSchema,
+  glossaryTargetsSchema,
 } from "./environmentBackup";
 
 export const environmentBackupIpcContracts = {
@@ -48,12 +49,19 @@ export const environmentBackupIpcContracts = {
     result: backupPreviewSchema.nullable(),
   }),
   restoreEnvironmentBackup: defineIpcContract<
-    [string, BackupUiPreferences],
+    [
+      string,
+      BackupUiPreferences,
+      import("./environmentBackup").GlossaryTargets?,
+    ],
     null
   >({
     apiKey: "restoreEnvironmentBackup",
     channel: "environment-backup:restore",
-    args: z.tuple([z.string().uuid(), backupUiSchema]),
+    args: z.union([
+      z.tuple([z.string().uuid(), backupUiSchema]),
+      z.tuple([z.string().uuid(), backupUiSchema, glossaryTargetsSchema]),
+    ]),
     result: z.null(),
   }),
   recoverEnvironmentBackup: defineIpcContract<

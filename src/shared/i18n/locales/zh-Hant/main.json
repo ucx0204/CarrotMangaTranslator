@@ -1,4 +1,8 @@
 {
+  "backup": {
+    "recoveredWork": "還原的作品 · {{id}}",
+    "glossaryFull": "此作品的術語表已滿。請選擇「加入為新作品」。"
+  },
   "settings": {
     "localModelDialogTitle": "選擇本機 GGUF 模型",
     "mmprojDialogTitle": "選擇 mmproj 檔案",

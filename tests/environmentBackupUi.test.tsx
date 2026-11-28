@@ -34,6 +34,49 @@ function model(): ReturnType<typeof useEnvironmentBackup> {
   };
 }
 describe("environment backup UI", () => {
+  it("attaches an orphan glossary only to the work chosen for this preview", () => {
+    const state = model();
+    state.preview = {
+      id: "one",
+      works: 1,
+      pages: 0,
+      bytes: 1,
+      createdAt: "2026-11-28",
+      appVersion: "3.8.15",
+      recoveryPath: "",
+      connections: [],
+      partial: {
+        items: [
+          {
+            sourceId: "terms",
+            title: "원래 작품",
+            chapters: 0,
+            pages: 0,
+            terms: 7,
+          },
+        ],
+        targets: [{ id: "current", title: "현재 작품" }],
+        issues: ["terms/work.json"],
+        issueCount: 1,
+      },
+    };
+    render(
+      <EnvironmentBackupView model={state} disabled={false} dirty={false} />,
+    );
+    const dialog = screen.getByRole("dialog", { name: "부분 복구" });
+    fireEvent.click(within(dialog).getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "현재 작품" }));
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "누락·손상된 항목 1개" }),
+    );
+    expect(within(dialog).getByText("terms/work.json")).toBeTruthy();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "추가하고 앱 다시 시작" }),
+    );
+    expect(state.apply).toHaveBeenCalledWith([
+      { sourceId: "terms", workId: "current" },
+    ]);
+  });
   it("allows export while the informational library summary is still loading", () => {
     const state = model();
     state.status = null;
@@ -84,9 +127,20 @@ describe("environment backup UI", () => {
     expect(view.container.contains(dialog)).toBe(false);
     expect(document.activeElement).toBe(dialog);
     expect(
-      within(dialog).getByText(/아직 현재 보관함에는 적용되지 않았습니다/),
+      within(dialog).getByText("현재 보관함과 설정을 이 백업으로 바꿀까요?"),
     ).toBeTruthy();
-    expect(screen.getByText("D:/data/recovery")).toBeTruthy();
+    const details = within(dialog).getByRole("button", { name: "자세히" });
+    const panel = document.getElementById(
+      details.getAttribute("aria-controls") ?? "",
+    );
+    if (!panel) throw new Error("Missing backup details panel");
+    expect(panel.hidden).toBe(true);
+    fireEvent.click(details);
+    expect(panel.hidden).toBe(false);
+    expect(within(panel).getByText("D:/data/recovery")).toBeTruthy();
+    expect(within(panel).getByText("E:/originals")).toBeTruthy();
+    fireEvent.click(details);
+    expect(panel.hidden).toBe(true);
     fireEvent.click(
       within(dialog).getByRole("button", { name: "복원하고 앱 다시 시작" }),
     );
@@ -121,14 +175,36 @@ describe("environment backup UI", () => {
     );
     expect(document.activeElement).toBe(trigger);
   });
+  it("shows the selected backup location only when previous-environment details are expanded", () => {
+    const state = model();
+    state.recoveryId = "previous";
+    if (!state.status) throw new Error("Missing test status");
+    state.status.recoveries = [
+      { id: "previous", createdAt: "2026-09-24", path: "D:/previous" },
+    ];
+    render(
+      <EnvironmentBackupView model={state} disabled={false} dirty={false} />,
+    );
+    const dialog = within(
+      screen.getByRole("dialog", { name: "환경 복원 확인" }),
+    );
+    const details = dialog.getByRole("button", { name: "자세히" });
+    expect(details.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(details);
+    expect(dialog.getByText("복원할 백업 위치")).toBeTruthy();
+    expect(dialog.getByText("D:/previous")).toBeTruthy();
+    expect(dialog.queryByText("다시 연결할 폴더")).toBeNull();
+  });
+
   it("announces failures and exposes cancellable progress", () => {
     const state = model();
     state.busy = true;
     state.error = "Disk full";
     state.activity = {
       id: "operation",
-      kind: "environment-backup",
+      kind: "environment-backup-preview",
       status: "running",
+      phase: "import-finalizing",
       progressCurrent: 20,
       progressTotal: 100,
       cancellable: true,
@@ -139,9 +215,11 @@ describe("environment backup UI", () => {
     render(
       <EnvironmentBackupView model={state} disabled={false} dirty={false} />,
     );
-    expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
-      "20",
-    );
+    expect(
+      screen
+        .getByRole("progressbar", { name: "가져오기를 마무리하는 중…" })
+        .getAttribute("aria-valuenow"),
+    ).toBe("20");
     expect(screen.getByRole("alert").textContent).toBe("Disk full");
     fireEvent.click(screen.getByRole("button", { name: "작업 취소" }));
     expect(state.cancel).toHaveBeenCalledOnce();

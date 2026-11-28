@@ -1,4 +1,8 @@
 {
+  "backup": {
+    "recoveredWork": "Recovered work · {{id}}",
+    "glossaryFull": "This glossary is full. Choose “Add as a new work” to recover all entries."
+  },
   "settings": {
     "localModelDialogTitle": "Select Local GGUF Model",
     "mmprojDialogTitle": "Select mmproj File",

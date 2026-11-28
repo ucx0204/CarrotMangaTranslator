@@ -74,6 +74,14 @@ export function isAppOperationActive(
   return activity?.status === "running" || activity?.status === "cancelling";
 }
 
+export function isBackupPreviewReady(
+  event: AppOperationActivityEvent,
+): boolean {
+  return (
+    event.kind === "environment-backup-preview" && event.status === "completed"
+  );
+}
+
 export type AppOperationProgress = { current: number; total: number };
 
 export function resolveAppOperationProgress(

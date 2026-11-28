@@ -612,6 +612,7 @@
         "backup-copying": "백업 파일을 복사하는 중…",
         "backup-verifying": "백업 파일을 검증하는 중…",
         "backup-compressing": "백업 파일을 압축하는 중…",
+        "backup-restoring": "백업 복원 중…",
         "share-packaging": "공유 파일을 만드는 중…",
         "share-applying": "공유 파일을 보관함에 적용하는 중…",
         "model-test-preparing": "모델과 런타임을 준비하는 중…",

@@ -132,24 +132,30 @@ async function readManifest(
   );
 }
 
+function oversizedJson(file: BackupManifest["files"][number]) {
+  return file.path.endsWith(".json") && file.size > MAX_BACKUP_JSON_BYTES;
+}
+
 function validateInventory(
   manifest: BackupManifest,
   entries: Map<string, yauzl.Entry>,
+  partial: boolean,
 ): void {
   const paths = new Set<string>();
   let bytes = 0;
   for (const file of manifest.files) {
     assertBackupPayloadPath(file.path);
-    if (file.path.endsWith(".json") && file.size > MAX_BACKUP_JSON_BYTES)
+    if (!partial && oversizedJson(file))
       throw new Error("Backup JSON document is too large.");
     if (
       paths.has(file.path.toLowerCase()) ||
-      entries.get(file.path)?.uncompressedSize !== file.size
+      (!partial && entries.get(file.path)?.uncompressedSize !== file.size)
     )
       throw new Error("Backup inventory does not match the archive.");
     paths.add(file.path.toLowerCase());
     bytes += file.size;
   }
+  if (partial) return;
   if (
     entries.size !== paths.size + 1 ||
     bytes !== manifest.summary.bytes ||
@@ -162,9 +168,12 @@ export async function extractBackupArchive(options: {
   archive: string;
   root: string;
   signal: AbortSignal;
-  progress: (current: number, total: number) => void;
+  progress: BackupProgress;
+  /** Library salvage admits only individually verified inventory entries. */
+  onDamagedFile?: (path: string) => void;
 }): Promise<BackupManifest> {
   const { archive, root, signal, progress } = options;
+  progress(0, 0, "backup-verifying");
   const zip = await yauzl.openPromise(archive, {
     autoClose: false,
     lazyEntries: true,
@@ -174,27 +183,84 @@ export async function extractBackupArchive(options: {
   try {
     const entries = await archiveEntries(zip, signal);
     const manifest = await readManifest(zip, entries.get("manifest.json"));
-    validateInventory(manifest, entries);
-    await assertFreeSpace(root, manifest.summary.bytes * 2);
+    const partial = Boolean(options.onDamagedFile);
+    validateInventory(manifest, entries, partial);
+    const files = options.onDamagedFile
+      ? recoverableInventory(manifest, entries, options.onDamagedFile)
+      : manifest.files;
+    const total = files.reduce((sum, file) => sum + file.size, 0);
+    if (total > MAX_BACKUP_BYTES)
+      throw new Error("Backup exceeds the supported size.");
+    await assertFreeSpace(root, total * 2);
     let current = 0;
-    for (const file of manifest.files) {
+    const verified = [];
+    for (const file of files) {
       signal.throwIfAborted();
-      const entry = entries.get(file.path);
-      if (!entry) throw new Error("Missing backup file.");
-      const target = join(root, file.path);
-      await mkdir(dirname(target), { recursive: true });
-      const source = await zip.openReadStreamPromise(entry);
-      await pipeline(
-        source,
-        verifyBackupStream(file),
-        createWriteStream(target, { flags: "wx", mode: 0o600 }),
-        { signal },
-      );
+      if (!(await extractEntry(zip, entries.get(file.path), file, options)))
+        continue;
+      verified.push(file);
       current += file.size;
-      progress(current, manifest.summary.bytes);
+      progress(current, total, "backup-verifying");
     }
-    return manifest;
+    return partial ? { ...manifest, files: verified } : manifest;
   } finally {
     zip.close();
   }
+}
+
+async function extractEntry(
+  zip: yauzl.ZipFile,
+  entry: yauzl.Entry | undefined,
+  file: BackupManifest["files"][number],
+  { root, signal, onDamagedFile }: Parameters<typeof extractBackupArchive>[0],
+) {
+  if (!entry) throw new Error("Missing backup file.");
+  const target = join(root, file.path);
+  await mkdir(dirname(target), { recursive: true });
+  try {
+    const source = await zip.openReadStreamPromise(entry);
+    await pipeline(
+      source,
+      verifyBackupStream(file),
+      createWriteStream(target, { flags: "wx", mode: 0o600 }),
+      { signal },
+    );
+  } catch (error) {
+    signal.throwIfAborted();
+    if (
+      !onDamagedFile ||
+      !(error instanceof Error) ||
+      !(
+        /checksum mismatch|exceeds its declared size|unexpected end|invalid (?:distance|block|code)|too few bytes|too many bytes/i.test(
+          error.message,
+        ) || (error as NodeJS.ErrnoException).code === "Z_DATA_ERROR"
+      )
+    )
+      throw error;
+    await unlink(target).catch((cause: NodeJS.ErrnoException) => {
+      if (cause.code !== "ENOENT") throw cause;
+    });
+    onDamagedFile(file.path);
+    return false;
+  }
+
+  return true;
+}
+
+function recoverableInventory(
+  manifest: BackupManifest,
+  entries: Map<string, yauzl.Entry>,
+  report: (path: string) => void,
+) {
+  return manifest.files.filter((file) => {
+    if (!file.path.startsWith("library/")) return false;
+    if (
+      entries.get(file.path)?.uncompressedSize !== file.size ||
+      oversizedJson(file)
+    ) {
+      report(file.path);
+      return false;
+    }
+    return true;
+  });
 }

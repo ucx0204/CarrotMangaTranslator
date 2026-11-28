@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { lstat, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
+  ChapterSnapshotSchema,
   LibraryChapterFileSchema,
   LibraryWorkFileSchema,
   StoredLibraryIndexFileSchema,
@@ -74,6 +75,7 @@ async function relocatePage(
   destination?: string,
 ): Promise<LibraryPageRecord> {
   const result = structuredClone(page);
+  if (destination) ChapterSnapshotSchema.shape.pageOrder.element.parse(page.id);
   for (const key of [
     "imagePath",
     "inpaintedImagePath",
@@ -129,6 +131,7 @@ async function relocateBackupChapter(
   destination?: string,
 ): Promise<number> {
   backupRelativePath(chapterId);
+  if (destination) ChapterSnapshotSchema.shape.id.parse(chapterId);
   if (chapterId.includes("/")) throw new Error("Invalid chapter ID.");
   const path = `library/works/${workId}/chapters/${chapterId}/chapter.json`;
   const chapter = LibraryChapterFileSchema.parse(
@@ -155,6 +158,7 @@ async function relocateBackupWork(
   destination?: string,
 ) {
   backupRelativePath(id);
+  if (destination) ChapterSnapshotSchema.shape.workId.parse(id);
   if (id.includes("/")) throw new Error("Invalid work ID.");
   const path = join(root, "library/works", id, "work.json");
   const work = LibraryWorkFileSchema.parse(await readBackupJson(path));

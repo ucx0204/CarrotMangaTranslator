@@ -3,6 +3,7 @@ import type {
   BackupProgress,
   BackupStatus,
   BackupUiPreferences,
+  GlossaryTargets,
 } from "../../shared/environmentBackup";
 
 export type EnvironmentBackupPorts = {
@@ -31,14 +32,21 @@ export type EnvironmentBackupPorts = {
   preview: (
     archive: string,
     signal: AbortSignal,
-    progress: (current: number, total: number) => void,
+    progress: BackupProgress,
   ) => Promise<BackupPreview>;
   prepareRecovery: (id: string, signal: AbortSignal) => Promise<string>;
+  recoverItems: (
+    preview: BackupPreview,
+    choices: GlossaryTargets,
+    signal: AbortSignal,
+    seal: () => void,
+  ) => Promise<void>;
   schedule: (id: string, ui: BackupUiPreferences) => Promise<void>;
   restart: () => void | Promise<void>;
 };
 
 export class EnvironmentBackupService {
+  private applying = false;
   private pendingPreview: BackupPreview | null = null;
   private inspection: Promise<BackupPreview | null> | null = null;
   constructor(private readonly ports: EnvironmentBackupPorts) {}
@@ -58,6 +66,7 @@ export class EnvironmentBackupService {
     return target;
   }
   async discard(id: string): Promise<null> {
+    if (this.applying) throw new Error("Restore in progress.");
     if (this.pendingPreview?.id !== id) return null;
     this.pendingPreview = null;
     await this.ports.discard(id);
@@ -85,12 +94,35 @@ export class EnvironmentBackupService {
       },
     );
   }
-  async restore(id: string, ui: BackupUiPreferences): Promise<null> {
-    if (this.pendingPreview?.id !== id)
+  async restore(
+    id: string,
+    ui: BackupUiPreferences,
+    choices: GlossaryTargets = [],
+  ): Promise<null> {
+    const preview = this.pendingPreview;
+    if (this.applying || preview?.id !== id)
       throw new Error("Select and validate the backup again before restoring.");
-    await this.apply(id, ui, false);
-    this.pendingPreview = null;
-    return null;
+    this.applying = true;
+    try {
+      if (preview.partial) {
+        await this.ports.exclusive(
+          "environment-restore",
+          async (signal, _progress, seal) => {
+            await this.ports.recoverItems(preview, choices, signal, seal);
+            this.pendingPreview = null;
+            await this.ports.restart();
+          },
+        );
+      } else {
+        if (choices.length)
+          throw new Error("Invalid partial recovery request.");
+        await this.apply(id, ui, false);
+        this.pendingPreview = null;
+      }
+      return null;
+    } finally {
+      this.applying = false;
+    }
   }
   async recover(id: string, ui: BackupUiPreferences): Promise<null> {
     await this.apply(id, ui, true);

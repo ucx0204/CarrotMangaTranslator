@@ -1,4 +1,8 @@
 {
+  "backup": {
+    "recoveredWork": "復元した作品 · {{id}}",
+    "glossaryFull": "この作品の用語集は上限に達しています。「新しい作品として追加」を選んでください。"
+  },
   "settings": {
     "localModelDialogTitle": "ローカルGGUFモデルを選択",
     "mmprojDialogTitle": "mmprojファイルを選択",

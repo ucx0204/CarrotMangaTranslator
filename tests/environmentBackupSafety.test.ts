@@ -9,6 +9,7 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
+import AdmZip from "adm-zip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertFreeSpace,
@@ -62,6 +63,43 @@ async function archiveFixture() {
   return { root, manifest, archive: join(root, "test.zip") };
 }
 describe("backup safety", () => {
+  it("extracts only verified library entries when a declared image size is wrong", async () => {
+    const { root, manifest, archive } = await archiveFixture();
+    const parent = "library/works/old";
+    const image = parent + "/page.png",
+      guide = parent + "/style-guide.json";
+    await mkdir(join(root, parent), { recursive: true });
+    await writeFile(join(root, image), "incomplete");
+    await writeFile(join(root, guide), '{"glossary":[]}');
+    const bad = await hashBackupFile(root, image, signal());
+    manifest.files.push(
+      { ...bad, size: bad.size + 1 },
+      await hashBackupFile(root, guide, signal()),
+    );
+    manifest.summary.bytes = manifest.files.reduce(
+      (sum, file) => sum + file.size,
+      0,
+    );
+    // The production writer rejects size mismatches, so construct the damaged input directly.
+    const zip = new AdmZip();
+    zip.addFile("manifest.json", Buffer.from(JSON.stringify(manifest)));
+    for (const file of manifest.files)
+      zip.addFile(file.path, await readFile(join(root, file.path)));
+    await writeFile(archive, zip.toBuffer());
+    const dest = await temp(),
+      report = vi.fn();
+    const recovered = await extractBackupArchive({
+      root: dest,
+      archive,
+      signal: signal(),
+      progress,
+      onDamagedFile: report,
+    });
+    expect(recovered.files.map((file) => file.path)).toEqual([guide]);
+    expect(report).toHaveBeenCalledWith(image);
+    expect(await readdir(join(dest, parent))).toEqual(["style-guide.json"]);
+    expect(await readdir(dest)).toEqual(["library"]);
+  });
   it("rejects checksum damage without accepting any restored environment", async () => {
     const { root, manifest, archive } = await archiveFixture();
     manifest.files[0].sha256 = "a".repeat(64);

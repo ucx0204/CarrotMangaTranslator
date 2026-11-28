@@ -8,6 +8,7 @@ import type { AppPaths } from "../src/main/appPaths";
 import { createEnvironmentBackupService } from "../src/main/environmentBackup/runtime";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import { AppOperationRegistry } from "../src/main/appOperationRegistry";
+import { AppOperationActivityEventSchema } from "../src/shared/ipcAppOperationContracts";
 import { libraryMutationCoordinator as coordinator } from "../src/main/libraryStore/libraryMutationCoordinator";
 import * as access from "../src/main/environmentBackup/access";
 import * as lock from "../src/main/library/lock";
@@ -19,6 +20,10 @@ vi.mock("electron", () => ({
   app: { isPackaged: false, getVersion: () => "2.8.2" },
   dialog: {
     showSaveDialog: async () => ({ canceled: false, filePath: native.archive }),
+    showOpenDialog: async () => ({
+      canceled: false,
+      filePaths: [native.archive],
+    }),
   },
   safeStorage: {
     isEncryptionAvailable: () => true,
@@ -85,6 +90,36 @@ async function fixture() {
     },
   };
 }
+
+it("delivers final verification progress through the renderer IPC contract even before the file count is known", async () => {
+  const f = await fixture();
+  try {
+    await f.service.export({});
+    const received = vi.fn();
+    const detach = f.operations.subscribeActivity(received);
+    try {
+      await f.service.preview();
+      const events = received.mock.calls.map(([event]) =>
+        AppOperationActivityEventSchema.parse(event),
+      );
+      const finalizing = events.filter(
+        (event) => event.phase === "import-finalizing",
+      );
+      expect(finalizing[0]).toMatchObject({
+        progressCurrent: 0,
+        progressUnit: "items",
+        status: "running",
+      });
+      expect(finalizing[0].progressTotal).toBeUndefined();
+      expect(finalizing.at(-1)?.status).toBe("completed");
+      expect(finalizing.at(-1)?.progressTotal).toBeGreaterThan(0);
+    } finally {
+      detach();
+    }
+  } finally {
+    await f.close();
+  }
+});
 
 it("drains an admitted IPC save and completes backup before a queued MCP context edit", async () => {
   const f = await fixture();

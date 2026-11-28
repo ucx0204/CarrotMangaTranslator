@@ -119,41 +119,33 @@ async function put(root: string, path: string, value: unknown) {
 }
 const signal = () => new AbortController().signal;
 const progress = () => undefined;
-const chapterPath = "library/works/work-a/chapters/chapter-a/chapter.json";
+const fixtureWorkId = "00000000-0000-4000-8000-000000000001";
+const fixtureChapterId = "00000000-0000-4000-8000-000000000002";
+const fixturePageId = "00000000-0000-4000-8000-000000000003";
+const fixtureWork = `library/works/${fixtureWorkId}`;
+const fixtureChapter = `${fixtureWork}/chapters/${fixtureChapterId}`;
+const chapterPath = `${fixtureChapter}/chapter.json`;
 async function fixture(root: string) {
   const stamp = "2026-09-24T00:00:00.000Z";
-  await put(root, "library/index.json", { workOrder: ["work-a"] });
-  await put(root, "library/works/work-a/work.json", {
-    id: "work-a",
+  await put(root, "library/index.json", { workOrder: [fixtureWorkId] });
+  await put(root, `${fixtureWork}/work.json`, {
+    id: fixtureWorkId,
     title: "이관 테스트",
-    chapterOrder: ["chapter-a"],
+    chapterOrder: [fixtureChapterId],
     createdAt: stamp,
     updatedAt: stamp,
   });
-  const imagePath = join(
-    root,
-    "library/works/work-a/chapters/chapter-a/pages/source.png",
-  );
-  await put(
-    root,
-    "library/works/work-a/chapters/chapter-a/pages/source.png",
-    "original bytes",
-  );
+  const imagePath = join(root, `${fixtureChapter}/pages/source.png`);
+  await put(root, `${fixtureChapter}/pages/source.png`, "original bytes");
   const page = {
-    id: "page-a",
+    id: fixturePageId,
     name: "원본",
     imagePath,
     width: 100,
     height: 100,
     blocks: [clipboardBlock()],
-    inpaintedImagePath: join(
-      root,
-      "library/works/work-a/chapters/chapter-a/pages/result.png",
-    ),
-    inpaintMaskPath: join(
-      root,
-      "library/works/work-a/chapters/chapter-a/pages/mask.png",
-    ),
+    inpaintedImagePath: join(root, `${fixtureChapter}/pages/result.png`),
+    inpaintMaskPath: join(root, `${fixtureChapter}/pages/mask.png`),
     analysisStatus: "idle" as const,
     createdAt: stamp,
     updatedAt: stamp,
@@ -175,16 +167,8 @@ async function fixture(root: string) {
       blocks: [],
     },
   };
-  await put(
-    root,
-    "library/works/work-a/chapters/chapter-a/pages/result.png",
-    "inpainted bytes",
-  );
-  await put(
-    root,
-    "library/works/work-a/chapters/chapter-a/pages/mask.png",
-    "mask bytes",
-  );
+  await put(root, `${fixtureChapter}/pages/result.png`, "inpainted bytes");
+  await put(root, `${fixtureChapter}/pages/mask.png`, "mask bytes");
   await writeRedactionSnapshot(root, {
     state: {
       ...emptyRedactionDraft(),
@@ -202,7 +186,7 @@ async function fixture(root: string) {
   const checkpointBytes = JSON.stringify(checkpoint);
   await put(
     root,
-    "library/works/work-a/chapters/chapter-a/.translation-checkpoint-test/checkpoint.json",
+    `${fixtureChapter}/.translation-checkpoint-test/checkpoint.json`,
     checkpointBytes,
   );
   const savedPage = {
@@ -221,8 +205,8 @@ async function fixture(root: string) {
     },
   };
   await put(root, chapterPath, {
-    id: "chapter-a",
-    workId: "work-a",
+    id: fixtureChapterId,
+    workId: fixtureWorkId,
     title: "1화",
     sourceKind: "images",
     status: "idle",
@@ -284,6 +268,7 @@ async function writeLegacyLibraryBackup(
   archive: string,
   works: number,
   pages: number,
+  damagedPath?: string,
 ) {
   await put(
     root,
@@ -297,6 +282,8 @@ async function writeLegacyLibraryBackup(
   const files = await Promise.all(
     paths.map((path) => hashBackupFile(root, path, signal())),
   );
+  for (const file of files)
+    if (file.path === damagedPath) file.sha256 = "0".repeat(64);
   await writeBackupArchive(
     root,
     archive,
@@ -320,6 +307,150 @@ async function writeLegacyLibraryBackup(
 }
 
 describe("environment backup", () => {
+  it("recovers surviving pages, a raw chapter image and an orphan glossary into the selected work atomically", async () => {
+    const source = await temp(),
+      target = await temp(),
+      archive = join(await temp(), "old.zip");
+    await fixture(source);
+    await fixture(target);
+    await unlink(join(source, `${fixtureWork}/work.json`));
+    const glossary = "library/works/terms-only/style-guide.json";
+    await put(source, glossary, {
+      glossary: [
+        { source: "猫", target: "고양이" },
+        { source: "魔王", target: "마왕" },
+      ],
+    });
+    const stamp = new Date().toISOString();
+    const existing = {
+      schemaVersion: 1,
+      workId: fixtureWorkId,
+      createdAt: stamp,
+      updatedAt: stamp,
+      glossary: [
+        {
+          id: "existing",
+          source: "猫",
+          target: "기존 번역",
+          category: "term",
+          enabled: true,
+          createdAt: stamp,
+          updatedAt: stamp,
+        },
+      ],
+      characters: [],
+      rules: {
+        prompt: "",
+        honorifics: "adapt",
+        sfxMode: "translate",
+        defaultTone: "natural_korean",
+      },
+    };
+    await put(target, `${fixtureWork}/style-guide.json`, existing);
+    const orphan = `${fixtureWork}/chapters/extra/pages/1.png`;
+    await put(source, orphan, "");
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+      "base64",
+    );
+    await writeFile(join(source, orphan), png);
+    const badMask = `${fixtureChapter}/pages/mask.png`;
+    await writeLegacyLibraryBackup(source, archive, 1, 1, badMask);
+    const archiveBytes = await readFile(archive);
+    const originalChapter = await readFile(join(target, chapterPath));
+    const settings = await readFile(join(target, "settings.json"));
+    const store = new EnvironmentBackupStore(paths(target), "3.9.0");
+    const getPaths = vi
+      .spyOn(appPaths, "getAppPaths")
+      .mockReturnValue(paths(target));
+    try {
+      const preview = await store.previewWithRecovery(
+        archive,
+        signal(),
+        progress,
+      );
+      expect(preview.partial?.items).toHaveLength(2);
+      const terms = preview.partial?.items.find((item) => item.terms === 2);
+      const work = preview.partial?.items.find((item) => item.pages === 2);
+      if (!terms || !work)
+        throw new Error("Expected recoverable glossary and pages");
+      expect(work.chapters).toBe(2);
+      expect(preview.partial?.targets).toEqual([
+        { id: fixtureWorkId, title: "이관 테스트" },
+      ]);
+      expect(preview.partial?.issues.join(" ")).toContain("mask.png");
+      await expect(store.schedule(preview.id, {})).rejects.toThrow();
+      await expect(
+        store.recoverItems(
+          preview,
+          [{ sourceId: work.sourceId, workId: fixtureWorkId }],
+          signal(),
+          () => {},
+        ),
+      ).rejects.toThrow("target");
+      const targets = [{ sourceId: terms.sourceId, workId: fixtureWorkId }];
+      await expect(
+        store.recoverItems(preview, targets, signal(), () => {
+          throw new Error("cancel");
+        }),
+      ).rejects.toThrow("cancel");
+      expect((await listLibrary()).workOrder).toEqual([fixtureWorkId]);
+      expect((await readWorkStyleGuide(fixtureWorkId)).glossary).toHaveLength(
+        1,
+      );
+      await store.recoverItems(preview, targets, signal(), () => {});
+      expect((await listLibrary()).workOrder).toEqual([
+        fixtureWorkId,
+        work.sourceId,
+      ]);
+      const added = (await listLibrary()).works.find(
+        (item) => item.id === work.sourceId,
+      );
+      if (!added) throw new Error("Expected new work");
+      const chapters = await Promise.all(
+        added.chapterOrder.map(
+          async (id) =>
+            JSON.parse(
+              await readFile(
+                join(
+                  target,
+                  "library",
+                  "works",
+                  work.sourceId,
+                  "chapters",
+                  id,
+                  "chapter.json",
+                ),
+                "utf8",
+              ),
+            ) as LibraryChapter,
+        ),
+      );
+      const recovered = chapters.flatMap((chapter) => chapter.pages);
+      const edited = recovered.find((page) => page.blocks.length);
+      const loose = recovered.find((page) => !page.blocks.length);
+      if (!edited || !loose)
+        throw new Error("Expected edited and original-only pages");
+      expect(await readFile(edited.imagePath, "utf8")).toBe("original bytes");
+      expect(edited.inpaintMaskPath).toBeUndefined();
+      expect(await readFile(loose.imagePath)).toEqual(png);
+      expect(
+        (await readWorkStyleGuide(fixtureWorkId)).glossary.map(
+          (entry) => entry.target,
+        ),
+      ).toEqual(["기존 번역", "마왕"]);
+      expect(await readFile(join(target, chapterPath))).toEqual(
+        originalChapter,
+      );
+      expect(await readFile(join(target, "settings.json"))).toEqual(settings);
+      expect(await readFile(archive)).toEqual(archiveBytes);
+      await expect(
+        store.recoverItems(preview, targets, signal(), () => {}),
+      ).rejects.toThrow("changed");
+    } finally {
+      getPaths.mockRestore();
+    }
+  });
   it.each([false, true])(
     "restores verified legacy records omitted from the index (work indexed = %s)",
     async (workIndexed) => {
@@ -327,7 +458,7 @@ describe("environment backup", () => {
         target = await temp(),
         out = await temp();
       await fixture(source);
-      const workOrder = workIndexed ? ["work-a"] : [];
+      const workOrder = workIndexed ? [fixtureWorkId] : [];
       const stamp = "2026-09-24T00:00:00.000Z";
       const glossary = [
         {
@@ -340,9 +471,9 @@ describe("environment backup", () => {
           updatedAt: stamp,
         },
       ];
-      await put(source, "library/works/work-a/style-guide.json", {
+      await put(source, `${fixtureWork}/style-guide.json`, {
         schemaVersion: 1,
-        workId: "work-a",
+        workId: fixtureWorkId,
         glossary,
         characters: [],
         rules: {
@@ -355,14 +486,19 @@ describe("environment backup", () => {
         updatedAt: stamp,
       });
       await put(source, "library/index.json", { workOrder });
-      const workPath = "library/works/work-a/work.json";
+      const workPath = `${fixtureWork}/work.json`;
       const work = JSON.parse(await readFile(join(source, workPath), "utf8"));
       await put(source, workPath, { ...work, chapterOrder: [] });
       const archive = join(out, "legacy.zip");
       await writeLegacyLibraryBackup(source, archive, workOrder.length, 0);
       const original = await readFile(archive);
       const store = new EnvironmentBackupStore(paths(target), "3.8.15");
-      const preview = await store.preview(archive, signal(), progress);
+      const preview = await store.previewWithRecovery(
+        archive,
+        signal(),
+        progress,
+      );
+      expect(preview.partial).toBeUndefined();
       expect(preview).toMatchObject({ works: 1, pages: 1 });
       expect(existsSync(join(target, "library/index.json"))).toBe(false);
       await store.schedule(preview.id, {});
@@ -371,13 +507,15 @@ describe("environment backup", () => {
         .spyOn(appPaths, "getAppPaths")
         .mockReturnValue(paths(target));
       try {
-        expect((await readWorkStyleGuide("work-a")).glossary).toEqual(glossary);
+        expect((await readWorkStyleGuide(fixtureWorkId)).glossary).toEqual(
+          glossary,
+        );
         expect(await listLibrary()).toMatchObject({
-          workOrder: ["work-a"],
+          workOrder: [fixtureWorkId],
           works: [
             {
-              chapterOrder: ["chapter-a"],
-              chapters: [{ id: "chapter-a", pageCount: 1 }],
+              chapterOrder: [fixtureChapterId],
+              chapters: [{ id: fixtureChapterId, pageCount: 1 }],
             },
           ],
         });
@@ -388,10 +526,7 @@ describe("environment backup", () => {
         await readFile(join(target, chapterPath), "utf8"),
       ) as LibraryChapter;
       expect(restored.pages[0].imagePath).toBe(
-        join(
-          target,
-          "library/works/work-a/chapters/chapter-a/pages/source.png",
-        ),
+        join(target, `${fixtureChapter}/pages/source.png`),
       );
       expect(await readFile(restored.pages[0].imagePath, "utf8")).toBe(
         "original bytes",
@@ -406,7 +541,7 @@ describe("environment backup", () => {
       extracted = await temp();
     await fixture(source);
     const work = JSON.parse(
-      await readFile(join(source, "library/works/work-a/work.json"), "utf8"),
+      await readFile(join(source, `${fixtureWork}/work.json`), "utf8"),
     );
     await put(source, "library/works/work-z/work.json", {
       ...work,
@@ -431,7 +566,7 @@ describe("environment backup", () => {
     expect(
       JSON.parse(await readFile(join(extracted, "library/index.json"), "utf8"))
         .workOrder,
-    ).toEqual(["work-z", "work-a"]);
+    ).toEqual(["work-z", fixtureWorkId]);
     expect(
       JSON.parse(await readFile(join(source, "library/index.json"), "utf8"))
         .workOrder,
@@ -451,7 +586,7 @@ describe("environment backup", () => {
     await expect(store.preview(archive, signal(), progress)).rejects.toThrow(
       /counts/,
     );
-    await unlink(join(source, "library/works/work-a/work.json"));
+    await unlink(join(source, `${fixtureWork}/work.json`));
     await writeLegacyLibraryBackup(source, archive, 0, 0);
     await expect(store.preview(archive, signal(), progress)).rejects.toThrow(
       /work.json/,
@@ -462,6 +597,121 @@ describe("environment backup", () => {
     expect(existsSync(join(backupWorkspace(target), "journal.json"))).toBe(
       false,
     );
+  });
+
+  it("keeps valid translated blocks from a malformed page and uses the surviving cleaned image", async () => {
+    const source = await temp(),
+      target = await temp(),
+      archive = join(await temp(), "page.zip");
+    await fixture(source);
+    const chapter = JSON.parse(
+      await readFile(join(source, chapterPath), "utf8"),
+    ) as LibraryChapter;
+    const record = chapter.pages[0];
+    await put(source, chapterPath, {
+      ...chapter,
+      pages: [
+        {
+          ...record,
+          blocks: [...record.blocks, { id: "invalid" }],
+          obsoleteField: true,
+        },
+        null,
+      ],
+    });
+    await unlink(record.imagePath);
+    await writeLegacyLibraryBackup(source, archive, 1, 1);
+    const store = new EnvironmentBackupStore(paths(target), "3.9.0");
+    const preview = await store.previewWithRecovery(
+      archive,
+      signal(),
+      progress,
+    );
+    const item = preview.partial?.items[0];
+    if (!item) throw new Error("Expected repaired work");
+    const pathsOverride = vi
+      .spyOn(appPaths, "getAppPaths")
+      .mockReturnValue(paths(target));
+    try {
+      expect(preview.partial?.issues).toContain(
+        chapterPath.replace("library/works/", ""),
+      );
+      await store.recoverItems(preview, [], signal(), () => {});
+      const work = (await listLibrary()).works[0];
+      const repaired = JSON.parse(
+        await readFile(
+          join(
+            target,
+            "library/works",
+            work.id,
+            "chapters",
+            work.chapterOrder[0],
+            "chapter.json",
+          ),
+          "utf8",
+        ),
+      ) as LibraryChapter;
+      expect(repaired.pages).toHaveLength(1);
+      expect(repaired.pages[0].blocks).toHaveLength(record.blocks.length);
+      expect(repaired.pages[0].blocks[0].translatedText).toBe(
+        record.blocks[0].translatedText,
+      );
+      expect(await readFile(repaired.pages[0].imagePath, "utf8")).toBe(
+        "inpainted bytes",
+      );
+    } finally {
+      pathsOverride.mockRestore();
+    }
+  });
+
+  it("recovers glossary-only backups as a new work and rejects a changed partial preview", async () => {
+    const source = await temp(),
+      target = await temp(),
+      archive = join(await temp(), "terms.zip");
+    const termFile = "library/works/guide/style-guide.json";
+    await put(source, termFile, {
+      glossary: [{ source: "星", target: "별" }],
+      characters: [{ displayName: "소라" }],
+    });
+    await writeLegacyLibraryBackup(source, archive, 0, 0);
+    const store = new EnvironmentBackupStore(paths(target), "3.9.0");
+    const stale = await store.previewWithRecovery(archive, signal(), progress);
+    const first = stale.partial?.items[0];
+    if (!first) throw new Error("Expected glossary");
+    const staged = join(
+      stagePath(target, stale.id),
+      first.sourceId,
+      "style-guide.json",
+    );
+    await writeFile(staged, "{}");
+    await expect(
+      store.recoverItems(stale, [], signal(), () => {}),
+    ).rejects.toThrow("changed");
+    await store.discard(stale.id);
+    expect(existsSync(join(target, "library", "index.json"))).toBe(false);
+    const next = await store.previewWithRecovery(archive, signal(), progress);
+    const recovered = next.partial?.items[0];
+    if (!recovered) throw new Error("Expected glossary");
+    expect(next.partial?.targets).toEqual([]);
+    expect(recovered).toMatchObject({
+      chapters: 0,
+      pages: 0,
+      terms: 2,
+      sample: ["星 → 별", "소라"],
+    });
+    const pathsOverride = vi
+      .spyOn(appPaths, "getAppPaths")
+      .mockReturnValue(paths(target));
+    try {
+      await store.recoverItems(next, [], signal(), () => {});
+      expect((await listLibrary()).workOrder).toEqual([recovered.sourceId]);
+      expect(
+        (await readWorkStyleGuide(recovered.sourceId)).characters[0]
+          .displayName,
+      ).toBe("소라");
+    } finally {
+      pathsOverride.mockRestore();
+    }
   });
   it("round trips an environment across roots without credentials, then restores the original destination", async () => {
     const source = await temp(),
@@ -521,10 +771,30 @@ describe("environment backup", () => {
       await readFile(join(inspectRoot, chapterPath), "utf8"),
     ) as LibraryChapter;
     expect(portable.pages[0].imagePath).toBe(
-      "library/works/work-a/chapters/chapter-a/pages/source.png",
+      `${fixtureChapter}/pages/source.png`,
     );
     const store = new EnvironmentBackupStore(paths(target), "2.8.0");
-    const preview = await store.preview(archive, signal(), progress);
+    const inspectProgress = vi.fn();
+    const preview = await store.preview(archive, signal(), inspectProgress);
+    const stages = inspectProgress.mock.calls;
+    const finalizing = stages.findIndex(
+      (call) => call[2] === "import-finalizing",
+    );
+    expect(stages[finalizing - 1]).toEqual([
+      manifest.summary.bytes,
+      manifest.summary.bytes,
+      "backup-verifying",
+    ]);
+    expect(stages[finalizing]).toEqual([0, 0, "import-finalizing"]);
+    const files = stages[stages.length - 1][1];
+    expect(files).toBeGreaterThan(1);
+    expect(stages.slice(finalizing + 1)).toEqual(
+      Array.from({ length: files }, (_, i) => [
+        i + 1,
+        files,
+        "import-finalizing",
+      ]),
+    );
     expect(preview.connections).toEqual(["D:\\external-originals"]);
     expect(await readFile(join(target, "library/original.txt"), "utf8")).toBe(
       "DESTINATION WORK",
@@ -543,7 +813,7 @@ describe("environment backup", () => {
     const cp = await readFile(
       join(
         target,
-        "library/works/work-a/chapters/chapter-a/.translation-checkpoint-test/checkpoint.json",
+        `${fixtureChapter}/.translation-checkpoint-test/checkpoint.json`,
       ),
     );
     expect(createHash("sha256").update(cp).digest("hex")).toBe(
@@ -556,7 +826,7 @@ describe("environment backup", () => {
       "original bytes",
     );
     expect(restored.pages[0].blocks).toEqual([clipboardBlock()]);
-    expect(restored.pageOrder).toEqual(["page-a"]);
+    expect(restored.pageOrder).toEqual([fixturePageId]);
     expect(
       await readFile(restored.pages[0].inpaintedImagePath ?? "", "utf8"),
     ).toBe("inpainted bytes");
@@ -645,6 +915,59 @@ describe("environment backup", () => {
     expect(existsSync(join(backupWorkspace(target), "journal.json"))).toBe(
       false,
     );
+  });
+
+  it("recovers a page with an unusable ID without replacing the destination library", async () => {
+    const source = await temp(),
+      target = await temp(),
+      out = await temp();
+    await fixture(source);
+    const chapter = JSON.parse(
+      await readFile(join(source, chapterPath), "utf8"),
+    );
+    chapter.pages[0].id = "legacy-page";
+    chapter.pageOrder = ["legacy-page"];
+    await put(source, chapterPath, chapter);
+    await put(target, "library/keep.txt", "keep");
+    const archive = join(out, "invalid-id.zip");
+    await writeLegacyLibraryBackup(source, archive, 1, 1);
+    const store = new EnvironmentBackupStore(paths(target), "3.9.0");
+    const preview = await store.previewWithRecovery(
+      archive,
+      signal(),
+      progress,
+    );
+    expect(preview.partial?.items[0]).toMatchObject({ chapters: 1, pages: 1 });
+    expect(preview.partial?.issues).toContain(
+      chapterPath.replace("library/works/", ""),
+    );
+    const root = vi
+      .spyOn(appPaths, "getAppPaths")
+      .mockReturnValue(paths(target));
+    try {
+      await store.recoverItems(preview, [], signal(), () => {});
+      const work = (await listLibrary()).works[0];
+      const repaired = JSON.parse(
+        await readFile(
+          join(
+            target,
+            "library/works",
+            work.id,
+            "chapters",
+            work.chapterOrder[0],
+            "chapter.json",
+          ),
+          "utf8",
+        ),
+      );
+      expect(repaired.pageOrder).toEqual([repaired.pages[0].id]);
+      expect(repaired.pages[0].id).toMatch(/^[a-f0-9-]{36}$/);
+      expect(await readFile(join(target, "library/keep.txt"), "utf8")).toBe(
+        "keep",
+      );
+    } finally {
+      root.mockRestore();
+    }
   });
 
   it.each([

@@ -234,6 +234,7 @@ export interface MangaApi extends McpApi, ChatApi, ClaudeApi, GrokApi {
   restoreEnvironmentBackup: (
     id: string,
     ui: import("./environmentBackup").BackupUiPreferences,
+    targets?: import("./environmentBackup").GlossaryTargets,
   ) => Promise<null>;
   recoverEnvironmentBackup: (
     id: string,

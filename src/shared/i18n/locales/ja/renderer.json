@@ -612,6 +612,7 @@
         "backup-copying": "バックアップファイルをコピー中…",
         "backup-verifying": "バックアップファイルを検証中…",
         "backup-compressing": "バックアップファイルを圧縮中…",
+        "backup-restoring": "バックアップを復元中…",
         "share-packaging": "共有ファイルを作成中…",
         "share-applying": "共有ファイルをライブラリに適用中…",
         "model-test-preparing": "モデルとランタイムを準備中…",

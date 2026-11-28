@@ -2,11 +2,15 @@ import React from "react";
 import type {
   BackupPreview,
   BackupStatus,
+  GlossaryTargets,
 } from "../../../../shared/environmentBackup";
 import type { AppOperationActivityEvent } from "../../../../shared/appOperationTypes";
 import { environmentBackupGateway as gateway } from "../../api/environmentBackupGateway";
 import { readBackupPreferences } from "../../lib/environmentBackupPreferences";
-import { isAppOperationActive } from "../../lib/appOperationPresentation";
+import {
+  isAppOperationActive,
+  isBackupPreviewReady,
+} from "../../lib/appOperationPresentation";
 import { pendingPageEdits } from "../../lib/pageEditBarrier";
 
 export function useEnvironmentBackup() {
@@ -68,12 +72,13 @@ export function useEnvironmentBackup() {
       }),
     chooseRecovery,
     dismiss: () => chooseRecovery(null),
-    apply: () =>
+    apply: (targets: GlossaryTargets = []) =>
       run(async () => {
         if (preview)
           await gateway.restoreEnvironmentBackup(
             preview.id,
             readBackupPreferences(),
+            ...(preview.partial ? ([targets] as const) : []),
           );
         else if (recoveryId)
           await gateway.recoverEnvironmentBackup(
@@ -113,11 +118,7 @@ function useBackupSubscription(
       if (!isBackupOperation(event)) return;
       receivedActivity = true;
       setActivity(event);
-      if (
-        event.kind === "environment-backup-preview" &&
-        event.status === "completed"
-      )
-        refreshStatus();
+      if (isBackupPreviewReady(event)) refreshStatus();
     });
     refreshStatus();
     void gateway.getActiveAppOperations().then(

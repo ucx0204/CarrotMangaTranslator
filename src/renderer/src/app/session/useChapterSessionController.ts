@@ -47,14 +47,17 @@ export function useChapterSessionController() {
   });
   const uiState = useAppSessionUiState();
   const completionSound = useCompletionSoundController();
-  const operationActivity = useAppOperationActivity({
-    appendStatusLine: statusLog.appendStatusLine,
-  });
   const errorReportIncident = useErrorReportIncident();
   usePruneRemovedPageMasks(core.currentChapter, uiState);
   const modalController = useModalController({
     pushStatus: statusLog.pushStatus,
     uiState,
+  });
+  const operationActivity = useAppOperationActivity({
+    appendStatusLine: statusLog.appendStatusLine,
+    onBackupPreviewReady: useEventCallback(() =>
+      modalController.settingsDialog.openSettings("general"),
+    ),
   });
   const recoverUnavailableImage = useUnavailableChapterImageRecovery(
     core,
