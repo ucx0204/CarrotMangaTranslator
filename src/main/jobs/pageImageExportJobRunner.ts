@@ -279,7 +279,21 @@ async function writePageImageExportChapters({
     sessionCount: Math.min(MAX_PAGE_IMAGE_EXPORT_CONCURRENCY, tasks.length),
   });
   let operationFailure: { error: unknown } | null = null;
+  const cancellationErrors: unknown[] = [];
+  const cancelSessions = () => {
+    for (const session of sessions) {
+      try {
+        session.cancel?.();
+      } catch (error) {
+        cancellationErrors.push(error);
+      }
+    }
+  };
+  abortController.signal.addEventListener("abort", cancelSessions, {
+    once: true,
+  });
   try {
+    if (abortController.signal.aborted) cancelSessions();
     await runPageImageExportTasks({
       abortController,
       dependencies,
@@ -299,8 +313,13 @@ async function writePageImageExportChapters({
     });
   } catch (error) {
     operationFailure = { error };
+  } finally {
+    abortController.signal.removeEventListener("abort", cancelSessions);
   }
-  const cleanupErrors = closePageImageExportSessions(sessions);
+  const cleanupErrors = [
+    ...cancellationErrors,
+    ...closePageImageExportSessions(sessions),
+  ];
   throwPageImageExportPoolErrors(operationFailure, cleanupErrors);
 }
 
@@ -593,6 +612,7 @@ async function writePageImageExportPage({
   await (dependencies.runtime.writeImage ?? dependencies.runtime.writePng)(
     outputPath,
     content,
+    abortController.signal,
   );
 }
 

@@ -9,13 +9,15 @@ import type { HunyuanSettings } from "../src/shared/settingsTypes";
 
 afterEach(cleanup);
 
-it("hides an already-applied recommendation and locates read-only recommendations in settings", () => {
+it("shows only the engine recommendation when a change cannot be applied here", () => {
   const view = render(
     <OcrRecommendation pipeline="hayai" sourceLanguage="ja" />,
   );
   expect(view.container.textContent).toBe("");
   view.rerender(<OcrRecommendation pipeline="hayai" sourceLanguage="zh" />);
-  expect(screen.getByText(/설정/)).toBeTruthy();
+  expect(view.container.textContent).toBe(
+    "현재: HayaiOCR · 원문 언어 추천: HunyuanOCR 1.5",
+  );
   expect(screen.queryByRole("button")).toBeNull();
 });
 

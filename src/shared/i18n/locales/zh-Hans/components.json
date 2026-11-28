@@ -878,8 +878,7 @@
     "context": "页面：{{pageName}}（{{count}}个文本块）",
     "keepBlocksHint": "保留当前文本块的区域和格式，只重新填入各区域的文本。",
     "autoBlocksHint": "删除所有现有文本块并自动检测新文本块。",
-    "overwriteTitle": "现有结果将保存为检查点",
-    "overwriteWarning": "重新翻译后，在工作区撤销一次即可恢复之前的译文和手动修改。"
+    "overwriteTitle": "现有结果将保存为检查点"
   },
   "translateSource": {
     "title": "添加新原稿",
@@ -3638,9 +3637,6 @@
       "offline_access": "下次启动时保留授权"
     }
   },
-  "ocrRecommendation": {
-    "settingsHint": "可在设置中更改 OCR 引擎。"
-  },
   "batchEditorCopy": {
     "action": "操作",
     "checkOnly": "仅检查",
@@ -3998,8 +3994,6 @@
     "rules": "{{p0}} 规则",
     "sequence": "{{p0}} · 连续执行",
     "confirmChangesToExistingValues": "确认更改现有值：{{p0}}",
-    "steps": "{{p0}} 个步骤",
-    "pagesStepsStepTasks": "{{p0}} 页 × {{p1}} 步 = {{p2}} 项步骤任务",
     "inspectionSummary": "匹配 {{count}} · 仅检查，不更改值。",
     "changeSummary": "匹配 {{matched}} · 更改 {{changed}} · 无变化 {{unchanged}}",
     "selectedCount": "已选 {{count}} 项",

@@ -111,6 +111,22 @@ describe("linked workspace paths", () => {
       ),
     ).not.toContain(".page.png.123.aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.tmp");
   });
+
+  it("replaces a valid long output name without exceeding the component length limit during staging", async () => {
+    const root = await makeTempDir();
+    const name = "a".repeat(240) + ".png";
+    const path = join(root, name);
+    await writeFile(path, "previous");
+    await expect(
+      writeBinaryFileAtomically(path, Buffer.from("new"), () => {
+        throw new Error("interrupted");
+      }),
+    ).rejects.toThrow("interrupted");
+    expect(await readFile(path, "utf8")).toBe("previous");
+    await writeBinaryFileAtomically(path, Buffer.from("new"));
+    expect(await readFile(path, "utf8")).toBe("new");
+    expect(await readdir(root)).toEqual([name]);
+  });
 });
 
 async function makeTempDir(): Promise<string> {

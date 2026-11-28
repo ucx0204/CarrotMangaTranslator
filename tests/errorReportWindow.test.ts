@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ErrorReportContext } from "../src/shared/errorReportTypes";
 
 type Listener = (...args: unknown[]) => void;
@@ -14,6 +17,7 @@ type WindowOptions = {
 const applyRendererWindowGuards = vi.fn();
 const loadRendererIntoWindow = vi.fn();
 const parseErrorIncident = vi.fn((value: ErrorReportContext) => value);
+const onFailure = vi.fn();
 const rendererWebPreferences = vi.fn(() => ({
   sandbox: true,
   contextIsolation: true,
@@ -102,7 +106,10 @@ describe("ErrorReportWindowRegistry", () => {
 
   it("loads one isolated renderer window at the fixed error-report route", async () => {
     const { ErrorReportWindowRegistry } = await loadErrorReportWindowModule();
-    const registry = new ErrorReportWindowRegistry(createDependencies());
+    const registry = new ErrorReportWindowRegistry(
+      onFailure,
+      createDependencies(),
+    );
 
     const window = registry.open(makeContext("renderer-process"));
 
@@ -129,6 +136,7 @@ describe("ErrorReportWindowRegistry", () => {
         productionRendererPath: "C:\\app\\renderer\\index.html",
       }),
       "error-report",
+      expect.any(Function),
     );
     expect(latestWindow?.show).not.toHaveBeenCalled();
     latestWindow?.emit("ready-to-show");
@@ -138,7 +146,10 @@ describe("ErrorReportWindowRegistry", () => {
 
   it("sends the in-memory context after load and trusts only its sender", async () => {
     const { ErrorReportWindowRegistry } = await loadErrorReportWindowModule();
-    const registry = new ErrorReportWindowRegistry(createDependencies());
+    const registry = new ErrorReportWindowRegistry(
+      onFailure,
+      createDependencies(),
+    );
     const context = makeContext("renderer-process");
 
     registry.open(context);
@@ -157,7 +168,10 @@ describe("ErrorReportWindowRegistry", () => {
 
   it("reuses the live window and replaces its current context", async () => {
     const { ErrorReportWindowRegistry } = await loadErrorReportWindowModule();
-    const registry = new ErrorReportWindowRegistry(createDependencies());
+    const registry = new ErrorReportWindowRegistry(
+      onFailure,
+      createDependencies(),
+    );
     registry.open(makeContext("renderer-process"));
     const first = requireLatestWindow();
     first.minimized = true;
@@ -178,7 +192,10 @@ describe("ErrorReportWindowRegistry", () => {
 
   it("clears trust when the window closes or is destroyed", async () => {
     const { ErrorReportWindowRegistry } = await loadErrorReportWindowModule();
-    const registry = new ErrorReportWindowRegistry(createDependencies());
+    const registry = new ErrorReportWindowRegistry(
+      onFailure,
+      createDependencies(),
+    );
     registry.open(makeContext("renderer-process"));
     const window = requireLatestWindow();
 
@@ -192,6 +209,47 @@ describe("ErrorReportWindowRegistry", () => {
     registry.closeAll();
     expect(replacement.destroy).toHaveBeenCalledTimes(1);
     expect(registry.getWindow()).toBeNull();
+  });
+
+  it("falls back once and revokes trust when the report renderer crashes", async ({
+    onTestFinished,
+  }) => {
+    const dir = await mkdtemp(join(tmpdir(), "carrot-crash-log-"));
+    vi.stubEnv("MANGA_TRANSLATOR_LOG_PATH", join(dir, "app.log"));
+    onTestFinished(async () => {
+      vi.unstubAllEnvs();
+      await rm(dir, { recursive: true, force: true });
+    });
+    const { ErrorReportWindowRegistry } = await loadErrorReportWindowModule();
+    const registry = new ErrorReportWindowRegistry(
+      onFailure,
+      createDependencies(),
+    );
+    registry.open(makeContext("renderer-process"));
+    const window = requireLatestWindow();
+    window.emitWebContents(
+      "render-process-gone",
+      {},
+      { reason: "clean-exit", exitCode: 0 },
+    );
+    expect(onFailure).not.toHaveBeenCalled();
+    window.emitWebContents(
+      "render-process-gone",
+      {},
+      { reason: "crashed", exitCode: -2147483645 },
+    );
+    window.emitWebContents(
+      "did-fail-load",
+      {},
+      -2,
+      "failed",
+      "file:///index.html",
+      true,
+    );
+    expect(onFailure).toHaveBeenCalledExactlyOnceWith(
+      "error-report: crashed (exit -2147483645)",
+    );
+    expect(registry.isTrustedSender(window.webContents.id)).toBe(false);
   });
 });
 

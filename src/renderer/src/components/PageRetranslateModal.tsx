@@ -178,10 +178,7 @@ function PageRetranslateOptions({
           onChange={onAiFontSizeMatchingChange}
         />
       </div>
-      <TranslationOverwriteWarning
-        title={t("retranslate.overwriteTitle")}
-        description={t("retranslate.overwriteWarning")}
-      />
+      <TranslationOverwriteWarning title={t("retranslate.overwriteTitle")} />
     </div>
   );
 }

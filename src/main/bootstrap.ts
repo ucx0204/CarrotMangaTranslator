@@ -34,6 +34,8 @@ import {
 } from "./electronStoragePaths";
 import {
   readBootstrapGraphicsGpuPreference,
+  RENDERER_RECOVERY_ARGUMENT,
+  rendererSessionDirectory,
   resolveBootstrapSettingsPath,
   resolveGraphicsGpuSwitch,
 } from "./bootstrapGraphicsGpu";
@@ -294,9 +296,10 @@ function configureDevelopmentElectronStorage(dataRoot: string | null): void {
   const userDataDir =
     process.env.MANGA_TRANSLATOR_DEV_USER_DATA?.trim() ||
     join(dataRoot, ".tmp", "electron-dev", "user-data");
-  const sessionDataDir =
+  const sessionDataDir = rendererSessionDirectory(
     process.env.MANGA_TRANSLATOR_DEV_SESSION_DATA?.trim() ||
-    join(dataRoot, ".tmp", "electron-dev", "session-data");
+      join(dataRoot, ".tmp", "electron-dev", "session-data"),
+  );
   mkdirSync(userDataDir, { recursive: true });
   mkdirSync(sessionDataDir, { recursive: true });
   app.setPath("userData", userDataDir);
@@ -306,6 +309,11 @@ function configureDevelopmentElectronStorage(dataRoot: string | null): void {
 }
 
 function configureGraphicsGpu(dataRoot: string): void {
+  if (process.argv.includes(RENDERER_RECOVERY_ARGUMENT)) {
+    app.disableHardwareAcceleration();
+    writeBootstrapLog("bootstrap:renderer-recovery-enabled");
+    return;
+  }
   try {
     const settingsPath = resolveBootstrapSettingsPath(dataRoot);
     const preference = readBootstrapGraphicsGpuPreference(settingsPath);

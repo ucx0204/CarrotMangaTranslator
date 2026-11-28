@@ -8,6 +8,7 @@ import { installLinkedWorkspaceSaveNotifier } from "./linkedWorkspaceNotificatio
 import { LinkedWorkspaceSyncService } from "./linkedWorkspaceSyncService";
 import { LinkedWorkspaceStartupCache } from "./linkedWorkspaceStartupCache";
 import { getChapterFilePath } from "../libraryStore/libraryPaths";
+import { logOutputFailure } from "../outputFailureLog";
 
 export function createLinkedWorkspaceRuntime(options: {
   dataRoot: string;
@@ -18,6 +19,7 @@ export function createLinkedWorkspaceRuntime(options: {
 }) {
   const service = new LinkedWorkspaceSyncService({
     ...options,
+    reportOutputFailure: logOutputFailure,
     startupCache: new LinkedWorkspaceStartupCache(
       options.dataRoot,
       getChapterFilePath,

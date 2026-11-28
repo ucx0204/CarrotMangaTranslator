@@ -878,8 +878,7 @@
     "context": "Page: {{pageName}} (Blocks: {{count}})",
     "keepBlocksHint": "Keep the current block regions and formatting, and refill only the text in each region.",
     "autoBlocksHint": "Remove all existing blocks and detect new ones automatically.",
-    "overwriteTitle": "Existing results are saved as a checkpoint",
-    "overwriteWarning": "After retranslation, one workspace undo restores the previous translation and manual edits."
+    "overwriteTitle": "Existing results are saved as a checkpoint"
   },
   "translateSource": {
     "title": "Add new source",
@@ -3638,9 +3637,6 @@
       "offline_access": "Keep approval across sessions"
     }
   },
-  "ocrRecommendation": {
-    "settingsHint": "Change the OCR engine in Settings."
-  },
   "batchEditorCopy": {
     "action": "Action",
     "checkOnly": "Check only",
@@ -3998,8 +3994,6 @@
     "rules": "{{p0}} rules",
     "sequence": "{{p0}} · Sequence",
     "confirmChangesToExistingValues": "Confirm changes to existing values: {{p0}}",
-    "steps": "{{p0}} steps",
-    "pagesStepsStepTasks": "{{p0}} pages × {{p1}} steps = {{p2}} step tasks",
     "inspectionSummary": "{{count}} matches · Inspection only; values remain unchanged.",
     "changeSummary": "Matched {{matched}} · Changed {{changed}} · Unchanged {{unchanged}}",
     "selectedCount": "{{count}} selected",

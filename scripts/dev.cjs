@@ -327,7 +327,11 @@ function spawnChild(label, command, args, env = {}) {
     env: mergedEnv,
   });
   children.push(child);
-  const requestedRelaunch = watchDevRelaunch(child);
+  let relaunchArgs = args;
+  const requestedRelaunch = watchDevRelaunch(child, () => {
+    if (!args.includes("--carrot-renderer-recovery"))
+      relaunchArgs = [...args, "--carrot-renderer-recovery"];
+  });
   child.on("exit", (code, signal) => {
     children.splice(children.indexOf(child), 1);
     log(
@@ -337,7 +341,7 @@ function spawnChild(label, command, args, env = {}) {
       return;
     }
     if (label === "electron" && requestedRelaunch(code, signal)) {
-      spawnChild(label, command, args, env);
+      spawnChild(label, command, relaunchArgs, env);
       return;
     }
     requestShutdown(code ?? 1, child);

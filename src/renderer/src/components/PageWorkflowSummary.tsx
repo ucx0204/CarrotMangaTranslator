@@ -27,7 +27,6 @@ export function PageWorkflowSummary({
   return (
     <section className={styles.summary} aria-live="polite">
       <div className={styles.summaryHeading}>
-        <strong>{workflowScopeLabel(state)}</strong>
         <span>
           {state.plan.overwrite.length
             ? t("batchEditorCopy.overwriteSelectedExistingValues")
@@ -92,18 +91,6 @@ export function PageWorkflowSummary({
       )}
     </section>
   );
-}
-
-/** "80페이지 × 7단계 = 단계 작업 560개", matching the progress counter. */
-function workflowScopeLabel(state: Props["state"]): string {
-  const stages = state.plan.stages.length;
-  if (!state.preflight) return t("batchEditorMessages.steps", { p0: stages });
-  const pages = state.preflight.pageCount;
-  return t("batchEditorMessages.pagesStepsStepTasks", {
-    p0: pages,
-    p1: stages,
-    p2: pages * stages,
-  });
 }
 
 function requiresFontOcr(plan: Props["state"]["plan"]) {

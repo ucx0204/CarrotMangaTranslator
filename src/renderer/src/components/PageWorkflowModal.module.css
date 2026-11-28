@@ -173,9 +173,6 @@
   gap: var(--sp-3) var(--sp-6);
   flex-wrap: wrap;
 }
-.summaryHeading strong {
-  font-size: var(--font-md);
-}
 .summaryHeading > span {
   color: var(--text-muted);
   font-size: var(--font-sm);

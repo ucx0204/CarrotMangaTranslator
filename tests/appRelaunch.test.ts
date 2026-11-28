@@ -12,6 +12,20 @@ afterEach(() => {
 });
 
 describe("application relaunch", () => {
+  it("preserves launch arguments and passes the recovery switch once", async () => {
+    electron.isPackaged = true;
+    const flag = "--carrot-renderer-recovery";
+    const original = process.argv;
+    try {
+      process.argv = ["Carrot.exe", "--existing", flag];
+      await prepareAppRelaunch(true);
+      expect(electron.relaunch).toHaveBeenCalledWith({
+        args: ["--existing", flag],
+      });
+    } finally {
+      process.argv = original;
+    }
+  });
   it("waits for the development supervisor request to be delivered before allowing quit", async () => {
     vi.stubEnv("MGT_DEV_SUPERVISED_RELAUNCH", "1");
     let delivered: (error: Error | null) => void = () => undefined;
@@ -46,6 +60,20 @@ describe("application relaunch", () => {
     };
     await expect(prepareAppRelaunch()).rejects.toThrow("IPC disconnected");
     expect(electron.relaunch).not.toHaveBeenCalled();
+  });
+
+  it("requests recovery through the same development supervisor", async () => {
+    vi.stubEnv("MGT_DEV_SUPERVISED_RELAUNCH", "1");
+    process.send = vi.fn((_message, callback) => {
+      if (typeof callback !== "function") throw new Error("Expected callback");
+      callback(null);
+      return true;
+    });
+    await prepareAppRelaunch(true);
+    expect(process.send).toHaveBeenCalledWith(
+      { type: "mgt:dev-relaunch", rendererRecovery: true },
+      expect.any(Function),
+    );
   });
 
   it.each(["packaged", "unsupervised", "no-ipc"])(

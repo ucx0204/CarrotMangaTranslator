@@ -35,6 +35,10 @@ describe("application path snapshot", () => {
     expect(second.libraryDir).toBe(join(repositoryRoot, "library"));
     expect(second.libraryDir).toBe(first.libraryDir);
     expect(second.llamaServerPath).toBe(first.llamaServerPath);
+    if (process.platform === "win32")
+      expect(first.llamaServerPath).toBe(
+        join(first.toolsDir, "llama-server.exe"),
+      );
     expect(existsSync).toHaveBeenCalledTimes(discoveryCalls);
   });
 

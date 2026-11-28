@@ -263,7 +263,9 @@ function resolveBundledLlamaServerPath(toolsDir: string): string {
   return (
     existing.find((candidate) => hasBundledGpuBackend(candidate)) ??
     existing[0] ??
-    candidates[0]
+    (process.platform === "win32"
+      ? join(toolsDir, llamaServerBinaryName())
+      : candidates[0])
   );
 }
 

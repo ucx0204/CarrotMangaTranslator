@@ -32,11 +32,6 @@ export function OcrRecommendation({
             })
           : t("settings.hardware.hunyuan.autoLanguage")}
       </p>
-      {!onApply ? (
-        <p className="muted-line modal-note">
-          {t("ocrRecommendation.settingsHint")}
-        </p>
-      ) : null}
       {onApply && recommended && recommended !== pipeline ? (
         <Button
           size="sm"

@@ -48,7 +48,10 @@ import {
 } from "./logger";
 import { createMainWindow } from "./mainWindow";
 import { PanelWindowRegistry } from "./panelWindows";
-import { ErrorReportWindowRegistry } from "./errorReportWindow";
+import {
+  ErrorReportWindowRegistry,
+  showRendererRecoveryDialog,
+} from "./errorReportWindow";
 import { initializeMainLocaleFromSettings, tMain } from "./i18n";
 import { ipcEventContracts } from "../shared/ipcContracts";
 import type { ErrorReportContext } from "../shared/errorReportTypes";
@@ -100,32 +103,30 @@ const mcpDesktop = createMcpDesktopRuntime(
     processing: () => ({
       appPaths,
       jobs,
-      getMainWindow: () => mainWindow,
+      getMainWindow: getLiveMainWindow,
       inpaintingRevisionStore,
       decodeImage: (filePath, signal) =>
         decodeImageThroughRuntime(appPaths.runtimeDir, filePath, signal),
     }),
     requestProbe: (id) => {
-      if (!mainWindow || mainWindow.isDestroyed())
-        throw new Error("Main editor is closed.");
-      mainWindow.webContents.send(ipcEventContracts.mcpEditorProbe.channel, {
+      const window = getLiveMainWindow();
+      if (!window) throw new Error("Main editor is closed.");
+      window.webContents.send(ipcEventContracts.mcpEditorProbe.channel, {
         id,
       });
     },
     notifyLibraryChanged: (event) => {
-      if (mainWindow && !mainWindow.isDestroyed())
-        mainWindow.webContents.send(
-          ipcEventContracts.mcpLibraryChanged.channel,
-          event,
-        );
+      getLiveMainWindow()?.webContents.send(
+        ipcEventContracts.mcpLibraryChanged.channel,
+        event,
+      );
     },
     notifySaved: (chapterId, pageId) => {
       try {
-        if (mainWindow && !mainWindow.isDestroyed())
-          mainWindow.webContents.send(
-            ipcEventContracts.mcpPageChanged.channel,
-            { chapterId, pageIds: [pageId] },
-          );
+        getLiveMainWindow()?.webContents.send(
+          ipcEventContracts.mcpPageChanged.channel,
+          { chapterId, pageIds: [pageId] },
+        );
       } catch (error) {
         logError("Could not announce a saved MCP page", error);
       }
@@ -139,27 +140,41 @@ const chat = createChatService({
   appVersion: app.getVersion(),
   mcp: mcpDesktop,
   publish: (event) => {
-    if (mainWindow && !mainWindow.isDestroyed())
-      mainWindow.webContents.send(ipcEventContracts.chatEvent.channel, event);
+    getLiveMainWindow()?.webContents.send(
+      ipcEventContracts.chatEvent.channel,
+      event,
+    );
   },
   reportError: (error) => logError("Global chat operation failed", error),
 });
 let mainWindow: BrowserWindow | null = null;
+function getLiveMainWindow(): BrowserWindow | null {
+  if (
+    !mainWindow ||
+    mainWindow.isDestroyed() ||
+    mainWindow.webContents.isDestroyed() ||
+    mainWindow.webContents.isCrashed()
+  )
+    return null;
+  return mainWindow;
+}
 const linkedWorkspaceRuntime = createLinkedWorkspaceRuntime({
   dataRoot: appPaths.dataRoot,
   jobs,
   decodeImage: (filePath, signal) =>
     decodeImageThroughRuntime(appPaths.runtimeDir, filePath, signal),
-  getMainWindow: () => mainWindow,
+  getMainWindow: getLiveMainWindow,
   reportError: logError,
 });
 const linkedWorkspaceSync = linkedWorkspaceRuntime.service;
 let removeLinkedWorkspaceNotifier: (() => void) | null = null;
 const panelWindows = new PanelWindowRegistry(
-  () => mainWindow,
+  getLiveMainWindow,
   appPaths.dataRoot,
 );
-const errorReportWindows = new ErrorReportWindowRegistry();
+const errorReportWindows = new ErrorReportWindowRegistry((detail) =>
+  handleRendererFailure(detail, true),
+);
 const fatalCoordinator = new FatalMainProcessIncidentCoordinator();
 const mainWindowSessionLifecycle = new MainWindowSessionLifecycle({
   suspendActivities: () => appActivityGate.suspendNewActivities(),
@@ -331,7 +346,7 @@ void app
       appPaths,
       jobs,
       operations,
-      getMainWindow: () => mainWindow,
+      getMainWindow: getLiveMainWindow,
       panelWindows,
       errorReportWindows,
       loadSimplePageRuntime: () => loadSimplePageRuntime(appPaths.runtimeDir),
@@ -596,11 +611,7 @@ function openMainWindowNow(): void {
         openIsolatedErrorReport(context);
       }
     },
-    onRendererLoadFailure: (failure) => {
-      if (!quitCleanupStarted && !fatalCoordinator.isHandling) {
-        void showRendererLoadFailureDialog(failure);
-      }
-    },
+    onRendererFailure: (detail) => handleRendererFailure(detail, false),
   });
   mainWindow.on("closed", () => {
     void mcpDesktop
@@ -660,13 +671,10 @@ function notifyMainProcessIncident(summary: string, reason: unknown): void {
     message: normalized.message,
     ...(normalized.stack ? { stack: normalized.stack } : {}),
   };
-  if (
-    mainWindow &&
-    !mainWindow.isDestroyed() &&
-    !mainWindow.webContents.isDestroyed()
-  ) {
+  const window = getLiveMainWindow();
+  if (window) {
     try {
-      mainWindow.webContents.send(
+      window.webContents.send(
         ipcEventContracts.errorIncident.channel,
         ipcEventContracts.errorIncident.payload.parse(
           normalizeErrorReportContext(context),
@@ -699,7 +707,7 @@ function openIsolatedErrorReport(context: ErrorReportContext): void {
   } catch (error) {
     logError("Failed to open the isolated error report window", error);
     const normalized = normalizeIncidentReason(error);
-    void showStartupFailureDialog(normalized.stack ?? normalized.message);
+    handleRendererFailure(normalized.stack ?? normalized.message, true);
   }
 }
 
@@ -723,21 +731,18 @@ function normalizeIncidentReason(reason: unknown): {
   }
 }
 
-async function showRendererLoadFailureDialog({
-  errorCode,
-  errorDescription,
-  validatedURL,
-}: {
-  errorCode: number;
-  errorDescription: string;
-  validatedURL: string;
-}): Promise<void> {
-  if (rendererLoadFailureDialogOpen) {
+function handleRendererFailure(detail: string, reportWindow: boolean): void {
+  if (quitCleanupStarted) return;
+  if (fatalCoordinator.isHandling) {
+    if (reportWindow) void showStartupFailureDialog(detail);
     return;
   }
-  return showStartupFailureDialog(
-    `${errorDescription} (${errorCode})\n${validatedURL}`,
-  );
+  void showRendererRecoveryDialog(detail, {
+    logDirectory: getLogDirectory(),
+    reportError: logError,
+    stopping: () => quitCleanupStarted || fatalCoordinator.isHandling,
+    canReturn: () => reportWindow && getLiveMainWindow() !== null,
+  });
 }
 
 async function showStartupFailureDialog(detail: string): Promise<void> {

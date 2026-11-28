@@ -55,6 +55,7 @@ export async function writePagePsdExport({
   await (dependencies.runtime.writePsd ?? dependencies.runtime.writePng)(
     outputPath,
     psd,
+    abortController.signal,
   );
   throwIfAborted(abortController, completedPages + 1, totalPages);
 }

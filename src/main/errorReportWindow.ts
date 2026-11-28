@@ -1,12 +1,15 @@
-import { BrowserWindow } from "electron";
+import { app, BrowserWindow, dialog, shell } from "electron";
 import { ipcEventContracts } from "../shared/ipcContracts";
 import type { ErrorReportContext } from "../shared/errorReportTypes";
 import { ErrorReportContextSchema } from "../shared/errorReportSchemas";
 import { normalizeErrorReportContext } from "../shared/errorReportContext";
-import { tMainCommon } from "./i18n";
+import { tMain, tMainCommon } from "./i18n";
+import { prepareAppRelaunch } from "./appRelaunch";
+import { APP_ISSUES_URL } from "../shared/appRelease";
 import {
   applyRendererWindowGuards,
   loadRendererIntoWindow,
+  observeRendererFailure,
   rendererWebPreferences,
   resolveRendererLoadTarget,
 } from "./mainWindow";
@@ -44,6 +47,7 @@ export class ErrorReportWindowRegistry {
   private currentContext: ErrorReportContext | null = null;
 
   constructor(
+    private readonly onFailure: (detail: string) => void,
     private readonly dependencies: ErrorReportWindowDependencies = productionDependencies,
   ) {}
 
@@ -76,6 +80,12 @@ export class ErrorReportWindowRegistry {
     });
     this.window = window;
 
+    const reportFailure = (detail: string) => {
+      if (this.window !== window) return;
+      this.onFailure(detail);
+      this.closeAll();
+    };
+    observeRendererFailure(window, "error-report", reportFailure);
     window.setMenuBarVisibility(false);
     this.dependencies.applyRendererWindowGuards(
       window,
@@ -97,7 +107,12 @@ export class ErrorReportWindowRegistry {
       }
     });
 
-    this.dependencies.loadRendererIntoWindow(window, target, "error-report");
+    this.dependencies.loadRendererIntoWindow(
+      window,
+      target,
+      "error-report",
+      reportFailure,
+    );
     return window;
   }
 
@@ -138,5 +153,88 @@ export class ErrorReportWindowRegistry {
       this.dependencies.incidentChannel,
       this.currentContext,
     );
+  }
+}
+
+let recoveryDialogOpen = false;
+
+/** This dialog must work even if every Chromium window fails to paint. */
+export async function showRendererRecoveryDialog(
+  detail: string,
+  state: {
+    stopping: () => boolean;
+    canReturn: () => boolean;
+    logDirectory: string;
+    reportError: (message: string, error: unknown) => void;
+  },
+): Promise<void> {
+  if (recoveryDialogOpen) return;
+  recoveryDialogOpen = true;
+  let actionError: string | null = "";
+  try {
+    while (actionError !== null && !state.stopping()) {
+      const canReturn = state.canReturn();
+      const { response } = await dialog.showMessageBox({
+        type: "error",
+        title: tMain("errorReport.loadFailureTitle"),
+        message: tMain("errorReport.recoveryMessage"),
+        detail: [detail, actionError].filter(Boolean).join("\n\n"),
+        buttons: [
+          tMain("errorReport.restartRecovery"),
+          tMain("errorReport.openLogs"),
+          tMain("errorReport.openIssues"),
+          tMain(canReturn ? "errorReport.close" : "errorReport.exit"),
+        ],
+        defaultId: 0,
+        cancelId: 3,
+        noLink: true,
+      });
+      if (state.stopping()) return;
+      try {
+        actionError = await handleRecoveryChoice(
+          response,
+          canReturn,
+          state.canReturn,
+          state.logDirectory,
+        );
+      } catch (error) {
+        actionError = error instanceof Error ? error.message : String(error);
+        state.reportError("Renderer recovery action failed", error);
+      }
+    }
+  } catch (error) {
+    state.reportError("Could not show renderer recovery dialog", error);
+    try {
+      dialog.showErrorBox(tMain("errorReport.loadFailureTitle"), detail);
+    } catch (fallbackError) {
+      state.reportError("Could not show the native error box", fallbackError);
+    } finally {
+      if (!state.canReturn() && !state.stopping()) app.quit();
+    }
+  } finally {
+    recoveryDialogOpen = false;
+  }
+}
+
+async function handleRecoveryChoice(
+  response: number,
+  offeredReturn: boolean,
+  canReturn: () => boolean,
+  logDirectory: string,
+): Promise<string | null> {
+  switch (response) {
+    case 0:
+      await prepareAppRelaunch(true);
+      app.quit();
+      return null;
+    case 1:
+      return shell.openPath(logDirectory);
+    case 2:
+      await shell.openExternal(APP_ISSUES_URL);
+      return "";
+    default:
+      if (offeredReturn && !canReturn()) return "";
+      if (!offeredReturn) app.quit();
+      return null;
   }
 }

@@ -50,6 +50,7 @@ import {
 } from "./pageExportTemp";
 import type { ImageDecodeFallback } from "./regionCrop";
 import { createProductionPsdFontResolver } from "./psdFontResolver";
+import { observeRendererCrash } from "./mainWindow";
 
 const MAX_EXPORT_VIEWPORT_SIDE_PX = 4096;
 const PAGE_LOAD_TIMEOUT_MS = 15_000;
@@ -147,7 +148,7 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
           ),
         60_000,
         "일괄 편집 계측 시간이 초과되었습니다.",
-        this.cancellation.signal,
+        this.operationSignal(),
       );
     } catch (error) {
       this.lastRenderFailure = { error };
@@ -183,10 +184,15 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
   readonly inspectLastLayout = async (): Promise<PageExportLayoutEvidence> => {
     if (this.closed || this.active)
       throw new Error("Page layout inspection requires an idle open renderer.");
-    const value: unknown =
-      await this.tempOwner.owner.win.webContents.executeJavaScript(
-        `Array.from(document.querySelectorAll("[data-layout-evidence]"), element => JSON.parse(element.dataset.layoutEvidence))`,
-      );
+    const value: unknown = await withAbortableTimeout(
+      () =>
+        this.tempOwner.owner.win.webContents.executeJavaScript(
+          `Array.from(document.querySelectorAll("[data-layout-evidence]"), element => JSON.parse(element.dataset.layoutEvidence))`,
+        ),
+      60_000,
+      "Page layout inspection timed out",
+      this.operationSignal(),
+    );
     return pageExportLayoutEvidenceSchema.parse(value);
   };
 
@@ -223,6 +229,13 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
     }
   }
 
+  private operationSignal(): AbortSignal {
+    return AbortSignal.any([
+      this.cancellation.signal,
+      this.tempOwner.owner.crashSignal,
+    ]);
+  }
+
   private async render(
     page: MangaPage,
     transparentBackground: boolean,
@@ -234,17 +247,33 @@ class ManagedPageExportRenderSession implements PageExportRenderSession {
       throw new Error("Page export session is already rendering.");
     this.active = true;
     this.lastRenderFailure = null;
-    try {
-      return await renderPageInSession(
+    const capturePage = () => {
+      if (this.tempOwner.owner.crashSignal.aborted) {
+        const previousWindow = this.tempOwner.owner.win;
+        this.tempOwner.owner = createExportWindow(
+          this.options.lowPriority === true,
+        );
+        if (!previousWindow.isDestroyed()) previousWindow.destroy();
+      }
+      return renderPageInSession(
         page,
         this.options,
         this.tempOwner.directory,
         this.tempOwner.owner,
-        this.cancellation.signal,
+        this.operationSignal(),
         transparentBackground,
         captureOptions,
         capture,
       );
+    };
+    try {
+      try {
+        return await capturePage();
+      } catch (error) {
+        this.cancellation.signal.throwIfAborted();
+        if (!this.tempOwner.owner.crashSignal.aborted) throw error;
+        return await capturePage();
+      }
     } catch (error) {
       this.lastRenderFailure = { error };
       throw error;
@@ -293,6 +322,7 @@ export async function renderPageWithTranslationBlocksForExport(
 
 function createExportWindow(lowPriority = false): {
   win: BrowserWindow;
+  crashSignal: AbortSignal;
   setAllowedHtmlUrl: (url: string | null) => void;
 } {
   let allowedHtmlUrl: string | null = null;
@@ -313,6 +343,10 @@ function createExportWindow(lowPriority = false): {
       allowRunningInsecureContent: false,
     },
   });
+  const crash = new AbortController();
+  observeRendererCrash(win, "page-export", (detail) =>
+    crash.abort(new Error(detail)),
+  );
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.webContents.on("will-navigate", (event, url) => {
     if (url !== allowedHtmlUrl) event.preventDefault();
@@ -333,6 +367,7 @@ function createExportWindow(lowPriority = false): {
   }
   return {
     win,
+    crashSignal: crash.signal,
     setAllowedHtmlUrl: (url) => {
       allowedHtmlUrl = url;
     },

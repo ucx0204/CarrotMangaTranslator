@@ -2,7 +2,7 @@ import { shell } from "electron";
 import { mkdir, rm, stat } from "node:fs/promises";
 import type { ChapterSnapshot, LibraryIndex } from "../../shared/libraryTypes";
 import { listLibrary, openChapter } from "../library/libraryReadFacade";
-import { logError } from "../logger";
+import { logOutputFailure } from "../outputFailureLog";
 import {
   createPageExportRenderSession,
   type PageExportRenderSession,
@@ -22,13 +22,19 @@ type PageImageExportRenderPort = {
   }) => Promise<PageExportRenderSession>;
 };
 
+type WriteExportFile = (
+  path: string,
+  content: Buffer,
+  signal?: AbortSignal,
+) => Promise<void>;
+
 export type PageImageExportRuntimePort = {
   createDirectory: (path: string, recursive?: boolean) => Promise<void>;
   removeDirectory: (path: string) => Promise<void>;
-  writePng: (path: string, content: Buffer) => Promise<void>;
-  writeImage?: (path: string, content: Buffer) => Promise<void>;
+  writePng: WriteExportFile;
+  writeImage?: WriteExportFile;
   fileExists?: (path: string) => Promise<boolean>;
-  writePsd?: (path: string, content: Buffer) => Promise<void>;
+  writePsd?: WriteExportFile;
   openDirectory: (path: string) => Promise<string>;
   createTimestamp: () => string;
 };
@@ -60,15 +66,9 @@ export const productionPageImageExportDependencies: PageImageExportDependencies 
       async removeDirectory(path) {
         await rm(path, { recursive: true, force: true });
       },
-      async writePng(path, content) {
-        await writeBinaryFileAtomically(path, content);
-      },
-      async writeImage(path, content) {
-        await writeBinaryFileAtomically(path, content);
-      },
-      async writePsd(path, content) {
-        await writeBinaryFileAtomically(path, content);
-      },
+      writePng: writeExportFile,
+      writeImage: writeExportFile,
+      writePsd: writeExportFile,
       async fileExists(path) {
         try {
           await stat(path);
@@ -88,6 +88,14 @@ export const productionPageImageExportDependencies: PageImageExportDependencies 
       createTimestamp: () => new Date().toISOString().replace(/[:.]/g, "-"),
     },
     logger: {
-      error: logError,
+      error: logOutputFailure,
     },
   };
+
+function writeExportFile(
+  path: string,
+  content: Buffer,
+  signal?: AbortSignal,
+): Promise<void> {
+  return writeBinaryFileAtomically(path, content, undefined, { signal });
+}

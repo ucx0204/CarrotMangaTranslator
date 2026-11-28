@@ -3,7 +3,7 @@ import { WarnIcon } from "./ui/icons";
 
 export type TranslationOverwriteWarningProps = {
   title: React.ReactNode;
-  description: React.ReactNode;
+  description?: React.ReactNode;
 };
 
 export function TranslationOverwriteWarning({
@@ -15,7 +15,7 @@ export function TranslationOverwriteWarning({
       <WarnIcon size={16} aria-hidden="true" />
       <div>
         <strong>{title}</strong>
-        <span>{description}</span>
+        {description && <span>{description}</span>}
       </div>
     </div>
   );

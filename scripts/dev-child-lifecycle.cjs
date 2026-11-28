@@ -98,12 +98,15 @@ function isChildRunning(child) {
 /**
  * Only an explicit request followed by a clean exit may replace Electron.
  * @param {import("node:events").EventEmitter} child
+ * @param {() => void} [requestRendererRecovery]
  * @returns {(code: number | null, signal: NodeJS.Signals | null) => boolean}
  */
-function watchDevRelaunch(child) {
+function watchDevRelaunch(child, requestRendererRecovery) {
   let requested = false;
   child.on("message", (message) => {
-    if (message?.type === "mgt:dev-relaunch") requested = true;
+    if (message?.type !== "mgt:dev-relaunch") return;
+    requested = true;
+    if (message.rendererRecovery === true) requestRendererRecovery?.();
   });
   return (code, signal) => {
     const relaunch = requested && code === 0 && signal === null;

@@ -878,8 +878,7 @@
     "context": "頁面：{{pageName}}（{{count}}個文字區塊）",
     "keepBlocksHint": "保留目前文字區塊的區域和格式，只重新填入各區域的文字。",
     "autoBlocksHint": "刪除所有現有文字區塊並自動偵測新文字區塊。",
-    "overwriteTitle": "既有結果將儲存為檢查點",
-    "overwriteWarning": "重新翻譯後，在工作區復原一次即可還原先前的譯文與手動修改。"
+    "overwriteTitle": "既有結果將儲存為檢查點"
   },
   "translateSource": {
     "title": "新增原稿",
@@ -3638,9 +3637,6 @@
       "offline_access": "下次啟動時保留授權"
     }
   },
-  "ocrRecommendation": {
-    "settingsHint": "可在設定中變更 OCR 引擎。"
-  },
   "batchEditorCopy": {
     "action": "操作",
     "checkOnly": "僅檢查",
@@ -3998,8 +3994,6 @@
     "rules": "{{p0}} 規則",
     "sequence": "{{p0}} · 連續執行",
     "confirmChangesToExistingValues": "確認變更現有值：{{p0}}",
-    "steps": "{{p0}} 個步驟",
-    "pagesStepsStepTasks": "{{p0}} 頁 × {{p1}} 步 = {{p2}} 項步驟工作",
     "inspectionSummary": "符合 {{count}} · 僅檢查，不變更值。",
     "changeSummary": "符合 {{matched}} · 變更 {{changed}} · 無變化 {{unchanged}}",
     "selectedCount": "已選 {{count}} 項",

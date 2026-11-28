@@ -101,6 +101,7 @@ type ServiceOptions = {
   decodeImage: ImageDecodeFallback;
   getMainWindow: () => BrowserWindow | null;
   reportError: (message: string, detail?: unknown) => void;
+  reportOutputFailure?: (message: string, detail?: unknown) => void;
   dependencies: ServiceDependencies;
 };
 
@@ -1365,8 +1366,11 @@ export class LinkedWorkspaceSyncService {
           : {}),
     });
     this.assertGeneration(generation);
-    await writeBinaryFileAtomically(prepared.output.path, content, () =>
-      this.assertGeneration(generation),
+    await writeBinaryFileAtomically(
+      prepared.output.path,
+      content,
+      undefined,
+      this.publicationForGeneration(generation),
     );
     return { ...prepared, content };
   }
@@ -1519,8 +1523,11 @@ export class LinkedWorkspaceSyncService {
           targetPath,
         }))
       ) {
-        await copyFileAtomically(page.inpaintedImagePath, targetPath, () =>
-          this.assertGeneration(generation),
+        await copyFileAtomically(
+          page.inpaintedImagePath,
+          targetPath,
+          undefined,
+          this.publicationForGeneration(generation),
         );
         this.assertGeneration(generation);
         next.inpainted = {
@@ -1558,8 +1565,11 @@ export class LinkedWorkspaceSyncService {
           targetPath,
         }))
       ) {
-        await copyFileAtomically(page.inpaintMaskPath, targetPath, () =>
-          this.assertGeneration(generation),
+        await copyFileAtomically(
+          page.inpaintMaskPath,
+          targetPath,
+          undefined,
+          this.publicationForGeneration(generation),
         );
         this.assertGeneration(generation);
         next.mask = {
@@ -2047,17 +2057,24 @@ export class LinkedWorkspaceSyncService {
     }
   }
 
+  private publicationForGeneration(generation: number) {
+    return { beforeAttempt: async () => this.assertGeneration(generation) };
+  }
+
   private registerFailure(item: LinkedSyncQueueItemV1, error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
     this.lastErrors.set(item.connectionId, message);
     item.attempts += 1;
-    this.options.reportError("Linked workspace page sync failed", {
-      connectionId: item.connectionId,
-      chapterId: item.chapterId,
-      pageId: item.pageId,
-      attempt: item.attempts,
-      error,
-    });
+    (this.options.reportOutputFailure ?? this.options.reportError)(
+      "Linked workspace page sync failed",
+      {
+        connectionId: item.connectionId,
+        chapterId: item.chapterId,
+        pageId: item.pageId,
+        attempt: item.attempts,
+        error,
+      },
+    );
     item.nextRetryAt =
       item.attempts >= RETRY_DELAYS_MS.length
         ? Number.MAX_SAFE_INTEGER

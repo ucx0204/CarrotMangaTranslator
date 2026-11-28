@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { rendererSessionDirectory } from "./bootstrapGraphicsGpu";
 
 export type PackagedElectronStoragePaths = {
   userDataDir: string;
@@ -11,7 +12,9 @@ export function resolvePackagedElectronStoragePaths(
   dataRoot: string,
 ): PackagedElectronStoragePaths {
   const userDataDir = join(dataRoot, "electron-user-data");
-  const sessionDataDir = join(dataRoot, "electron-session");
+  const sessionDataDir = rendererSessionDirectory(
+    join(dataRoot, "electron-session"),
+  );
   const tempDir = join(dataRoot, "tmp", "system-temp");
   return {
     userDataDir,

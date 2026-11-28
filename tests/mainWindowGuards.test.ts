@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { join } from "node:path";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 
 type Listener = (...args: unknown[]) => void;
@@ -29,6 +31,7 @@ class FakeBrowserWindow {
       },
     ),
     isDestroyed: vi.fn(() => false),
+    isCrashed: vi.fn(() => false),
   };
 
   constructor(options: unknown) {
@@ -51,24 +54,29 @@ describe("main window navigation guards", () => {
     process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
     const { createMainWindow } = await loadMainWindowModule();
     const onRendererIncident = vi.fn();
+    const onRendererFailure = vi.fn();
+    const diagnostics = createDiagnostics();
 
-    createMainWindow({ onRendererIncident }, createDiagnostics());
+    createMainWindow({ onRendererIncident, onRendererFailure }, diagnostics);
     latestWindow?.listeners.get("render-process-gone")?.(
       {},
-      { reason: "crashed", exitCode: 9 },
+      { reason: "crashed", exitCode: -2147483645 },
     );
-    expect(onRendererIncident).toHaveBeenCalledWith({
-      source: "renderer-process",
-      summary: "Renderer process stopped unexpectedly",
-      message: "Renderer process terminated: crashed (exit 9)",
-    });
+    expect(onRendererFailure).toHaveBeenCalledWith(
+      "main: crashed (exit -2147483645)",
+    );
+    expect(diagnostics.error).toHaveBeenCalledWith(
+      "Renderer process gone",
+      expect.objectContaining({ role: "main" }),
+    );
+    expect(onRendererIncident).not.toHaveBeenCalled();
 
     latestWindow?.listeners.get("window:unresponsive")?.();
     await vi.advanceTimersByTimeAsync(4_999);
-    expect(onRendererIncident).toHaveBeenCalledTimes(1);
+    expect(onRendererIncident).not.toHaveBeenCalled();
     latestWindow?.listeners.get("window:responsive")?.();
     await vi.advanceTimersByTimeAsync(1);
-    expect(onRendererIncident).toHaveBeenCalledTimes(1);
+    expect(onRendererIncident).not.toHaveBeenCalled();
 
     latestWindow?.listeners.get("window:unresponsive")?.();
     await vi.advanceTimersByTimeAsync(5_000);
@@ -82,19 +90,58 @@ describe("main window navigation guards", () => {
   it("surfaces only main-frame renderer load failures", async () => {
     process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
     const { createMainWindow } = await loadMainWindowModule();
-    const onRendererLoadFailure = vi.fn();
+    const onRendererFailure = vi.fn();
 
-    createMainWindow({ onRendererLoadFailure }, createDiagnostics());
+    createMainWindow({ onRendererFailure }, createDiagnostics());
     const listener = latestWindow?.listeners.get("did-fail-load");
     listener?.({}, -7, "Timed out", "http://localhost:5173/", false);
     listener?.({}, -3, "Aborted", "http://localhost:5173/", true);
-    expect(onRendererLoadFailure).not.toHaveBeenCalled();
+    expect(onRendererFailure).not.toHaveBeenCalled();
     listener?.({}, -105, "Name not resolved", "http://localhost:5173/", true);
-    expect(onRendererLoadFailure).toHaveBeenCalledWith({
-      errorCode: -105,
-      errorDescription: "Name not resolved",
-      validatedURL: "http://localhost:5173/",
-    });
+    expect(onRendererFailure).toHaveBeenCalledWith(
+      "main: Name not resolved (-105)\nhttp://localhost:5173/",
+    );
+  });
+
+  it("routes rejected navigations to recovery and ignores superseded or closed windows", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "carrot-navigation-"));
+    vi.stubEnv("MANGA_TRANSLATOR_LOG_PATH", join(dir, "app.log"));
+    try {
+      const {
+        createMainWindow,
+        resolveRendererLoadTarget,
+        loadRendererIntoWindow,
+      } = await loadMainWindowModule();
+      const window = createMainWindow({}, createDiagnostics());
+      const fake = latestWindow;
+      if (!fake) throw new Error("Expected an editor window");
+      const target = resolveRendererLoadTarget();
+      const onFailure = vi.fn();
+      fake.loadFile.mockRejectedValueOnce(new Error("Missing renderer page"));
+      loadRendererIntoWindow(window, target, "error-report", onFailure);
+      await vi.waitFor(() =>
+        expect(onFailure).toHaveBeenCalledExactlyOnceWith(
+          "Missing renderer page",
+        ),
+      );
+      const dev = { ...target, devRendererUrl: "http://localhost:5173/" };
+      fake.loadURL.mockRejectedValueOnce(
+        Object.assign(new Error("Aborted"), { code: "ERR_ABORTED" }),
+      );
+      loadRendererIntoWindow(window, dev, "error-report", onFailure);
+      expect(fake.loadURL).toHaveBeenCalledWith(
+        "http://localhost:5173/#error-report",
+      );
+      await Promise.resolve();
+      fake.isDestroyed.mockReturnValue(true);
+      fake.loadFile.mockRejectedValueOnce(new Error("Window closed"));
+      loadRendererIntoWindow(window, target, undefined, onFailure);
+      await Promise.resolve();
+      expect(onFailure).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("denies renderer-created windows and blocks external navigation", async () => {

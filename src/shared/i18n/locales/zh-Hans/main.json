@@ -18,6 +18,9 @@
     "stableAboutDetail": "Carrot Manga Translator"
   },
   "errorReport": {
+    "recoveryMessage": "请以恢复模式重新启动。",
+    "restartRecovery": "以恢复模式重新启动",
+    "close": "关闭",
     "loadFailureTitle": "无法加载应用窗口",
     "loadFailureMessage": "渲染器无法启动。请在 GitHub 报告问题或检查日志。",
     "openIssues": "打开 GitHub Issues",

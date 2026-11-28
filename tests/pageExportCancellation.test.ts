@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -24,13 +24,23 @@ function reply<T>(stage: string, value: T): Promise<T> {
 }
 
 class ExportWindow {
+  isDestroyed = () => false;
+  private listeners = new Map<string, (...args: unknown[]) => void>();
+  crash() {
+    this.listeners.get("render-process-gone")?.(
+      {},
+      { reason: "crashed", exitCode: -2147483645 },
+    );
+  }
   loadedPath = "";
   backgroundCalls = 0;
   destroy = vi.fn();
   setContentSize = vi.fn();
   webContents = {
     setWindowOpenHandler: vi.fn(),
-    on: vi.fn(),
+    on: vi.fn((event: string, listener: (...args: unknown[]) => void) =>
+      this.listeners.set(event, listener),
+    ),
     executeJavaScript: vi.fn(() => reply("render-readiness", size)),
     debugger: {
       isAttached: () => false,
@@ -60,6 +70,7 @@ beforeEach(async () => {
   vi.resetModules();
   vi.doMock("electron", () => ({ BrowserWindow: ExportWindow }));
   rootDir = await mkdtemp(join(tmpdir(), "mgt-cancel-test-"));
+  vi.stubEnv("MANGA_TRANSLATOR_LOG_PATH", join(rootDir, "app.log"));
   const assets = join(rootDir, "assets");
   await mkdir(assets);
   await Promise.all([
@@ -74,6 +85,7 @@ afterEach(async () => {
   await vi.runAllTimersAsync();
   vi.useRealTimers();
   vi.doUnmock("electron");
+  vi.unstubAllEnvs();
   seen.clear();
   windows.length = 0;
   stalled = "";
@@ -187,6 +199,47 @@ it("prepares actual layout without screenshot capture and keeps the session reus
   expect(seen.has("Page.captureScreenshot")).toBe(true);
   session.close();
   expect(windows[0].destroy).toHaveBeenCalledOnce();
+});
+
+it("retries a crashed output renderer once, propagates a second crash, and can save the next page", async () => {
+  const session = await makeSession();
+  stalled = "render-readiness";
+  const result = session
+    .renderPage(makePage())
+    .catch((error: unknown) => error);
+  await vi.waitFor(() =>
+    expect(windows[0].webContents.executeJavaScript).toHaveBeenCalled(),
+  );
+  windows[0].crash();
+  await vi.waitFor(() =>
+    expect(windows[1]?.webContents.executeJavaScript).toHaveBeenCalled(),
+  );
+  expect(windows[0].destroy).toHaveBeenCalledOnce();
+  windows[1].crash();
+  expect(await result).toMatchObject({
+    message: "page-export: crashed (exit -2147483645)",
+  });
+  expect(windows).toHaveLength(2);
+  stalled = "";
+  expect(await session.renderPage(makePage())).toBeInstanceOf(Buffer);
+  expect(windows).toHaveLength(3);
+  expect(windows[1].destroy).toHaveBeenCalledOnce();
+  expect(await readFile(join(rootDir, "app.log"), "utf8")).toContain(
+    '"role":"page-export"',
+  );
+});
+
+it("finishes the same page on a replacement renderer after one crash", async () => {
+  const session = await makeSession();
+  stalled = "render-readiness";
+  const result = session.renderPage(makePage());
+  await vi.waitFor(() =>
+    expect(windows[0].webContents.executeJavaScript).toHaveBeenCalled(),
+  );
+  stalled = "";
+  windows[0].crash();
+  expect(await result).toBeInstanceOf(Buffer);
+  expect(windows).toHaveLength(2);
 });
 
 it("shares a native batch renderer while preserving page cancellation and final cleanup", async () => {

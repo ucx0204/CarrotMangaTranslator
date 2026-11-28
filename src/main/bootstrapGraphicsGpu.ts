@@ -6,6 +6,13 @@ import {
 } from "../shared/gpuSettings";
 
 export const FORCE_HIGH_PERFORMANCE_GPU_SWITCH = "force_high_performance_gpu";
+export const RENDERER_RECOVERY_ARGUMENT = "--carrot-renderer-recovery";
+
+export function rendererSessionDirectory(normalDirectory: string): string {
+  return process.argv.includes(RENDERER_RECOVERY_ARGUMENT)
+    ? normalDirectory + "-recovery"
+    : normalDirectory;
+}
 
 export function resolveBootstrapSettingsPath(dataRoot: string): string {
   return join(dataRoot, "settings.json");

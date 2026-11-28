@@ -161,10 +161,12 @@ describe("page image export lifetime cleanup", () => {
   it("waits for failed-output cleanup, render-session close, and outer completion", async () => {
     const chapter = makeChapter([makePage("page-1")]);
     const renderGate = createDeferred<Buffer>();
+    const cancel = vi.fn();
     const close = vi.fn();
     const removeDirectory = vi.fn(async () => undefined);
     const dependencies = makeDependencies(chapter, {
       renderPage: () => renderGate.promise,
+      cancel,
       close,
       removeDirectory,
     });
@@ -193,6 +195,7 @@ describe("page image export lifetime cleanup", () => {
     await Promise.resolve();
     expect(cleanupSettled).toBe(false);
     expect(close).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledOnce();
     expect(removeDirectory).not.toHaveBeenCalled();
 
     renderGate.resolve(Buffer.from("png"));
@@ -224,6 +227,40 @@ describe("page image export lifetime cleanup", () => {
 
     expect(context.jobs.current).toBeNull();
     expect(dependencies.runtime.writePng).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes job cancellation through to an output file still being staged", async () => {
+    const chapter = makeChapter([makePage("page-1")]);
+    const context = makeContext();
+    const staged = createDeferred<AbortSignal>();
+    const dependencies = makeDependencies(chapter);
+    dependencies.runtime.writePng = async (_path, _content, signal) => {
+      if (!signal) throw new Error("Missing export cancellation");
+      staged.resolve(signal);
+      await new Promise<void>((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
+      });
+    };
+    const running = exportPageImages(
+      context,
+      requestFor(chapter.id),
+      "C:\\exports",
+      dependencies,
+    );
+    const signal = await Promise.race([
+      staged.promise,
+      running.then(() => {
+        throw new Error("Export finished before staging the output file");
+      }),
+    ]);
+    const active = context.jobs.current;
+    if (!active) throw new Error("Expected an active export");
+    expect(signal).toBe(active.abortController.signal);
+    active.abortController.abort();
+    await expect(running).resolves.toEqual({ status: "cancelled" });
+    expect(context.jobs.current).toBeNull();
   });
 });
 
@@ -268,6 +305,7 @@ function makeDependencies(
   overrides: {
     listLibrary?: () => Promise<LibraryIndex>;
     renderPage?: (page: MangaPage) => Promise<Buffer>;
+    cancel?: () => void;
     close?: () => void;
     removeDirectory?: (path: string) => Promise<void>;
   } = {},
@@ -285,6 +323,7 @@ function makeDependencies(
     renderer: {
       createSession: vi.fn(async () => ({
         renderPage,
+        cancel: overrides.cancel,
         close,
       })),
     },

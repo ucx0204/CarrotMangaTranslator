@@ -125,7 +125,8 @@ export async function writeBinaryFileAtomically(
 ): Promise<void> {
   await publishLinkedFileAtomically(
     targetPath,
-    (temporaryPath) => writeFile(temporaryPath, content),
+    (temporaryPath) =>
+      writeFile(temporaryPath, content, { signal: publication?.signal }),
     "자동 저장 폴더의 파일 저장과 임시 파일 정리에 모두 실패했습니다.",
     beforeCommit,
     publication,
@@ -157,7 +158,7 @@ async function publishLinkedFileAtomically(
   const hooks = publication ?? {};
   const temporaryPath = join(
     dirname(targetPath),
-    `.${basename(targetPath)}.${process.pid}.${randomUUID()}.tmp`,
+    `.carrot.${process.pid}.${randomUUID()}.tmp`,
   );
   hooks.signal?.throwIfAborted();
   await hooks.beforePrepare?.(temporaryPath, targetPath);

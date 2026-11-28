@@ -18,6 +18,9 @@
     "stableAboutDetail": "Carrot Manga Translator"
   },
   "errorReport": {
+    "recoveryMessage": "Restart in recovery mode.",
+    "restartRecovery": "Restart in recovery mode",
+    "close": "Close",
     "loadFailureTitle": "Could not load the app window",
     "loadFailureMessage": "The renderer could not start. Report the problem on GitHub or inspect the logs.",
     "openIssues": "Open GitHub Issues",

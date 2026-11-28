@@ -878,8 +878,7 @@
     "context": "ページ: {{pageName}}（{{count}}ブロック）",
     "keepBlocksHint": "現在のブロック領域と書式を保ち、各領域のテキストだけを入れ直します。",
     "autoBlocksHint": "既存のブロックをすべて削除し、自動検出で新しいブロックを作成します。",
-    "overwriteTitle": "既存結果をチェックポイントとして保存します",
-    "overwriteWarning": "再翻訳後、ワークスペースで一度元に戻すと以前の翻訳と手動編集を復元できます。"
+    "overwriteTitle": "既存結果をチェックポイントとして保存します"
   },
   "translateSource": {
     "title": "新しい原稿を追加",
@@ -3638,9 +3637,6 @@
       "offline_access": "次回起動時も承認を維持"
     }
   },
-  "ocrRecommendation": {
-    "settingsHint": "OCRエンジンは設定で変更できます。"
-  },
   "batchEditorCopy": {
     "action": "操作",
     "checkOnly": "検査のみ",
@@ -3998,8 +3994,6 @@
     "rules": "{{p0}}のルール",
     "sequence": "{{p0}} · 連続実行",
     "confirmChangesToExistingValues": "既存の値の変更確認：{{p0}}",
-    "steps": "{{p0}}ステップ",
-    "pagesStepsStepTasks": "{{p0}}ページ × {{p1}}ステップ = {{p2}}件の処理",
     "inspectionSummary": "条件一致 {{count}} · 確認のみで値は変更しません。",
     "changeSummary": "条件一致 {{matched}} · 変更 {{changed}} · 変更なし {{unchanged}}",
     "selectedCount": "{{count}}個選択",

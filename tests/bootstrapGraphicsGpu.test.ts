@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   FORCE_HIGH_PERFORMANCE_GPU_SWITCH,
+  RENDERER_RECOVERY_ARGUMENT,
   parseBootstrapGraphicsGpuPreference,
   readBootstrapGraphicsGpuPreference,
   resolveBootstrapGraphicsGpuPreference,
@@ -11,6 +12,7 @@ import {
   resolveBootstrapSettingsPath,
   resolveGraphicsGpuSwitch,
 } from "../src/main/bootstrapGraphicsGpu";
+import { resolvePackagedElectronStoragePaths } from "../src/main/electronStoragePaths";
 
 const tempDirs: string[] = [];
 
@@ -21,6 +23,22 @@ afterEach(() => {
 });
 
 describe("bootstrap graphics GPU preference", () => {
+  it("isolates the recovery Chromium session and cache while keeping the same application identity", () => {
+    const argv = process.argv;
+    const normal = resolvePackagedElectronStoragePaths("data");
+    try {
+      process.argv = [...argv, RENDERER_RECOVERY_ARGUMENT];
+      const recovery = resolvePackagedElectronStoragePaths("data");
+      expect(recovery.userDataDir).toBe(normal.userDataDir);
+      expect(recovery.sessionDataDir).not.toBe(normal.sessionDataDir);
+      expect(recovery.diskCacheDir).toBe(
+        join(recovery.sessionDataDir, "Cache"),
+      );
+    } finally {
+      process.argv = argv;
+    }
+    expect(resolvePackagedElectronStoragePaths("data")).toEqual(normal);
+  });
   it("reads only the persisted hardware graphics preference", () => {
     expect(
       resolveBootstrapGraphicsGpuPreference({

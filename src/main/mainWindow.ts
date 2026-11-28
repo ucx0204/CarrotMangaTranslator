@@ -8,15 +8,9 @@ import type { ErrorReportContext } from "../shared/errorReportTypes";
 
 export const UNRESPONSIVE_REPORT_DELAY_MS = 5_000;
 
-export type RendererLoadFailure = {
-  errorCode: number;
-  errorDescription: string;
-  validatedURL: string;
-};
-
 export type MainWindowIncidentHandlers = {
   onRendererIncident?: (context: ErrorReportContext) => void;
-  onRendererLoadFailure?: (failure: RendererLoadFailure) => void;
+  onRendererFailure?: (detail: string) => void;
 };
 
 export type MainWindowDiagnostics = {
@@ -115,17 +109,26 @@ export function loadRendererIntoWindow(
   window: BrowserWindow,
   target: RendererLoadTarget,
   hash?: string,
+  onLoadError?: (detail: string) => void,
 ): void {
-  if (target.devRendererUrl) {
-    void window.loadURL(
-      hash ? `${target.devRendererUrl}#${hash}` : target.devRendererUrl,
-    );
-  } else {
-    void window.loadFile(
-      target.productionRendererPath,
-      hash ? { hash } : undefined,
-    );
-  }
+  const load = target.devRendererUrl
+    ? window.loadURL(
+        hash ? `${target.devRendererUrl}#${hash}` : target.devRendererUrl,
+      )
+    : window.loadFile(
+        target.productionRendererPath,
+        hash ? { hash } : undefined,
+      );
+  void load.catch((error: NodeJS.ErrnoException) => {
+    if (
+      window.isDestroyed() ||
+      error.code === "ERR_ABORTED" ||
+      error.errno === -3
+    )
+      return;
+    logError("Renderer navigation failed", { role: hash ?? "main", error });
+    onLoadError?.(error.message);
+  });
 }
 
 export function createMainWindow(
@@ -150,29 +153,23 @@ export function createMainWindow(
   if (process.platform !== "darwin") {
     window.setMenuBarVisibility(false);
   }
-  loadRendererIntoWindow(window, target);
+  loadRendererIntoWindow(
+    window,
+    target,
+    undefined,
+    incidentHandlers.onRendererFailure,
+  );
   return window;
 }
 
 function applyMainWindowIncidentHandlers(
   window: BrowserWindow,
-  { onRendererIncident, onRendererLoadFailure }: MainWindowIncidentHandlers,
+  { onRendererIncident, onRendererFailure }: MainWindowIncidentHandlers,
   diagnostics: MainWindowDiagnostics,
 ): void {
   let unresponsiveTimer: ReturnType<typeof setTimeout> | null = null;
 
-  window.webContents.on("render-process-gone", (_event, details) => {
-    if (details.reason === "clean-exit") {
-      return;
-    }
-    const message = `Renderer process terminated: ${details.reason} (exit ${details.exitCode})`;
-    diagnostics.error("Renderer process gone", details);
-    onRendererIncident?.({
-      source: "renderer-process",
-      summary: "Renderer process stopped unexpectedly",
-      message,
-    });
-  });
+  observeRendererFailure(window, "main", onRendererFailure, diagnostics);
 
   window.on("unresponsive", () => {
     if (unresponsiveTimer) {
@@ -181,7 +178,7 @@ function applyMainWindowIncidentHandlers(
     diagnostics.write("warn", "Renderer window became unresponsive");
     unresponsiveTimer = setTimeout(() => {
       unresponsiveTimer = null;
-      if (window.isDestroyed()) {
+      if (window.isDestroyed() || window.webContents.isCrashed()) {
         return;
       }
       onRendererIncident?.({
@@ -206,20 +203,44 @@ function applyMainWindowIncidentHandlers(
       unresponsiveTimer = null;
     }
   });
+}
 
+export function observeRendererFailure(
+  window: BrowserWindow,
+  role: "main" | "error-report",
+  onFailure?: (detail: string) => void,
+  diagnostics: MainWindowDiagnostics = productionDiagnostics,
+): void {
+  observeRendererCrash(window, role, onFailure, diagnostics);
   window.webContents.on(
     "did-fail-load",
     (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
       if (isMainFrame === false || errorCode === -3) {
         return;
       }
-      onRendererLoadFailure?.({
-        errorCode,
-        errorDescription,
-        validatedURL,
-      });
+      onFailure?.(
+        `${role}: ${errorDescription} (${errorCode})\n${validatedURL}`,
+      );
     },
   );
+}
+
+export function observeRendererCrash(
+  window: BrowserWindow,
+  role: "main" | "error-report" | "page-export",
+  onFailure?: (detail: string) => void,
+  diagnostics: MainWindowDiagnostics = productionDiagnostics,
+): void {
+  window.webContents.on("render-process-gone", (_event, details) => {
+    if (details.reason === "clean-exit" || window.isDestroyed()) return;
+    diagnostics.error("Renderer process gone", {
+      role,
+      windowId: window.id,
+      webContentsId: window.webContents.id,
+      ...details,
+    });
+    onFailure?.(`${role}: ${details.reason} (exit ${details.exitCode})`);
+  });
 }
 
 function resolveWindowIconPath(): string | null {
